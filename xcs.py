@@ -16,15 +16,41 @@
 # Licence:      Revised (3 Clause) BSD License
 # -------------------------------------------------------------------------------
 
+"""
+xcs.py
+(c) Aaron Hosford 2015, all rights reserved
+Revised BSD License
+
+Implements the XCS (Accuracy-based Classifier System) algorithm,
+roughly according to the description provided in the paper, "An
+Algorithmic Description of XCS," by Martin Butz and Stewart Wilson.
+
+Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
+    Stolzmann, W., and Wilson, S., editors, Advances in Learning Classifier Systems:
+    Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in
+    Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
+"""
+
 import numpy
 import random
 from abc import ABCMeta, abstractmethod
 
 
 class BitString:
+    """A hashable, immutable sequence of bits (Boolean values).
+
+    In addition to operations for indexing and iteration, implements standard bitwise operations, including & (bitwise
+    and), | (bitwise or), ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator, which acts like string
+    concatenation.
+
+    A bit string can also be cast as an integer or an ordinary string.
+    """
 
     @classmethod
     def from_int(cls, value, length=None):
+        """Create a bit string from an integer value. If the length parameter is provided, it determines the number of
+        bits in the bit string. Otherwise, the minimum length required to represent the value is used."""
+
         bits = []
         while value:
             if length is not None and len(bits) >= length:
@@ -63,6 +89,7 @@ class BitString:
 
     @property
     def bits(self):
+        """The numpy array containing the actual bits of the bit string. Note that the array is immutable."""
         # Safe because we use immutable bit arrays
         return self._bits
 
@@ -142,9 +169,14 @@ class BitString:
 
 
 class BitCondition:
+    """A pair of bit strings, one indicating the bit values, and the other indicating the bit mask, which together act
+    as a matching template for bit strings. Like bit strings, bit conditions are hashable and immutable."""
 
     @classmethod
     def cover(cls, bits, wildcard_probability):
+        """Create a new bit condition that matches the provided bit string, with the indicated per-index wildcard
+         probability."""
+
         if not isinstance(bits, BitString):
             bits = BitString(bits)
 
@@ -169,10 +201,14 @@ class BitCondition:
 
     @property
     def bits(self):
+        """The bit string indicating the bit values of this bit condition. Indices that are wildcarded will have a
+        value of False."""
         return self._bits
 
     @property
     def mask(self):
+        """The bit string indicating the bit mask. A value of True for a bit indicates it must match the value bit
+        string. A value of False indicates it is masked/wildcarded."""
         return self._mask
 
     def __str__(self):
@@ -243,8 +279,14 @@ class BitCondition:
         return not mismatches.bits.any()
 
     def crossover_with(self, other):
+        """Perform 2-point crossover on this bit condition and another of the same length, returning the two resulting
+        children."""
+
         if not isinstance(other, BitCondition):
             raise TypeError(other)
+        if len(self) != len(other):
+            raise ValueError(other)
+
         # TODO: Revamp this to take advantage of numpy array speeds
 
         point1 = random.randrange(len(self._bits))
@@ -266,6 +308,7 @@ class BitCondition:
 
 
 class RuleMetadata:
+    """Metadata used by the XCS algorithm to track the rules (classifiers) in a population."""
 
     def __init__(self, time_stamp, parameters):
         self.time_stamp = time_stamp
@@ -282,24 +325,28 @@ class RuleMetadata:
 
 
 class ActionSet:
+    """A set of rules (classifiers) with the same action that matched the same situation."""
 
-    def __init__(self, action, rules, classifier_set):
+    def __init__(self, action, rules, population):
         self._action = action
         self._rules = rules  # {condition : metadata}
         self._prediction = None
-        self._classifier_set = classifier_set
-        self._parameters = classifier_set.parameters
+        self._population = population
+        self._parameters = population.parameters
 
     @property
     def action(self):
+        """The action shared by the matching rules."""
         return self._action
 
     @property
-    def classifier_set(self):
-        return self._classifier_set
+    def population(self):
+        """The population from which the action set was taken."""
+        return self._population
 
     @property
     def prediction(self):
+        """The predicted payoff for this action set."""
         if self._prediction is None:
             total_fitness = 0
             total_prediction = 0
@@ -310,6 +357,7 @@ class ActionSet:
         return self._prediction
 
     def _update_fitness(self):
+        """Update the fitness of the rules belonging to this action set."""
         total_accuracy = 0
         accuracies = {}
         for condition, metadata in self._rules.items():
@@ -330,6 +378,7 @@ class ActionSet:
             )
 
     def update(self, payoff):
+        """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
         action_set_size = sum(metadata.numerosity for metadata in self._rules.values())
         for metadata in self._rules.values():
             metadata.experience += 1
@@ -344,16 +393,20 @@ class ActionSet:
             pass  # TODO: DO ACTION SET SUBSUMPTION
 
     def get_average_time_stamp(self):
+        """Return the average time stamp for the rules in this action set."""
         return (
             sum(metadata.time_stamp * metadata.numerosity for metadata in self._rules.values()) /
             sum(metadata.numerosity for metadata in self._rules.values())
         )
 
-    def set_timestamps(self, timestamp):
+    def set_timestamps(self, time_stamp):
+        """Set the time stamp of each rule in this action set to the given value."""
         for metadata in self._rules.values():
-            metadata.timestamp = timestamp
+            metadata.time_stamp = time_stamp
 
     def select_parent(self):
+        """Select a rule from this action set, with probability proportionate to its fitness, to act as a parent for a
+        new rule in the population. Return its bit condition."""
         total_fitness = sum(metadata.fitness for metadata in self._rules.values())
         selector = random.uniform(0, total_fitness)
         for condition, metadata in self._rules.items():
@@ -364,11 +417,16 @@ class ActionSet:
 
 
 class MatchSet:
+    """A collection of coincident action sets."""
 
     def __init__(self, action_sets):
         self._action_sets = {action_set.action: action_set for action_set in action_sets}
 
     def select_action_set(self, explore=False):
+        """Select an action set from among those belonging to this match set. If the explore parameter is provided, it
+        is used as the probability of exploration, i.e. uniform action set selection. Otherwise the action set with the
+        best predicted payoff is selected with probability 1."""
+
         if explore and (explore >= 1 or random.random() < explore):
             return random.choice(list(self._action_sets.values()))
         best_prediction = max(action_set.prediction for action_set in self._action_sets.values())
@@ -383,6 +441,8 @@ class MatchSet:
 
 
 class ClassifierSetParameters:
+    """The parameters used by the XCS algorithm. For a detailed explanation of each parameter, please see the original
+    paper by Martin Butz and Stewart Wilson."""
 
     max_population_size = 200                   # N
     learning_rate = .15                         # beta
@@ -411,6 +471,7 @@ class ClassifierSetParameters:
 
 
 class Population:
+    """A set of rules (classifiers), together with their associated metadata."""
 
     def __init__(self, parameters):
         self._population = {}
@@ -419,9 +480,13 @@ class Population:
 
     @property
     def parameters(self):
+        """The parameter settings used by this population."""
         return self._parameters
 
     def get_match_set(self, situation):
+        """Accept a situation, encoded as a bit string. Return the set of matching rules (classifiers) for the given
+        situation."""
+
         if not isinstance(situation, (BitString, BitCondition)):
             raise TypeError(situation)
 
@@ -444,6 +509,7 @@ class Population:
         return MatchSet(ActionSet(action, rules, self) for action, rules in by_action.items())
 
     def add(self, condition, action, metadata):
+        """Add a new rule to the population."""
         if condition not in self._population:
             self._population[condition] = {}
         if action in self._population[condition]:
@@ -452,12 +518,18 @@ class Population:
             self._population[condition][action] = metadata
 
     def subsume(self, general_condition, specific_condition, action):
+        """NOTE: THIS IS NOT IMPLEMENTED YET.
+        Determine whether the more specific condition can be subsumed by the more general one. If so, remove the
+        specific condition and add its numerosity to the general condition."""
         if not general_condition(specific_condition):
             return
 
         # TODO: DO ACTION SET SUBSUMPTION
 
     def cover(self, situation, existing_actions):
+        """Create a new rule that matches the given situation and return it. Preferentially choose an action that is
+        not present in the existing actions, if possible."""
+
         condition = BitCondition.cover(situation, self._parameters.wildcard_probability)
         action_candidates = ((set(existing_actions) - self._parameters.possible_actions) or
                              self._parameters.possible_actions)
@@ -466,6 +538,10 @@ class Population:
         return condition, action, metadata
 
     def mutate(self, condition, situation):
+        """Create a new condition from the given one by probabilistically applying point-wise mutations. Bits that were
+        originally wildcarded in the parent condition acquire their values from the provided situation, to ensure the
+        child condition continues to match it."""
+
         # TODO: Revamp to take advantage of numpy array speeds
 
         bits = []
@@ -486,11 +562,16 @@ class Population:
         return BitCondition(bits, mask)
 
     def get_metadata(self, condition, action):
+        """Return the metadata associated with the given rule (classifier)."""
+
         if condition not in self._population or action not in self._population[condition]:
             return None
         return self._population[condition][action]
 
     def run_ga(self, action_set, situation):
+        """Update the time stamp. If sufficient time has passed, apply the genetic algorithm's operators to update the
+         population."""
+
         self._time_stamp += 1
         if self._time_stamp - action_set.get_average_time_stamp() <= self._parameters.GA_threshold:
             return
@@ -549,6 +630,9 @@ class Population:
         self.prune()
 
     def prune(self):
+        """Reduce the population size, if necessary, to ensure that it does not exceed the maximum population size set
+        out in the parameters."""
+
         total_numerosity = sum(
             metadata.numerosity
             for actions in self._population.values()
@@ -589,25 +673,35 @@ class Population:
 
 
 class OnLineProblem(metaclass=ABCMeta):
+    """Abstract interface for on-line problems accepted by XCS."""
 
     @abstractmethod
     def get_possible_actions(self):
+        """Return a sequence containing the possible actions that can be executed within the environment."""
         raise NotImplementedError()
 
     @abstractmethod
     def sense(self):
+        """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
         raise NotImplementedError()
 
     @abstractmethod
     def execute(self, action):
+        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
+        reward program."""
         raise NotImplementedError()
 
     @abstractmethod
     def more(self):
+        """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
         raise NotImplementedError()
 
 
 class MUXProblem(OnLineProblem):
+    """Classic multiplexer problem. This problem is static; each action affects only the immediate reward and the
+    environment is stateless. The address size indicates the number of bits used as an address/index into the remaining
+    bits in the situations returned by sense(). The agent is expected to return the value of the indexed bit from the
+    situation."""
 
     def __init__(self, training_cycles=1000, address_size=3):
         self.address_size = address_size
@@ -616,9 +710,11 @@ class MUXProblem(OnLineProblem):
         self.remaining_cycles = training_cycles
 
     def get_possible_actions(self):
+        """Return a sequence containing the possible actions that can be executed within the environment."""
         return self.possible_actions
 
     def sense(self):
+        """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
         self.current_situation = BitString([
             random.randrange(2)
             for _ in range(self.address_size + (1 << self.address_size))
@@ -626,16 +722,21 @@ class MUXProblem(OnLineProblem):
         return self.current_situation
 
     def execute(self, action):
+        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
+        reward program."""
         self.remaining_cycles -= 1
         index = int(BitString(self.current_situation[:self.address_size]))
         bit = self.current_situation[self.address_size + index]
         return action == bit
 
     def more(self):
-        return self.remaining_cycles > 0
+        """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
+        return int(self.remaining_cycles > 0)
 
 
 class ObservedOnLineProblem(OnLineProblem):
+    """Wrapper for other OnLineProblem instances which prints details of the agent/problem interaction as they take
+    place."""
 
     def __init__(self, wrapped):
         self.wrapped = wrapped
@@ -643,6 +744,7 @@ class ObservedOnLineProblem(OnLineProblem):
         self.steps = 0
 
     def get_possible_actions(self):
+        """Return a sequence containing the possible actions that can be executed within the environment."""
         possible_actions = self.wrapped.get_possible_actions()
         try:
             possible_actions = list(set(possible_actions))
@@ -663,6 +765,7 @@ class ObservedOnLineProblem(OnLineProblem):
         return possible_actions
 
     def sense(self):
+        """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
         situation = self.wrapped.sense()
 
         print()
@@ -672,6 +775,8 @@ class ObservedOnLineProblem(OnLineProblem):
         return situation
 
     def execute(self, action):
+        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
+        reward program."""
         print()
         print("Executing action:", action)
 
@@ -686,6 +791,7 @@ class ObservedOnLineProblem(OnLineProblem):
         return reward
 
     def more(self):
+        """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
         more = self.wrapped.more()
 
         print()
@@ -697,6 +803,8 @@ class ObservedOnLineProblem(OnLineProblem):
 
 
 class XCS:
+    """The XCS algorithm. Create the parameters and (optionally) a population, passing them in to initialize the XCS
+    algorithm. Then create a problem instance and pass it to drive()."""
 
     def __init__(self, parameters, population=None):
         self._parameters = parameters
@@ -704,13 +812,17 @@ class XCS:
 
     @property
     def parameters(self):
+        """The parameter settings used by this instance of the XCS algorithm."""
         return self._parameters
 
     @property
     def population(self):
+        """The population used by this instance of the XCS algorithm."""
         return self._population
 
     def drive(self, problem):
+        """The main loop/entry point of the XCS algorithm. Create a problem instance and pass it in to this method to
+        perform the algorithm and optimize the rule set. Problem instances must implement the OnLineProblem interface."""
         previous_situation = None
         previous_reward = 0
         previous_action_set = None
@@ -731,7 +843,8 @@ class XCS:
             self._population.run_ga(previous_action_set, previous_situation)
 
 
-def main():
+def test():
+    """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
     problem = MUXProblem(10000)
     problem = ObservedOnLineProblem(problem)
     parameters = ClassifierSetParameters(problem.get_possible_actions())
@@ -740,4 +853,4 @@ def main():
     xcs.drive(problem)
 
 if __name__ == '__main__':
-    main()
+    test()
