@@ -126,9 +126,40 @@ class ActionSet:
                 (accuracy * metadata.numerosity / total_accuracy - metadata.fitness)
             )
 
+    def _action_set_subsumption(self):
+        """Perform action set subsumption."""
+        selected_condition = None
+        selected_bit_count = None
+        for condition, metadata in self._rules.items():
+            if not (metadata.experience > self._parameters.subsumption_threshold and
+                    metadata.error < self._parameters.error_threshold):
+                continue
+            bit_count = condition.count()
+            if (selected_condition is None or
+                    bit_count > selected_bit_count or
+                    (bit_count == selected_bit_count and random.randrange(2))):
+                selected_condition = condition
+                selected_bit_count = bit_count
+
+        if selected_condition is None:
+            return
+
+        selected_metadata = self._rules[selected_condition]
+
+        to_remove = []
+        for condition, metadata in self._rules.items():
+            if selected_condition is not condition and selected_condition(condition):
+                selected_metadata.numerosity += metadata.numerosity
+                self._population.remove(condition, self._action, metadata.numerosity)
+                to_remove.append(condition)
+
+        for condition in to_remove:
+            del self._rules[condition]
+
     def update(self, payoff):
         """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
         action_set_size = sum(metadata.numerosity for metadata in self._rules.values())
+
         for metadata in self._rules.values():
             metadata.experience += 1
 
@@ -137,10 +168,11 @@ class ActionSet:
             metadata.prediction += (payoff - metadata.prediction) * update_rate
             metadata.error += (abs(payoff - metadata.prediction) - metadata.error) * update_rate
             metadata.action_set_size += (action_set_size - metadata.action_set_size) * update_rate
+
         self._update_fitness()
+
         if self._parameters.do_action_set_subsumption:
-            raise NotImplementedError("Action set subsumption has not been implemented yet.")
-            pass  # TODO: DO ACTION SET SUBSUMPTION
+            self._action_set_subsumption()
 
     def get_average_time_stamp(self):
         """Return the average time stamp for the rules in this action set."""
@@ -268,14 +300,17 @@ class Population:
         else:
             self._population[condition][action] = metadata
 
-    def subsume(self, general_condition, specific_condition, action):
-        """NOTE: THIS IS NOT IMPLEMENTED YET.
-        Determine whether the more specific condition can be subsumed by the more general one. If so, remove the
-        specific condition and add its numerosity to the general condition."""
-        if not general_condition(specific_condition):
+    def remove(self, condition, action, count=1):
+        """Remove one or more instances of a rule in the population."""
+        metadata = self.get_metadata(condition, action)
+        if metadata is None:
             return
 
-        # TODO: DO ACTION SET SUBSUMPTION
+        metadata.numerosity -= count
+        if metadata.numerosity <= 0:
+            del self._population[condition][action]
+            if not self._population[condition]:
+                del self._population[condition]
 
     def cover(self, situation, existing_actions):
         """Create a new rule that matches the given situation and return it. Preferentially choose an action that is
@@ -607,6 +642,7 @@ def test():
     parameters = ClassifierSetParameters(problem.get_possible_actions())
     parameters.exploration_probability = .1
     parameters.do_GA_subsumption = True
+    parameters.do_action_set_subsumption = True
     xcs = XCS(parameters)
 
     start_time = time.time()

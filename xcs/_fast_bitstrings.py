@@ -61,8 +61,9 @@ class BitString:
 
     def __init__(self, bits):
         if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
-            # noinspection PyNoneFunctionAssignment
+            # noinspection PyUnresolvedReferences
             if bits.flags.writeable:
+                # noinspection PyNoneFunctionAssignment
                 self._bits = bits.copy()
                 self._bits.writeable = False
             else:
@@ -86,8 +87,12 @@ class BitString:
 #        return self._bits
 
     def any(self):
-        '''Returns True iff at least one bit is set.'''
+        """Returns True iff at least one bit is set."""
         return self._bits.any()
+
+    def count(self):
+        """Returns the number of bits set to True in the bit string."""
+        return int(numpy.count_nonzero(self._bits))
 
     def __str__(self):
         return ''.join('1' if bit else '0' for bit in self._bits)

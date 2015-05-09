@@ -78,8 +78,12 @@ class BitString:
 #        return self._bits
 
     def any(self):
-        '''Returns True iff at least one bit is set.'''
+        """Returns True iff at least one bit is set."""
         return any(self._bits)
+
+    def count(self):
+        """Returns the number of bits set to True in the bit string."""
+        return sum(self._bits)
 
     def __str__(self):
         return ''.join('1' if bit else '0' for bit in self._bits)
