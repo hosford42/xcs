@@ -139,6 +139,7 @@ class ActionSet:
             metadata.action_set_size += (action_set_size - metadata.action_set_size) * update_rate
         self._update_fitness()
         if self._parameters.do_action_set_subsumption:
+            raise NotImplementedError("Action set subsumption has not been implemented yet.")
             pass  # TODO: DO ACTION SET SUBSUMPTION
 
     def get_average_time_stamp(self):
@@ -196,7 +197,7 @@ class ClassifierSetParameters:
     max_population_size = 200                   # N
     learning_rate = .15                         # beta
     accuracy_coefficient = .1                   # alpha
-    error_threshold = .01                       # epsilon_naught
+    error_threshold = .01                       # epsilon_0
     accuracy_power = 5                          # nu
     discount_factor = .71                       # gamma
     GA_threshold = 35                           # theta_GA
@@ -331,6 +332,11 @@ class Population:
         parent1 = action_set.select_parent()
         parent2 = action_set.select_parent()
 
+        parent1_metadata = (self.get_metadata(parent1, action_set.action) or
+                            RuleMetadata(self._time_stamp, self._parameters))
+        parent2_metadata = (self.get_metadata(parent1, action_set.action) or
+                            RuleMetadata(self._time_stamp, self._parameters))
+
         if random.random() < self._parameters.crossover_probability:
             child1, child2 = parent1.crossover_with(parent2)
         else:
@@ -343,9 +349,12 @@ class Population:
         for child in child1, child2:
             if self._parameters.do_GA_subsumption:
                 subsumed = False
-                for parent in parent1, parent2:
-                    if parent(child):
-                        self._population[child][action_set.action].numerosity += 1
+                for parent, metadata in (parent1, parent1_metadata), (parent2, parent2_metadata):
+                    if (metadata.experience > self._parameters.subsumption_threshold and
+                            metadata.error < self._parameters.error_threshold and
+                            parent(child)):
+                        # print(parent, child)
+                        self._population[parent][action_set.action].numerosity += 1
                         subsumed = True
                         break
                 if subsumed:
@@ -361,11 +370,6 @@ class Population:
             new_children.append(child)
 
         if new_children:
-            parent1_metadata = (self.get_metadata(parent1, action_set.action) or
-                                RuleMetadata(self._time_stamp, self._parameters))
-            parent2_metadata = (self.get_metadata(parent1, action_set.action) or
-                                RuleMetadata(self._time_stamp, self._parameters))
-
             prediction = (parent1_metadata.prediction + parent2_metadata.prediction) / 2
             error = (parent1_metadata.error + parent2_metadata.error) / 2
             fitness = (parent1_metadata.fitness + parent2_metadata.fitness) / 2 * .1
@@ -602,6 +606,7 @@ def test():
     problem = ObservedOnLineProblem(problem)
     parameters = ClassifierSetParameters(problem.get_possible_actions())
     parameters.exploration_probability = .1
+    parameters.do_GA_subsumption = True
     xcs = XCS(parameters)
 
     start_time = time.time()

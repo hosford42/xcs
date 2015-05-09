@@ -61,6 +61,7 @@ class BitString:
 
     def __init__(self, bits):
         if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
+            # noinspection PyNoneFunctionAssignment
             if bits.flags.writeable:
                 self._bits = bits.copy()
                 self._bits.writeable = False
