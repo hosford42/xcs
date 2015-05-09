@@ -78,11 +78,15 @@ class BitString:
 
         self._hash = None
 
-    @property
-    def bits(self):
-        """The numpy array containing the actual bits of the bit string. Note that the array is immutable."""
-        # Safe because we use immutable bit arrays
-        return self._bits
+#    @property
+#    def bits(self):
+#        """The numpy array containing the actual bits of the bit string. Note that the array is immutable."""
+#        # Safe because we use immutable bit arrays
+#        return self._bits
+
+    def any(self):
+        '''Returns True iff at least one bit is set.'''
+        return self._bits.any()
 
     def __str__(self):
         return ''.join('1' if bit else '0' for bit in self._bits)

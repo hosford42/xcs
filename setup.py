@@ -46,6 +46,6 @@ setup(
     ],
 
     keywords='xcs accuracy classifier lcs machine learning',
-    modules=['xcs'],
+    packages=['xcs'],
     # install_requires=['numpy'],
 )

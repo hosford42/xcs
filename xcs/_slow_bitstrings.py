@@ -72,10 +72,14 @@ class BitString:
 
         self._hash = None
 
-    @property
-    def bits(self):
-        """The tuple containing the actual bits of the bit string."""
-        return self._bits
+#    @property
+#    def bits(self):
+#        """The tuple containing the actual bits of the bit string."""
+#        return self._bits
+
+    def any(self):
+        '''Returns True iff at least one bit is set.'''
+        return any(self._bits)
 
     def __str__(self):
         return ''.join('1' if bit else '0' for bit in self._bits)

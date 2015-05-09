@@ -145,7 +145,7 @@ class BitCondition:
 
     def __call__(self, other):
         mismatches = self // other
-        return not mismatches.bits.any()
+        return not mismatches.any()
 
     def crossover_with(self, other):
         """Perform 2-point crossover on this bit condition and another of the same length, returning the two resulting

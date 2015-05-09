@@ -251,6 +251,7 @@ class Population:
                         by_action[action] = {condition: rule_metadata}
             if len(by_action) < self._parameters.minimum_actions:
                 condition, action, metadata = self.cover(situation, by_action)
+                assert condition(situation)
                 self.add(condition, action, metadata)
                 self.prune()
                 by_action.clear()
@@ -595,10 +596,18 @@ class XCS:
 
 def test():
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
+    import time
+
     problem = MUXProblem(10000)
     problem = ObservedOnLineProblem(problem)
     parameters = ClassifierSetParameters(problem.get_possible_actions())
     parameters.exploration_probability = .1
     xcs = XCS(parameters)
+
+    start_time = time.time()
+
     xcs.drive(problem)
+
+    end_time = time.time()
+    print("Total time:", end_time - start_time, "seconds")
 
