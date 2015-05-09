@@ -21,6 +21,10 @@ This file is part of the public API of the xcs package.
 """
 
 __author__ = 'Aaron Hosford'
+__all__ = [
+    'BitString',
+    'BitCondition',
+]
 
 import random
 

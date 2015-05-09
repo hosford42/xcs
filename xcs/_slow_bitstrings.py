@@ -18,10 +18,13 @@ Revised BSD License
 Slow bit-string and bit-condition classes, implemented using standard Python
 data types.
 
-This file is part of the xcs package. It is not part of the public API, however.
+This file is part of the xcs package.
 """
 
 __author__ = 'Aaron Hosford'
+__all__ = [
+    'BitString',
+]
 
 
 class BitString:
