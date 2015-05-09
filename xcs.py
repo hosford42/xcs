@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -------------------------------------------------------------------------------
 # Name:     xcs.py
 # Purpose:  Implements the XCS (Accuracy-based Classifier System) algorithm,
@@ -30,6 +31,8 @@ Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
     Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in
     Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
 """
+
+__author__ = 'Aaron Hosford'
 
 import numpy
 import random
@@ -822,7 +825,8 @@ class XCS:
 
     def drive(self, problem):
         """The main loop/entry point of the XCS algorithm. Create a problem instance and pass it in to this method to
-        perform the algorithm and optimize the rule set. Problem instances must implement the OnLineProblem interface."""
+        perform the algorithm and optimize the rule set. Problem instances must implement the OnLineProblem interface.
+        """
         previous_situation = None
         previous_reward = 0
         previous_action_set = None
