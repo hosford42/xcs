@@ -35,16 +35,11 @@ This file is part of the public API of the xcs package.
 
 __author__ = 'Aaron Hosford'
 __all__ = [
-    'BitString',
-    'BitCondition',
     'RuleMetadata',
     'ActionSet',
     'MatchSet',
     'ClassifierSetParameters',
     'Population',
-    'OnLineProblem',
-    'MUXProblem',
-    'ObservedOnLineProblem',
     'XCS',
     'test',
 ]
@@ -53,7 +48,7 @@ import random
 
 # noinspection PyUnresolvedReferences
 from xcs.bitstrings import BitString, BitCondition
-from xcs.problems import OnLineProblem, MUXProblem, ObservedOnLineProblem
+from xcs.problems import MUXProblem, ObservedOnLineProblem
 
 
 class RuleMetadata:
