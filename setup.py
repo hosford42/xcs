@@ -19,7 +19,7 @@ with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
 
 setup(
     name='xcs',
-    version='1.0.0a1',
+    version='1.0.0a2',
     description='XCS (Accuracy-based Classifier System)',
     long_description=long_description,
     url='https://github.com/hosford42/xcs',
