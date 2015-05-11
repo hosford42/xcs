@@ -1,5 +1,5 @@
-Relevant
-========
+Relevant Literature
+===================
 
 [An Algorithmic Description of XCS](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.30.1999&rep=rep1&type=pdf)
 
@@ -13,8 +13,8 @@ Relevant
 	
 
 	
-Potentially Relevant
-====================
+Potentially Relevant Literature
+===============================
 	
 [Anticipatory Learning Classifier Systems and Factored Reinforcement Learning](http://www.isir.upmc.fr/files/abials_olga.pdf)
 
