@@ -35,7 +35,8 @@ from xcs.bitstrings import BitString, BitCondition
 
 
 class OnLineProblem(metaclass=ABCMeta):
-    """Abstract interface for on-line problems accepted by XCS."""
+    """Abstract interface for on-line problems accepted by XCS. To create a new problem to which XCS can be applied,
+    subclass OnLineProblem and implement the methods defined here. See MUXProblem for an example."""
 
     @abstractmethod
     def get_possible_actions(self):
@@ -100,9 +101,13 @@ class MUXProblem(OnLineProblem):
 #       anyone down the road decides to make it compatible, and of giving the client greater control over reporting.
 class ObservedOnLineProblem(OnLineProblem):
     """Wrapper for other OnLineProblem instances which prints details of the agent/problem interaction as they take
-    place."""
+    place, forwarding the actual work on to the wrapped instance."""
 
     def __init__(self, wrapped):
+        # Ensure that the wrapped object implements the same interface
+        if not isinstance(wrapped, OnLineProblem):
+            raise TypeError(wrapped)
+
         self.wrapped = wrapped
         self.reward = 0
         self.steps = 0
@@ -110,6 +115,10 @@ class ObservedOnLineProblem(OnLineProblem):
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
         possible_actions = self.wrapped.get_possible_actions()
+
+        # Try to ensure that the possible actions are unique. Also, put them into a list so we can iterate over them
+        # safely before returning them; this avoids accidentally exhausting an iterator, if the wrapped class happens
+        # to return one.
         try:
             possible_actions = list(set(possible_actions))
         except TypeError:
