@@ -30,7 +30,22 @@ Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
     Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in
     Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
 
-This file is part of the public API of the xcs package.
+
+A quick explanation of the XCS algorithm:
+    The XCS algorithm attempts to solve the reinforcement learning problem, which is to maximize a reward signal by
+    learning the optimal mapping from inputs to outputs, where inputs are represented as sequences of bits and
+    outputs are selected from a finite set of predetermined actions. It does so by using a genetic algorithm to
+    evolve a population of rules of the form
+
+        condition => action => prediction
+
+    where the condition is a bit template (a string of 1s, 0s, and wildcards, represented as #s) which matches
+    against one or more inputs, and the prediction is a floating point value that indicates the observed
+    reward level when the condition matches the input and the indicated action is selected. The fitness of
+    each rule in the population is determined not by the size of the prediction, but by its observed accuracy,
+    as well as by the degree to which the rule fills a niche that many other rules do not already fill. The
+    reason for using accuracy rather than reward is that it was found that using reward destabilizes the
+    population.
 """
 
 __author__ = 'Aaron Hosford'
@@ -55,17 +70,13 @@ class RuleMetadata:
     """Metadata used by the XCS algorithm to track the rules (classifiers) in a population."""
 
     def __init__(self, time_stamp, parameters):
-        self.time_stamp = time_stamp
-        self.prediction = parameters.initial_prediction
-        self.error = parameters.initial_error
-        self.fitness = parameters.initial_fitness
-        self.experience = 0
-        self.action_set_size = 1
-        self.numerosity = 1
-
-    def __iadd__(self, other):
-        self.numerosity += other.numerosity
-        return self
+        self.time_stamp = time_stamp  # The iteration of the algorithm at which this rule was last updated
+        self.prediction = parameters.initial_prediction  # The predicted reward for this rule
+        self.error = parameters.initial_error  # The observed error in this rule's prediction
+        self.fitness = parameters.initial_fitness  # The fitness of this rule within the GA
+        self.experience = 0  # The number of times this rule has been evaluated
+        self.action_set_size = 1  # The average number of rules sharing the same niche as this rule
+        self.numerosity = 1  # The number of instances of this rule in the population, used to eliminate redundancy
 
 
 class ActionSet:
@@ -73,8 +84,8 @@ class ActionSet:
 
     def __init__(self, action, rules, population):
         self._action = action
-        self._rules = rules  # {condition : metadata}
-        self._prediction = None
+        self._rules = rules  # {condition: metadata}
+        self._prediction = None  # We'll calculate this later if it is needed
         self._population = population
         self._parameters = population.parameters
 
@@ -91,6 +102,8 @@ class ActionSet:
     @property
     def prediction(self):
         """The predicted payoff for this action set."""
+        # If the action set's prediction has not already been computed, do so by taking the fitness-weighted
+        # average of the individual rules' predictions.
         if self._prediction is None:
             total_fitness = 0
             total_prediction = 0
@@ -102,6 +115,8 @@ class ActionSet:
 
     def _update_fitness(self):
         """Update the fitness of the rules belonging to this action set."""
+        # Compute the accuracy of each rule. Accuracy is inversely proportional to error. Below a certain error
+        # threshold, accuracy becomes constant. Accuracy values range over (0, 1].
         total_accuracy = 0
         accuracies = {}
         for condition, metadata in self._rules.items():
@@ -114,6 +129,8 @@ class ActionSet:
                 )
             accuracies[condition] = accuracy
             total_accuracy += accuracy * metadata.numerosity
+
+        # Use the relative accuracies of the rules to update their fitness
         for condition, metadata in self._rules.items():
             accuracy = accuracies[condition]
             metadata.fitness += (
@@ -123,6 +140,8 @@ class ActionSet:
 
     def _action_set_subsumption(self):
         """Perform action set subsumption."""
+        # Select a condition with maximum bit count among those having sufficient experience and
+        # sufficiently low error.
         selected_condition = None
         selected_bit_count = None
         for condition, metadata in self._rules.items():
@@ -136,18 +155,21 @@ class ActionSet:
                 selected_condition = condition
                 selected_bit_count = bit_count
 
+        # If no condition was found satisfying the requirements, return early.
         if selected_condition is None:
             return
 
         selected_metadata = self._rules[selected_condition]
 
+        # Subsume each rule which the selected rule generalizes. When a rule is subsumed, all
+        # instances of the subsumed rule are replaced with instances of the more general one
+        # in the population.
         to_remove = []
         for condition, metadata in self._rules.items():
             if selected_condition is not condition and selected_condition(condition):
                 selected_metadata.numerosity += metadata.numerosity
                 self._population.remove(condition, self._action, metadata.numerosity)
                 to_remove.append(condition)
-
         for condition in to_remove:
             del self._rules[condition]
 
@@ -155,6 +177,8 @@ class ActionSet:
         """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
         action_set_size = sum(metadata.numerosity for metadata in self._rules.values())
 
+        # Update the prediction, error, and action set size of each rule participating in the
+        # action set.
         for metadata in self._rules.values():
             metadata.experience += 1
 
@@ -164,13 +188,17 @@ class ActionSet:
             metadata.error += (abs(payoff - metadata.prediction) - metadata.error) * update_rate
             metadata.action_set_size += (action_set_size - metadata.action_set_size) * update_rate
 
+        # Update the fitness of the rules.
         self._update_fitness()
 
+        # If the parameters so indicate, perform action set subsumption.
         if self._parameters.do_action_set_subsumption:
             self._action_set_subsumption()
 
     def get_average_time_stamp(self):
         """Return the average time stamp for the rules in this action set."""
+        # This is the average value of the iteration counter upon the most
+        # recent update of each rule in this action set.
         return (
             sum(metadata.time_stamp * metadata.numerosity for metadata in self._rules.values()) /
             sum(metadata.numerosity for metadata in self._rules.values())
@@ -178,6 +206,7 @@ class ActionSet:
 
     def set_timestamps(self, time_stamp):
         """Set the time stamp of each rule in this action set to the given value."""
+        # Indicate that each rule has been updated at the given iteration.
         for metadata in self._rules.values():
             metadata.time_stamp = time_stamp
 
@@ -190,11 +219,14 @@ class ActionSet:
             selector -= metadata.fitness
             if selector <= 0:
                 return condition
+        # If for some reason a case slips through the above loop, perhaps due to floating point error,
+        # we fall back on uniform selection.
         return random.choice(list(self._rules))
 
 
 class MatchSet:
-    """A collection of coincident action sets."""
+    """A collection of coincident action sets. This represents the collection of all rules that matched
+    within the same situation, organized into groups according to which action each rule recommends."""
 
     def __init__(self, action_sets):
         self._action_sets = {action_set.action: action_set for action_set in action_sets}
@@ -204,14 +236,24 @@ class MatchSet:
         is used as the probability of exploration, i.e. uniform action set selection. Otherwise the action set with the
         best predicted payoff is selected with probability 1."""
 
+        # If an exploration probability has been provided, then with that probability,
+        # select an action uniformly rather than proportionally to the prediction
+        # for each action.
         if explore and (explore >= 1 or random.random() < explore):
             return random.choice(list(self._action_sets.values()))
+
+        # Otherwise, determine the collectively predicted reward for each possible action based
+        # on the individual predictions of each rule suggesting that action, and choose the
+        # action having the highest predicted reward.
         best_prediction = max(action_set.prediction for action_set in self._action_sets.values())
         best_action_sets = [
             action_set
             for action_set in self._action_sets.values()
             if action_set.prediction >= best_prediction
         ]
+
+        # If only one action has the maximum predicted reward, return it. Otherwise,
+        # choose uniformly from among the actions sharing the maximum predicted reward.
         if len(best_action_sets) == 1:
             return best_action_sets[0]
         return random.choice(best_action_sets)
@@ -248,7 +290,11 @@ class ClassifierSetParameters:
 
 
 class Population:
-    """A set of rules (classifiers), together with their associated metadata."""
+    """A set of rules (classifiers), together with their associated metadata, which the XCS algorithm
+    attempts to evolve using a genetic algorithm. This population represents the accumulated experience
+    of the XCS algorithm, in the form of a set of accurate rules that map classes of situations
+    (identified by bit conditions) to actions and the expected rewards if those actions are taken
+    within those classes of situations."""
 
     def __init__(self, parameters):
         self._population = {}
@@ -267,6 +313,8 @@ class Population:
         if not isinstance(situation, (BitString, BitCondition)):
             raise TypeError(situation)
 
+        # Find the conditions that match against the current situation, and group them according to which
+        # action(s) they recommend.
         by_action = {}
         while not by_action:
             for condition, actions in self._population.items():
@@ -277,6 +325,8 @@ class Population:
                         by_action[action][condition] = rule_metadata
                     else:
                         by_action[action] = {condition: rule_metadata}
+            # If an insufficient number of actions are recommended, create some new rules (condition/action pairs)
+            # until there are enough actions being recommended.
             if len(by_action) < self._parameters.minimum_actions:
                 condition, action, metadata = self.cover(situation, by_action)
                 assert condition(situation)
@@ -284,14 +334,19 @@ class Population:
                 self.prune()
                 by_action.clear()
 
+        # Return a match set which succinctly represents the information we just gathered.
         return MatchSet(ActionSet(action, rules, self) for action, rules in by_action.items())
 
     def add(self, condition, action, metadata):
         """Add a new rule to the population."""
         if condition not in self._population:
             self._population[condition] = {}
+
+        # If the rule already exists in the population, then we virtually add the rule
+        # by incrementing the existing rule's numerosity. This prevents redundancy in
+        # the rule set.
         if action in self._population[condition]:
-            self._population[condition][action] += metadata
+            self._population[condition][action].numerosity += metadata.numerosity
         else:
             self._population[condition][action] = metadata
 
@@ -301,6 +356,7 @@ class Population:
         if metadata is None:
             return
 
+        # Only actually remove the rule if its numerosity drops below 1.
         metadata.numerosity -= count
         if metadata.numerosity <= 0:
             del self._population[condition][action]
@@ -311,11 +367,19 @@ class Population:
         """Create a new rule that matches the given situation and return it. Preferentially choose an action that is
         not present in the existing actions, if possible."""
 
+        # Create a new condition that matches the situation.
         condition = BitCondition.cover(situation, self._parameters.wildcard_probability)
+
+        # Pick a random action that (preferably) isn't already suggested by some
+        # other rule for this situation.
         action_candidates = ((set(existing_actions) - self._parameters.possible_actions) or
                              self._parameters.possible_actions)
         action = random.choice(list(action_candidates))
+
+        # Create metadata for the new rule.
         metadata = RuleMetadata(self._time_stamp, self._parameters)
+
+        # The actual rule is just a condition/action/metadata triple
         return condition, action, metadata
 
     def mutate(self, condition, situation):
@@ -325,26 +389,21 @@ class Population:
 
         # TODO: Revamp to take advantage of numpy array speeds
 
-        bits = []
-        mask = []
-        for index, value in enumerate(condition):
+        # Go through each position in the condition, randomly flipping whether
+        # the position is a value (0 or 1) or a wildcard (#). We do this in
+        # a new list because the original condition's mask is immutable.
+        mask = list(condition.mask)
+        for index in range(len(mask)):
             if random.random() < self._parameters.mutation_probability:
-                if value is None:
-                    value = situation[index]
-                else:
-                    value = None
-            if value is None:
-                bits.append(False)
-                mask.append(False)
-            else:
-                bits.append(value)
-                mask.append(True)
+                mask[index] = not mask[index]
 
-        return BitCondition(bits, mask)
+        # The bits that aren't wildcards always have the same value as the situation,
+        # which ensures that the mutated condition still matches the situation.
+        return BitCondition(situation, mask)
 
     def get_metadata(self, condition, action):
-        """Return the metadata associated with the given rule (classifier)."""
-
+        """Return the metadata associated with the given rule (classifier). If the rule is not present in the
+        population, return None."""
         if condition not in self._population or action not in self._population[condition]:
             return None
         return self._population[condition][action]
@@ -353,12 +412,18 @@ class Population:
         """Update the time stamp. If sufficient time has passed, apply the genetic algorithm's operators to update the
          population."""
 
+        # Increment the iteration counter.
         self._time_stamp += 1
+
+        # If the average number of iterations since the last update for each rule in the action set
+        # is too small, return early instead of applying the GA.
         if self._time_stamp - action_set.get_average_time_stamp() <= self._parameters.GA_threshold:
             return
 
+        # Update the time step for each rule to indicate that they were updated by the GA.
         action_set.set_timestamps(self._time_stamp)
 
+        # Select two parents from the action set, with probability proportionate to their fitness.
         parent1 = action_set.select_parent()
         parent2 = action_set.select_parent()
 
@@ -367,16 +432,24 @@ class Population:
         parent2_metadata = (self.get_metadata(parent1, action_set.action) or
                             RuleMetadata(self._time_stamp, self._parameters))
 
+        # With the probability specified in the parameters, apply the crossover operator
+        # to the parents. Otherwise, just take the parents unchanged.
         if random.random() < self._parameters.crossover_probability:
             child1, child2 = parent1.crossover_with(parent2)
         else:
             child1, child2 = parent1, parent2
 
+        # Apply the mutation operator to each child, randomly flipping their mask bits with a small probability.
         child1 = self.mutate(child1, situation)
         child2 = self.mutate(child2, situation)
 
+        # If the newly generated children are already present in the population (or if they
+        # should be subsumed due to GA subsumption) then simply increment the numerosities
+        # of the existing rules in the population.
         new_children = []
         for child in child1, child2:
+            # If the parameters specify that GA subsumption should be performed, look for an
+            # accurate parent that can subsume the new child.
             if self._parameters.do_GA_subsumption:
                 subsumed = False
                 for parent, metadata in (parent1, parent1_metadata), (parent2, parent2_metadata):
@@ -390,6 +463,10 @@ class Population:
                 if subsumed:
                     continue
 
+            # Provided the child has not already been subsumed and it is present in the
+            # population, just increment its numerosity. Otherwise, if the child has
+            # neither been subsumed nor does it already exist, remember it so we can
+            # add it to the population in just a moment.
             if child in self._population:
                 if action_set.action in self._population[child]:
                     self._population[child][action_set.action].numerosity += 1
@@ -399,6 +476,8 @@ class Population:
 
             new_children.append(child)
 
+        # If there were any children which weren't subsumed and weren't already present
+        # in the population, add them.
         if new_children:
             prediction = (parent1_metadata.prediction + parent2_metadata.prediction) / 2
             error = (parent1_metadata.error + parent2_metadata.error) / 2
@@ -411,23 +490,29 @@ class Population:
                 metadata.fitness = fitness
                 self.add(child, action_set.action, metadata)
 
+        # Prune the population down if its size exceeds the maximum permitted.
         self.prune()
 
     def prune(self):
         """Reduce the population size, if necessary, to ensure that it does not exceed the maximum population size set
         out in the parameters."""
 
+        # Determine the virtual population size.
         total_numerosity = sum(
             metadata.numerosity
             for actions in self._population.values()
             for metadata in actions.values()
         )
+
+        # If the virtual population size is already small enough, just return early.
         if total_numerosity <= self._parameters.max_population_size:
             return
 
+        # Determine the average fitness of the rules in the virtual population.
         total_fitness = sum(metadata.fitness for actions in self._population.values() for metadata in actions.values())
         average_fitness = total_fitness / total_numerosity
 
+        # Determine the probability of deletion, as a function of both accuracy and niche sparsity.
         total_votes = 0
         deletion_votes = {}
         for condition, pop_by_action in self._population.items():
@@ -441,6 +526,7 @@ class Population:
                 votes_by_action[action] = vote
                 total_votes += vote
 
+        # Choose a rule to delete based on the probabilities just computed.
         selector = random.uniform(0, total_votes)
         for condition, votes_by_action in deletion_votes.items():
             for action, vote in votes_by_action.items():
@@ -481,11 +567,29 @@ class XCS:
         previous_situation = None
         previous_reward = 0
         previous_action_set = None
+
+        # Repeat until the problem has run its course.
         while problem.more():
+            # Gather information about the current state of the environment.
             situation = problem.sense()
+
+            # Determine which rules match the current situation.
             match_set = self._population.get_match_set(situation)
+
+            # Select the best action for the current situation (or a random one,
+            # if we are on an exploration step).
             action_set = match_set.select_action_set(self._parameters.exploration_probability)
+
+            # Perform the selected action and find out what the received reward was.
             reward = problem.execute(action_set.action)
+
+            # Don't immediately apply the reward; instead, wait until the next iteration and
+            # factor in not only the reward that was received on the previous step, but the
+            # (discounted) reward that is expected going forward given the resulting situation
+            # observed after the action was taken. This is a classic feature of reinforcement
+            # learning algorithms, which acts to stitch together a general picture of the
+            # future expected reward without actually waiting the full duration to find out
+            # what it will be.
             if previous_action_set:
                 payoff = previous_reward + self._parameters.discount_factor * action_set.prediction
                 previous_action_set.update(payoff)
@@ -493,6 +597,9 @@ class XCS:
             previous_situation = situation
             previous_reward = reward
             previous_action_set = action_set
+
+        # This serves to tie off the final stitch. The last action taken gets only the
+        # immediate reward; there is no future reward expected.
         if previous_action_set:
             previous_action_set.update(previous_reward)
             self._population.run_ga(previous_action_set, previous_situation)
@@ -502,16 +609,29 @@ def test():
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
     import time
 
+    # Define the problem.
     problem = MUXProblem(10000)
+
+    # Put the problem into a wrapper that will report things back to us for visibility.
     problem = ObservedOnLineProblem(problem)
+
+    # Define the parameters of the XCS algorithm.
     parameters = ClassifierSetParameters(problem.get_possible_actions())
     parameters.exploration_probability = .1
     parameters.do_GA_subsumption = True
     parameters.do_action_set_subsumption = True
+
+    # Create the algorithm from the parameters.
     xcs = XCS(parameters)
 
     start_time = time.time()
 
+    # Run the algorithm on the problem. This does two things simultaneously:
+    #   1. Learns a model of the problem space from experience.
+    #   2. Attempts to maximize the reward received.
+    # Since initially the algorithm's model has no experience incorporated
+    # into it, performance will be poor, but it will improve over time as
+    # the algorithm continues to be exposed to the problem.
     xcs.drive(problem)
 
     end_time = time.time()
