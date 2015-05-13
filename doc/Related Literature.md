@@ -10,6 +10,10 @@ Relevant Literature
 [Learning Classifier Systems: A Survey](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.73.8811&rep=rep1&type=pdf)
 
 [State of XCS Classifier System Research](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.54.1204&rep=rep1&type=pdf)
+
+[Learning Classiﬁer Systems: A Complete Introduction, Review, and Roadmap](http://downloads.hindawi.com/archive/2009/736398.pdf)
+
+[Learning Classifier Systems](http://www.victormontielargaiz.net/Projects/EvolutionaryComputing/Learning_Classifier_Systems.pdf)
 	
 
 	
@@ -48,4 +52,21 @@ Potentially Relevant Literature
 
 [An Autonomous Explore/Exploit Strategy](http://www.cs.bham.ac.uk/~wbl/biblio/gecco2005wks/papers/0103.pdf)
 
+[XCS-based versus UCS-based Feature Pattern Classification System](https://www.lri.fr/~hansen/proceedings/2012/GECCO/proceedings/p839.pdf)
+
+[Class Imbalance Problem in UCS Classifier System: Fitness Adaptation](http://sci2s.ugr.es/keel/pdf/keel/congreso/OrriolsCECImbalanceUCS.pdf)
+
+[Neural-Based Learning Classifier Systems](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.148.2629&rep=rep1&type=pdf)
+
+[Learning Classifier Systems: Looking Back and Glimpsing Ahead](http://www.cs.nott.ac.uk/~jqb/publications/LCS-Looking-Glimsing.pdf)
+
+[UCSpv: Principled Voting in UCS Rule Populations](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.103.6956&rep=rep1&type=pdf)
+
+[Diversity measures for multiple classifier system analysis and design](http://isiarticles.com/bundles/Article/pre/pdf/27961.pdf)
+
+[McPAD: A Multiple Classifier System for Accurate Payload-based Anomaly Detection](https://215a1886-a-62cb3a1a-s-sites.googlegroups.com/site/robertoperdisci/publications/publication-files/McPAD-revision1.pdf?attachauth=ANoY7crGw1pL7B2Fg5AJzXWOXf99g98WqTQC1yItLI4Pesaes9tBgo4MshdnITNrX0ilBzl7CBoArObiSNj3IfNfryCnNm32NhRhFdYG2qSR_nBcyJMWZHg6xdeXBt4_DRlkRgyKLDT1euMJMm0Z9pExyB5mMHnjMVGD0rPoSSjBHa_JvjBvduMA9LZbHte8FlT3Y_jQs5YSu-N_YBxPycMsYNi2ZxtynqrYLIjydBGvxKDQVWEmu5KfrlOVr-wNV_Reprx00jV0QoAGQXlv1VD9Fui5UBWn7A%3D%3D&attredirects=0)
+
+[Design of Multiple Classifier Systems](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.17.5389&rep=rep1&type=pdf)
+
+[The Combining Classifier: to Train or Not to Train?](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.19.2114&rep=rep1&type=pdf)
 
