@@ -14,3 +14,6 @@ Butz, M. and Wilson, S. (2001). An algorithmic description of XCS.
     Berlin Heidelberg.
 
 
+Related projects:
+    * Pier Luca Lanzi's xcslib (C++): http://xcslib.sourceforge.net/
+    * Ryan J. Urbanowicz's implementations (Python): http://gbml.org/2010/03/24/python-lcs-implementations-xcs-ucs-mcs-for-snp-environment/
