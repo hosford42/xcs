@@ -1,11 +1,13 @@
 Relevant Literature
 ===================
 
-[An Algorithmic Description of XCS](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.30.1999&rep=rep1&type=pdf)
+[An Algorithmic Description of XCS](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.30.1999&rep=rep1&type=pdf) (XCS)
 
-[ZCS: A Zeroth Level Classifier System](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.363.798&rep=rep1&type=pdf)
+[ZCS: A Zeroth Level Classifier System](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.363.798&rep=rep1&type=pdf) (ZCS)
 
-[Action-Planning in Anticipatory Classifier Systems](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.33.7788&rep=rep1&type=pdf)
+[Action-Planning in Anticipatory Classifier Systems](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.33.7788&rep=rep1&type=pdf) (ACS)
+
+[Accuracy-Based Learning Classifier Systems: Models, Analysis and Applications to Classification Tasks](http://sci2s.ugr.es/keel/pdf/algorithm/articulo/bernado03accuracy.pdf) (UCS)
 
 [Learning Classifier Systems: A Survey](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.73.8811&rep=rep1&type=pdf)
 
