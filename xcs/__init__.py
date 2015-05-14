@@ -49,7 +49,10 @@ A quick explanation of the XCS algorithm:
 """
 
 __author__ = 'Aaron Hosford'
+__version__ = '1.0.0a4'
 __all__ = [
+    '__author__',
+    '__version__',
     'RuleMetadata',
     'ActionSet',
     'MatchSet',
@@ -66,6 +69,11 @@ from xcs.bitstrings import BitString, BitCondition
 from xcs.problems import MUXProblem, ObservedOnLineProblem
 
 
+def version():
+    """Return the version of xcs that was imoprted."""
+    return __version__
+
+
 class RuleMetadata:
     """Metadata used by the XCS algorithm to track the rules (classifiers) in a population."""
 
@@ -77,6 +85,34 @@ class RuleMetadata:
         self.experience = 0  # The number of times this rule has been evaluated
         self.action_set_size = 1  # The average number of rules sharing the same niche as this rule
         self.numerosity = 1  # The number of instances of this rule in the population, used to eliminate redundancy
+
+    def __str__(self):
+        return '\n'.join(
+            key.replace('_', ' ').title() + ': ' + str(getattr(self, key))
+            for key in ('time_stamp', 'prediction', 'error', 'fitness', 'experience', 'action_set_size', 'numerosity')
+        )
+
+    # This is here strictly for sorting purposes
+    def __lt__(self, other):
+        if not isinstance(other, RuleMetadata):
+            return NotImplemented
+        attribute_order = (
+            'numerosity',
+            'fitness',
+            'error',
+            'prediction',
+            'experience',
+            'action_set_size',
+            'time_stamp'
+        )
+        for attribute in attribute_order:
+            my_key = getattr(self, attribute)
+            other_key = getattr(other, attribute)
+            if my_key < other_key:
+                return attribute != 'error'
+            if my_key > other_key:
+                return attribute == 'error'
+        return False
 
 
 class ActionSet:
@@ -317,6 +353,13 @@ class Population:
     def __contains__(self, condition_action):
         condition, action = condition_action
         return action in self._population.get(condition, ())
+
+    def __str__(self):
+        return '\n'.join(
+            str(condition) + ' => ' + str(action) + '\n    ' +
+            str(self.get_metadata(condition, action)).replace('\n', '\n    ')
+            for condition, action in sorted(self, key=lambda condition_action: self.get_metadata(*condition_action))
+        )
 
     def get_match_set(self, situation):
         """Accept a situation, encoded as a bit string. Return the set of matching rules (classifiers) for the given
@@ -645,6 +688,11 @@ def test():
     # into it, performance will be poor, but it will improve over time as
     # the algorithm continues to be exposed to the problem.
     xcs.drive(problem)
+
+    print()
+    print("Population:")
+    print(xcs.population)
+    print()
 
     end_time = time.time()
     print("Total time:", end_time - start_time, "seconds")

@@ -11,6 +11,8 @@ from setuptools import setup
 from codecs import open
 from os import path
 
+from xcs import __version__
+
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the relevant file
@@ -19,7 +21,7 @@ with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
 
 setup(
     name='xcs',
-    version='1.0.0a3',
+    version=__version__,
     description='XCS (Accuracy-based Classifier System)',
     long_description=long_description,
     url='https://github.com/hosford42/xcs',
