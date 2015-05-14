@@ -10,7 +10,7 @@ To Do
   * etc. (Add them to this list as you think of them.)
 * Add proper logging, instead of the silly print statements currently in place
 * Everything could use a code review and more extensive testing
-* Add methods for saving, loading, and examining the population. Otherwise, what good is any of this?
+* Add methods for saving and loading the population. Otherwise, what good is any of this?
 * Add more benchmarking problems.
 * Create an abstract interface for the algorithms. Ideally, not only should XCS variants conform to this interface, but so 
   should any reinforcement learning algorithm.
