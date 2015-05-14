@@ -306,6 +306,18 @@ class Population:
         """The parameter settings used by this population."""
         return self._parameters
 
+    def __iter__(self):
+        for condition, by_action in self._population.items():
+            for action in by_action:
+                yield condition, action
+
+    def __len__(self):
+        return sum(len(by_action) for by_action in self._population.values())
+
+    def __contains__(self, condition_action):
+        condition, action = condition_action
+        return action in self._population.get(condition, ())
+
     def get_match_set(self, situation):
         """Accept a situation, encoded as a bit string. Return the set of matching rules (classifiers) for the given
         situation."""
