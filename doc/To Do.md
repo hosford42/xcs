@@ -28,3 +28,4 @@ To Do
   the same way... something along the lines of: pop.conditions = pop.conditions[:4] + pop.conditions[5:], where the
   conditions property returns a placeholder object that represents the combined set of all conditions in the population
   taken as a unit to permit operations on them.
+* Flesh out the [FAQ](https://github.com/hosford42/xcs/wiki/FAQ) and the remainder of the [Wiki](https://github.com/hosford42/xcs/wiki), and then add links to those pages to the documentation in the packaged distribution.
