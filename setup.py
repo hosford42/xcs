@@ -2,9 +2,6 @@
 
 """Setup script for xcs."""
 
-# TODO: This is basically just copied from https://github.com/pypa/sampleproject
-#       and minimally modified. Go back through and clean it up.
-
 __author__ = 'Aaron Hosford'
 
 from setuptools import setup
@@ -16,8 +13,8 @@ from xcs import __version__
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the relevant file
-with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as f:
-    long_description = f.read()
+with open(path.join(here, 'DESCRIPTION.rst'), encoding='utf-8') as description_file:
+    long_description = description_file.read()
 
 setup(
     name='xcs',
@@ -38,11 +35,7 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        # 'Programming Language :: Python :: 2',
-        # 'Programming Language :: Python :: 2.6',
-        # 'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        # 'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
     ],
