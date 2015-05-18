@@ -1,7 +1,10 @@
 xcs
 ===
 
-Project home page: https://github.com/hosford42/xcs
+* Project Home: https://github.com/hosford42/xcs
+* Download: https://pypi.python.org/pypi/xcs
+* Wiki: https://github.com/hosford42/xcs/wiki
+* FAQ: https://github.com/hosford42/xcs/wiki/FAQ
 
 A Python implementation of the Accuracy-based Learning Classifier Systems (XCS),
 roughly as described in the 2001 paper "An algorithmic description of XCS" by 
