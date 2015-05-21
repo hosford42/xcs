@@ -69,11 +69,6 @@ from xcs.bitstrings import BitString, BitCondition
 from xcs.problems import MUXProblem, ObservedOnLineProblem
 
 
-def version():
-    """Return the version of xcs that was imoprted."""
-    return __version__
-
-
 class RuleMetadata:
     """Metadata used by the XCS algorithm to track the rules (classifiers) in a population."""
 
