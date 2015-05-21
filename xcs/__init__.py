@@ -56,7 +56,7 @@ __all__ = [
     'RuleMetadata',
     'ActionSet',
     'MatchSet',
-    'ClassifierSetParameters',
+    'XCSParameters',
     'Population',
     'XCS',
     'test',
@@ -290,7 +290,7 @@ class MatchSet:
         return random.choice(best_action_sets)
 
 
-class ClassifierSetParameters:
+class XCSParameters:
     """The parameters used by the XCS algorithm. For a detailed explanation of each parameter, please see the original
     paper by Martin Butz and Stewart Wilson."""
 
@@ -666,7 +666,7 @@ def test():
     problem = ObservedOnLineProblem(problem)
 
     # Define the parameters of the XCS algorithm.
-    parameters = ClassifierSetParameters(problem.get_possible_actions())
+    parameters = XCSParameters(problem.get_possible_actions())
     parameters.exploration_probability = .1
     parameters.do_GA_subsumption = True
     parameters.do_action_set_subsumption = True
