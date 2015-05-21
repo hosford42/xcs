@@ -1,7 +1,7 @@
 To Do
 =====
 
-* Finish migrating this list over to issues for proper tracking.
+* Finish migrating this list over to Issues for proper tracking.
 * Add more algorithms and variants:
   * ACS (Anticipatory Classifier System)
   * ZCS (Zeroth Level Classifier System)
