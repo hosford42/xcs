@@ -53,7 +53,7 @@ __version__ = '1.0.0a4'
 __all__ = [
     '__author__',
     '__version__',
-    'RuleMetadata',
+    'XCSRuleMetadata',
     'ActionSet',
     'MatchSet',
     'XCSParameters',
@@ -69,7 +69,10 @@ from xcs.bitstrings import BitString, BitCondition
 from xcs.problems import MUXProblem, ObservedOnLineProblem
 
 
-class RuleMetadata:
+class RuleMetadata
+
+
+class XCSRuleMetadata:
     """Metadata used by the XCS algorithm to track the rules (classifiers) in a population."""
 
     def __init__(self, time_stamp, parameters):
@@ -89,7 +92,7 @@ class RuleMetadata:
 
     # This is here strictly for sorting purposes
     def __lt__(self, other):
-        if not isinstance(other, RuleMetadata):
+        if not isinstance(other, XCSRuleMetadata):
             return NotImplemented
         attribute_order = (
             'numerosity',
@@ -427,7 +430,7 @@ class Population:
         action = random.choice(list(action_candidates))
 
         # Create metadata for the new rule.
-        metadata = RuleMetadata(self._time_stamp, self._parameters)
+        metadata = XCSRuleMetadata(self._time_stamp, self._parameters)
 
         # The actual rule is just a condition/action/metadata triple
         return condition, action, metadata
@@ -478,9 +481,9 @@ class Population:
         parent2 = action_set.select_parent()
 
         parent1_metadata = (self.get_metadata(parent1, action_set.action) or
-                            RuleMetadata(self._time_stamp, self._parameters))
+                            XCSRuleMetadata(self._time_stamp, self._parameters))
         parent2_metadata = (self.get_metadata(parent1, action_set.action) or
-                            RuleMetadata(self._time_stamp, self._parameters))
+                            XCSRuleMetadata(self._time_stamp, self._parameters))
 
         # With the probability specified in the parameters, apply the crossover operator
         # to the parents. Otherwise, just take the parents unchanged.
@@ -534,7 +537,7 @@ class Population:
             fitness = (parent1_metadata.fitness + parent2_metadata.fitness) / 2 * .1
 
             for child in new_children:
-                metadata = RuleMetadata(self._time_stamp, self._parameters)
+                metadata = XCSRuleMetadata(self._time_stamp, self._parameters)
                 metadata.prediction = prediction
                 metadata.error = error
                 metadata.fitness = fitness
