@@ -173,5 +173,3 @@ class ObservedOnLineProblem(OnLineProblem):
         print()
 
         return more
-
-

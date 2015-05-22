@@ -193,5 +193,3 @@ class BitString:
         bits = numpy.concatenate((self._bits, other._bits))
         bits.flags.writeable = False  # Make sure the bit array isn't writable so it can be used by the constructor
         return type(self)(bits)
-
-

@@ -171,7 +171,3 @@ class BitString:
             other = BitString(other)
         bits = self._bits + other._bits
         return type(self)(bits)
-
-
-
-
