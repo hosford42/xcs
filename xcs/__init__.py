@@ -811,7 +811,11 @@ class LCS:
 
 def test():
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
+    import logging
     import time
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
     # Define the problem.
     problem = MUXProblem(10000)
@@ -838,10 +842,8 @@ def test():
     # the algorithm continues to be exposed to the problem.
     xcs.drive(problem)
 
-    print()
-    print("Population:")
-    print(xcs.population)
-    print()
+    logger.info('Population:\n\n%s\n', xcs.population)
 
     end_time = time.time()
-    print("Total time:", end_time - start_time, "seconds")
+
+    logger.info("Total time: %.5f seconds", end_time - start_time)

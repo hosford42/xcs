@@ -27,6 +27,7 @@ __all__ = [
     'ObservedOnLineProblem',
 ]
 
+import logging
 import random
 from abc import ABCMeta, abstractmethod
 
@@ -108,6 +109,7 @@ class ObservedOnLineProblem(OnLineProblem):
         if not isinstance(wrapped, OnLineProblem):
             raise TypeError(wrapped)
 
+        self.logger = logging.getLogger(__name__)
         self.wrapped = wrapped
         self.reward = 0
         self.steps = 0
@@ -129,11 +131,9 @@ class ObservedOnLineProblem(OnLineProblem):
         except TypeError:
             pass
 
-        print()
-        print('Possible actions:')
+        self.logger.info('Possible actions:')
         for action in possible_actions:
-            print('    ' + str(action))
-        print()
+            self.logger.info('    %s', action)
 
         return possible_actions
 
@@ -141,25 +141,22 @@ class ObservedOnLineProblem(OnLineProblem):
         """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
         situation = self.wrapped.sense()
 
-        print()
-        print('Situation:', situation)
-        print()
+        self.logger.debug('Situation: %s', situation)
 
         return situation
 
     def execute(self, action):
         """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
         reward program."""
-        print()
-        print("Executing action:", action)
+
+        self.logger.debug('Executing action: %s', action)
 
         reward = self.wrapped.execute(action)
         self.reward += reward
         self.steps += 1
 
-        print("Reward:", reward)
-        print("Average reward:", self.reward / self.steps)
-        print()
+        self.logger.debug('Reward received on this step: %.5f', reward)
+        self.logger.debug('Average reward per step: %.5f', self.reward / self.steps)
 
         return reward
 
@@ -167,9 +164,12 @@ class ObservedOnLineProblem(OnLineProblem):
         """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
         more = self.wrapped.more()
 
-        print()
-        print("Steps:", self.steps)
-        print("Next iteration" if more else "Terminated")
-        print()
+        if not self.steps % 100:
+            self.logger.info('Steps completed: %d', self.steps)
+        if more:
+            self.logger.info('Run completed.')
+            self.logger.info('Total steps: %d', self.steps)
+            self.logger.info('Total reward received: %.5f', self.reward)
+            self.logger.info('Average reward per step: %.5f', self.reward / self.steps)
 
         return more
