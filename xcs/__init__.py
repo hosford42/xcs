@@ -106,6 +106,16 @@ class RuleMetadata(metaclass=ABCMeta):
 class LCSAlgorithm(metaclass=ABCMeta):
 
     @abstractmethod
+    def get_exploration_probability(self, time_stamp):
+        """Return the probability of exploration for the given time stamp."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_discount_factor(self, time_stamp):
+        """Return the future reward discount factor for the given time stamp."""
+        raise NotImplementedError()
+
+    @abstractmethod
     def covering_required(self, matches_by_action):
         """Return a Boolean indicating whether covering is required given the current matches."""
         raise NotImplementedError()
@@ -432,6 +442,14 @@ class XCSAlgorithm(LCSAlgorithm):
         self.possible_actions = frozenset(possible_actions)
         self.minimum_actions = len(self.possible_actions)
 
+    def get_exploration_probability(self, time_stamp):
+        """Return the probability of exploration for the given time stamp."""
+        return self.exploration_probability
+
+    def get_discount_factor(self, time_stamp):
+        """Return the future reward discount factor for the given time stamp."""
+        return self.discount_factor
+
     def covering_required(self, actions):
         return len(actions) < self.minimum_actions
 
@@ -719,6 +737,11 @@ class LCS:
     algorithm. Then create a problem instance and pass it to drive()."""
 
     def __init__(self, algorithm, population=None):
+        if not isinstance(algorithm, LCSAlgorithm):
+            raise TypeError(algorithm)
+        if population is not None and not isinstance(population, Population):
+            raise TypeError(population)
+
         self._algorithm = algorithm
         self._population = population or Population(algorithm)
 
@@ -750,7 +773,8 @@ class LCS:
 
             # Select the best action for the current situation (or a random one,
             # if we are on an exploration step).
-            action_set = match_set.select_action_set(self._algorithm.exploration_probability)
+            exploration_probability = self._algorithm.get_exploration_probability(self._population.time_stamp)
+            action_set = match_set.select_action_set(exploration_probability)
 
             # Perform the selected action and find out what the received reward was.
             reward = problem.execute(action_set.action)
@@ -763,7 +787,8 @@ class LCS:
             # future expected reward without actually waiting the full duration to find out
             # what it will be.
             if previous_action_set:
-                payoff = previous_reward + self._algorithm.discount_factor * action_set.prediction
+                discount_factor = self._algorithm.get_discount_factor(self._population.time_stamp)
+                payoff = previous_reward + discount_factor * action_set.prediction
                 previous_action_set.accept_payoff(payoff)
                 # TODO: Should the action set remember the situation, making this second argument obsolete?
                 self._algorithm.update(previous_action_set, previous_situation)
