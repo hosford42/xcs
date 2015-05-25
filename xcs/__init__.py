@@ -828,6 +828,7 @@ def test(algorithm=None, problem=None):
         # Define the algorithm.
         algorithm = XCSAlgorithm(problem.get_possible_actions())
         algorithm.exploration_probability = .1
+        algorithm.discount_factor = 0
         algorithm.do_GA_subsumption = True
         algorithm.do_action_set_subsumption = True
 

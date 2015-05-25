@@ -104,6 +104,9 @@ class BitCondition:
         string. A value of False indicates it is masked/wildcarded."""
         return self._mask
 
+    def count(self):
+        return self._mask.count()
+
     def __str__(self):
         # Overloads str(condition)
         return ''.join('1' if bit else ('#' if bit is None else '0') for bit in self)
