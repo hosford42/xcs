@@ -178,21 +178,22 @@ div#notebook {
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <h1 id="XCS-Tutorial">XCS Tutorial<a class="anchor-link" href="#XCS-Tutorial">&#182;</a></h1><p>This is the official tutorial for the <a href="https://pypi.python.org/pypi/xcs">xcs package</a> for Python 3. You can find the latest release and get updates on the project's status at the <a href="https://github.com/hosford42/xcs">project home page</a> on GitHub.com.</p>
-<h2 id="Installation">Installation<a class="anchor-link" href="#Installation">&#182;</a></h2><p>If you have <a href="https://pip.pypa.io/en/latest/installing.html">pip</a>, installation of xcs is straight forward:</p>
+<h2 id="Installation">Installation<a class="anchor-link" href="#Installation">&#182;</a></h2><p>To install <code>xcs</code>, you will of course need a Python 3 interpreter. The latest version of the standard CPython distribution is <a href="https://www.python.org/downloads/">available for download</a> from the Python Software Foundation, or if you prefer a download that comes with a long list of top-notch machine learning and scientific computing packages already built for you, I recommend <a href="http://continuum.io/downloads#py34">Anaconda</a> from Continuum Analytics.</p>
+<p>Starting with Python 3.4, the standard CPython distribution comes with the package installation tool, <a href="https://pip.pypa.io/en/latest/installing.html">pip</a>, as part of the standard distribution. Anaconda comes with <code>pip</code> regardless of the Python version. If you have <code>pip</code>, installation of <code>xcs</code> is straight forward:</p>
 
 <pre><code>pip install xcs</code></pre>
-<p>If this goes as planned, you should see a message like this:</p>
+<p>If all goes as planned, you should see a message like this:</p>
 
 <pre><code>Successfully installed xcs-1.0.0</code></pre>
-<p>If you are unable to use pip, you can still install xcs manually. The latest release can be found <a href="https://github.com/hosford42/xcs/releases">here</a> or <a href="https://pypi.python.org/pypi/xcs">here</a>. Download the zip file, unpack it, and cd into the directory. Then run:</p>
+<p>If for some reason you are unable to use <code>pip</code>, you can still install <code>xcs</code> manually. The latest release can be found <a href="https://github.com/hosford42/xcs/releases">here</a> or <a href="https://pypi.python.org/pypi/xcs">here</a>. Download the zip file, unpack it, and cd into the directory. Then run:</p>
 
 <pre><code>python setup.py install</code></pre>
 <p>You should see a message indicating that the package was successfully installed.</p>
-<p>It is recommended that you also install numpy, though the xcs package will still work, albeit more slowly, without it. To install numpy with pip:</p>
+<p>It is recommended that you also install <code>numpy</code> if you are using a Python distribution that does not come with it already installed. The <code>xcs</code> package will still work without <code>numpy</code>, but you should expect slower execution speeds. To install <code>numpy</code> with <code>pip</code>:</p>
 
 <pre><code>pip install numpy</code></pre>
 <p>For instructions on how to manually install numpy, visit the <a href="http://docs.scipy.org/doc/numpy/user/install.html">numpy installation instructions page</a> at SciPy.org.</p>
-<h2 id="Testing-the-Newly-Installed-Package">Testing the Newly Installed Package<a class="anchor-link" href="#Testing-the-Newly-Installed-Package">&#182;</a></h2><p>Let's start things off with a quick test, to verify that everything has been installed properly. First, we set up logging so we can see the test's progress.</p>
+<h2 id="Testing-the-Newly-Installed-Package">Testing the Newly Installed Package<a class="anchor-link" href="#Testing-the-Newly-Installed-Package">&#182;</a></h2><p>Let's start things off with a quick test, to verify that everything has been installed properly. First, fire up the Python interpreter. We'll set up Python's built-in logging system so we can see the test's progress.</p>
 
 </div>
 </div>
@@ -216,7 +217,7 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Then we import the xcs module and run the built-in test() function. By default, the test() function runs the canonical XCS algorithm on the 11-bit (3-bit address) MUX problem for 10,000 steps.</p>
+<p>Then we import the <code>xcs</code> module and run the built-in <code>test()</code> function. By default, the <code>test()</code> function runs the canonical XCS algorithm on the 11-bit (3-bit address) MUX problem for 10,000 steps.</p>
 
 </div>
 </div>
@@ -282,7 +283,7 @@ INFO:xcs:Total time: 24.01673 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Usage">Usage<a class="anchor-link" href="#Usage">&#182;</a></h2><p>Now we'll run through a quick demo of how to use existing algorithms and problems. This is essentially the same code that appears in the test() function we called above.</p>
+<h2 id="Usage">Usage<a class="anchor-link" href="#Usage">&#182;</a></h2><p>Now we'll run through a quick demo of how to use existing algorithms and problems. This is essentially the same code that appears in the <code>test()</code> function we called above.</p>
 <p>First, we're going to need to import a few things:</p>
 
 </div>
@@ -307,8 +308,8 @@ INFO:xcs:Total time: 24.01673 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The XCSAlgorithm class contains the actual XCS algorithm implementation. The LCS class combines the selected algorithm with its state (a Population instance) to form a learning classifier system. MUXProblem is the classic <a href="http://en.wikipedia.org/wiki/Multiplexer">multiplexer</a> problem, which defaults to 3 address bits (11 bits total). OnLineObserver is a wrapper for problems which logs the inputs, actions, and rewards as the algorithm attempts to solve the problem.</p>
-<p>Now that we've imported the necessary tools, we can define the actual problem, telling it to give the algorithm 10000 reward cycles to attempt to learn the appropriate input/output mapping, and wrapping it with an observer so we can see the algorithm's progress.</p>
+<p>The <code>XCSAlgorithm</code> class contains the actual XCS algorithm implementation. The <code>LCS</code> class combines the selected algorithm with its state (a <code>Population</code> instance) to form a learning classifier system. <code>MUXProblem</code> is the classic <a href="http://en.wikipedia.org/wiki/Multiplexer">multiplexer</a> problem, which defaults to 3 address bits (11 bits total). <code>OnLineObserver</code> is a wrapper for problems which logs the inputs, actions, and rewards as the algorithm attempts to solve the problem.</p>
+<p>Now that we've imported the necessary tools, we can define the actual problem, telling it to give the algorithm 10,000 reward cycles to attempt to learn the appropriate input/output mapping, and wrapping it with an observer so we can see the algorithm's progress.</p>
 
 </div>
 </div>
@@ -404,7 +405,7 @@ INFO:xcs:Total time: 24.01673 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The LCS will create an empty population for us if we do not provide one.</p>
+<p>The <code>LCS</code> instance will automatically create an empty population for us if we do not provide one.</p>
 <p>And finally, this is where all the magic happens:</p>
 
 </div>
@@ -428,8 +429,8 @@ INFO:xcs:Total time: 24.01673 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>We pass the problem to the classifier and ask it to learn the appropriate input/output mapping. It executes training cycles until the problem dictates that training should stop. Note that if you wish to see the progress as the algorithm learns the problem, you will need to set the logging level to INFO, as described in the previous section, before calling the learn() method.</p>
-<p>Now we can look at the fruits of our labors.</p>
+<p>We pass the problem to the classifier and ask it to learn the appropriate input/output mapping. It executes training cycles until the problem dictates that training should stop. Note that if you wish to see the progress as the algorithm learns the problem, you will need to set the logging level to <code>INFO</code>, as described in the previous section, before calling the <code>learn()</code> method.</p>
+<p>Now we can observe the fruits of our labors.</p>
 
 </div>
 </div>
