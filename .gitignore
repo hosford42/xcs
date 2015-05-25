@@ -1,3 +1,6 @@
+# iPython Notebook
+.ipynb_checkpoints/
+
 # Backup files
 *.~
 
