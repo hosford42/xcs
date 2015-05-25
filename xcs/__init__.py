@@ -334,7 +334,7 @@ class Population:
         """Remove one or more instances of a rule in the population."""
         metadata = self.get_metadata(condition, action)
         if metadata is None:
-            return
+            return False
 
         # Only actually remove the rule if its numerosity drops below 1.
         metadata.numerosity -= count
@@ -342,6 +342,8 @@ class Population:
             del self._population[condition][action]
             if not self._population[condition]:
                 del self._population[condition]
+
+        return True
 
     def get_metadata(self, condition, action):
         """Return the metadata associated with the given rule (classifier). If the rule is not present in the
@@ -561,6 +563,9 @@ class XCSAlgorithm(LCSAlgorithm):
             # add it to the population in just a moment.
             if (child, action_set.action) in action_set.population:
                 action_set.population.add(child, action_set.action)
+
+                # Prune the population down if its size exceeds the maximum permitted.
+                self.prune(action_set.population)
             else:
                 new_children.append(child)
 
@@ -578,8 +583,8 @@ class XCSAlgorithm(LCSAlgorithm):
                 metadata.fitness = fitness
                 action_set.population.add(child, action_set.action, metadata)
 
-        # Prune the population down if its size exceeds the maximum permitted.
-        self.prune(action_set.population)
+                # Prune the population down if its size exceeds the maximum permitted.
+                self.prune(action_set.population)
 
     def prune(self, population):
         """Reduce the population size, if necessary, to ensure that it does not exceed the maximum population size set
