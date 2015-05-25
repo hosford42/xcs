@@ -75,7 +75,7 @@ from abc import ABCMeta, abstractmethod
 
 # noinspection PyUnresolvedReferences
 from xcs.bitstrings import BitString, BitCondition
-from xcs.problems import MUXProblem, ObservedOnLineProblem
+from xcs.problems import MUXProblem, OnLineObserver
 
 
 class RuleMetadata(metaclass=ABCMeta):
@@ -761,7 +761,7 @@ class LCS:
         """The population used by this instance of the XCS algorithm."""
         return self._population
 
-    def drive(self, problem):
+    def learn(self, problem):
         """The main loop/entry point of the XCS algorithm. Create a problem instance and pass it in to this method to
         perform the algorithm and optimize the rule set. Problem instances must implement the OnLineProblem interface.
         """
@@ -809,7 +809,7 @@ class LCS:
             self._algorithm.update(previous_action_set, previous_situation)
 
 
-def test():
+def test(algorithm=None, problem=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
     import logging
     import time
@@ -817,20 +817,22 @@ def test():
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    # Define the problem.
-    problem = MUXProblem(10000)
+    if problem is None:
+        # Define the problem.
+        problem = MUXProblem(10000)
 
-    # Put the problem into a wrapper that will report things back to us for visibility.
-    problem = ObservedOnLineProblem(problem)
+        # Put the problem into a wrapper that will report things back to us for visibility.
+        problem = OnLineObserver(problem)
 
-    # Define the algorithm.
-    algorithm = XCSAlgorithm(problem.get_possible_actions())
-    algorithm.exploration_probability = .1
-    algorithm.do_GA_subsumption = True
-    algorithm.do_action_set_subsumption = True
+    if algorithm is None:
+        # Define the algorithm.
+        algorithm = XCSAlgorithm(problem.get_possible_actions())
+        algorithm.exploration_probability = .1
+        algorithm.do_GA_subsumption = True
+        algorithm.do_action_set_subsumption = True
 
     # Create the classifier system from the algorithm.
-    xcs = LCS(algorithm)
+    lcs = LCS(algorithm)
 
     start_time = time.time()
 
@@ -840,9 +842,9 @@ def test():
     # Since initially the algorithm's model has no experience incorporated
     # into it, performance will be poor, but it will improve over time as
     # the algorithm continues to be exposed to the problem.
-    xcs.drive(problem)
+    lcs.learn(problem)
 
-    logger.info('Population:\n\n%s\n', xcs.population)
+    logger.info('Population:\n\n%s\n', lcs.population)
 
     end_time = time.time()
 

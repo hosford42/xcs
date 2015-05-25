@@ -98,9 +98,7 @@ class MUXProblem(OnLineProblem):
         return int(self.remaining_cycles > 0)
 
 
-# TODO: Use logging instead of print. This has the dual advantage of making the code more Python 2.x friendly, if
-#       anyone down the road decides to make it compatible, and of giving the client greater control over reporting.
-class ObservedOnLineProblem(OnLineProblem):
+class OnLineObserver(OnLineProblem):
     """Wrapper for other OnLineProblem instances which prints details of the agent/problem interaction as they take
     place, forwarding the actual work on to the wrapped instance."""
 
