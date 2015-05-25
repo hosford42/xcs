@@ -166,10 +166,11 @@ class ObservedOnLineProblem(OnLineProblem):
 
         if not self.steps % 100:
             self.logger.info('Steps completed: %d', self.steps)
-        if more:
+            self.logger.info('Average reward per step: %.5f', self.reward / (self.steps or 1))
+        if not more:
             self.logger.info('Run completed.')
             self.logger.info('Total steps: %d', self.steps)
             self.logger.info('Total reward received: %.5f', self.reward)
-            self.logger.info('Average reward per step: %.5f', self.reward / self.steps)
+            self.logger.info('Average reward per step: %.5f', self.reward / (self.steps or 1))
 
         return more
