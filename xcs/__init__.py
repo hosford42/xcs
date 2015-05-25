@@ -304,7 +304,6 @@ class Population:
                 condition, action, metadata = self._algorithm.cover(self._time_stamp, situation, by_action)
                 assert condition(situation)
                 self.add(condition, action, metadata)
-                self._algorithm.prune(self)
                 by_action.clear()
 
         # Return a match set which succinctly represents the information we just gathered.
@@ -329,6 +328,9 @@ class Population:
                 self._population[condition][action] = metadata
         else:
             raise TypeError(metadata)
+
+        # Any time we add a rule, we need to call this to keep the population size under control.
+        self._algorithm.prune(self)
 
     def remove(self, condition, action, count=1):
         """Remove one or more instances of a rule in the population."""
@@ -550,8 +552,12 @@ class XCSAlgorithm(LCSAlgorithm):
                     if (metadata.experience > self.subsumption_threshold and
                             metadata.error < self.error_threshold and
                             parent(child)):
-                        # print(parent, child)
-                        action_set.population.add(parent, action_set.action)
+                        if (parent, action_set.action) in action_set.population:
+                            action_set.population.add(parent, action_set.action)
+                        else:
+                            # Sometimes the parent is removed from a previous subsumption
+                            metadata.numerosity = 1
+                            action_set.population.add(parent, action_set.action, metadata)
                         subsumed = True
                         break
                 if subsumed:
@@ -563,9 +569,6 @@ class XCSAlgorithm(LCSAlgorithm):
             # add it to the population in just a moment.
             if (child, action_set.action) in action_set.population:
                 action_set.population.add(child, action_set.action)
-
-                # Prune the population down if its size exceeds the maximum permitted.
-                self.prune(action_set.population)
             else:
                 new_children.append(child)
 
@@ -582,9 +585,6 @@ class XCSAlgorithm(LCSAlgorithm):
                 metadata.error = error
                 metadata.fitness = fitness
                 action_set.population.add(child, action_set.action, metadata)
-
-                # Prune the population down if its size exceeds the maximum permitted.
-                self.prune(action_set.population)
 
     def prune(self, population):
         """Reduce the population size, if necessary, to ensure that it does not exceed the maximum population size set
@@ -612,10 +612,18 @@ class XCSAlgorithm(LCSAlgorithm):
         deletion_votes = {}
         for condition, action in population:
             metadata = population.get_metadata(condition, action)
+
+            if not metadata.numerosity:
+                # I am a little concerned because I'm not sure how this is happening.
+                # It doesn't seem to affect anything, though.
+                # In all likelihood, it is just a timing issue of some sort.
+                continue
+
             vote = metadata.action_set_size * metadata.numerosity
             if (metadata.experience > self.deletion_threshold and
                     metadata.fitness / metadata.numerosity < self.fitness_threshold * average_fitness):
                 vote *= average_fitness / (metadata.fitness / metadata.numerosity)
+
             deletion_votes[condition, action] = vote
             total_votes += vote
 
@@ -644,6 +652,9 @@ class XCSAlgorithm(LCSAlgorithm):
                 )
             accuracies[condition] = accuracy
             total_accuracy += accuracy * metadata.numerosity
+
+        # On rare occasions we have zero total accuracy. This avoids a div by zero
+        total_accuracy = total_accuracy or 1
 
         # Use the relative accuracies of the rules to update their fitness
         for condition in action_set.conditions:
