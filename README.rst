@@ -3,6 +3,7 @@ xcs
 
 * Project Home: https://github.com/hosford42/xcs
 * Download: https://pypi.python.org/pypi/xcs
+* Tutorial: https://github.com/hosford42/xcs/blob/master/doc/Tutorial.ipynb
 * Wiki: https://github.com/hosford42/xcs/wiki
 * FAQ: https://github.com/hosford42/xcs/wiki/FAQ
 
