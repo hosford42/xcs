@@ -104,6 +104,8 @@ class RuleMetadata(metaclass=ABCMeta):
 
 
 class LCSAlgorithm(metaclass=ABCMeta):
+    """Abstract interface for LCS algorithms. To create a new algorithm that can be used to create an LCS, inherit from
+    this class."""
 
     @abstractmethod
     def get_exploration_probability(self, time_stamp):
@@ -116,7 +118,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def covering_required(self, matches_by_action):
+    def covering_is_required(self, matches_by_action):
         """Return a Boolean indicating whether covering is required given the current matches."""
         raise NotImplementedError()
 
@@ -241,6 +243,9 @@ class Population:
     within those classes of situations."""
 
     def __init__(self, algorithm):
+        if not isinstance(algorithm, LCSAlgorithm):
+            raise TypeError(algorithm)
+
         self._population = {}
         self._algorithm = algorithm
         self._time_stamp = 0
@@ -295,7 +300,7 @@ class Population:
                         by_action[action] = {condition: rule_metadata}
             # If an insufficient number of actions are recommended, create some new rules (condition/action pairs)
             # until there are enough actions being recommended.
-            if self._algorithm.covering_required(by_action):
+            if self._algorithm.covering_is_required(by_action):
                 condition, action, metadata = self._algorithm.cover(self._time_stamp, situation, by_action)
                 assert condition(situation)
                 self.add(condition, action, metadata)
@@ -411,7 +416,6 @@ class XCSRuleMetadata(RuleMetadata):
         return self.fitness
 
 
-# TODO: This class is a mess from refactoring. Clean it up!
 class XCSAlgorithm(LCSAlgorithm):
     """The XCS algorithm."""
 
@@ -450,126 +454,10 @@ class XCSAlgorithm(LCSAlgorithm):
         """Return the future reward discount factor for the given time stamp."""
         return self.discount_factor
 
-    def covering_required(self, actions):
+    def covering_is_required(self, actions):
+        """Return a Boolean value indicating whether covering is required based on the contents of the current action
+        set."""
         return len(actions) < self.minimum_actions
-
-    def update_fitness(self, action_set):
-        """Update the fitness of the rules belonging to this action set."""
-        # Compute the accuracy of each rule. Accuracy is inversely proportional to error. Below a certain error
-        # threshold, accuracy becomes constant. Accuracy values range over (0, 1].
-        total_accuracy = 0
-        accuracies = {}
-        for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
-            if metadata.error < self.error_threshold:
-                accuracy = 1
-            else:
-                accuracy = (
-                    self.accuracy_coefficient *
-                    (metadata.error / self.error_threshold) ** -self.accuracy_power
-                )
-            accuracies[condition] = accuracy
-            total_accuracy += accuracy * metadata.numerosity
-
-        # Use the relative accuracies of the rules to update their fitness
-        for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
-            accuracy = accuracies[condition]
-            metadata.fitness += (
-                self.learning_rate *
-                (accuracy * metadata.numerosity / total_accuracy - metadata.fitness)
-            )
-
-    def action_set_subsumption(self, action_set):
-        """Perform action set subsumption."""
-        # Select a condition with maximum bit count among those having sufficient experience and
-        # sufficiently low error.
-        selected_condition = None
-        selected_bit_count = None
-        for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
-            if not (metadata.experience > self.subsumption_threshold and
-                    metadata.error < self.error_threshold):
-                continue
-            bit_count = condition.count()
-            if (selected_condition is None or
-                    bit_count > selected_bit_count or
-                    (bit_count == selected_bit_count and random.randrange(2))):
-                selected_condition = condition
-                selected_bit_count = bit_count
-
-        # If no condition was found satisfying the requirements, return early.
-        if selected_condition is None:
-            return
-
-        selected_metadata = action_set.get_metadata(selected_condition)
-
-        # Subsume each rule which the selected rule generalizes. When a rule is subsumed, all
-        # instances of the subsumed rule are replaced with instances of the more general one
-        # in the population.
-        to_remove = []
-        for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
-            if selected_condition is not condition and selected_condition(condition):
-                selected_metadata.numerosity += metadata.numerosity
-                action_set.population.remove(condition, action_set.action, metadata.numerosity)
-                to_remove.append(condition)
-        for condition in to_remove:
-            action_set.remove_condition(condition)
-
-    def distribute_payoff(self, action_set, payoff):
-        """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
-        action_set_size = sum(metadata.numerosity for metadata in action_set.metadata)
-
-        # Update the average reward, error, and action set size of each rule participating in the
-        # action set.
-        for metadata in action_set.metadata:
-            metadata.experience += 1
-
-            update_rate = max(self.learning_rate, 1 / metadata.experience)
-
-            metadata.average_reward += (payoff - metadata.average_reward) * update_rate
-            metadata.error += (abs(payoff - metadata.average_reward) - metadata.error) * update_rate
-            metadata.action_set_size += (action_set_size - metadata.action_set_size) * update_rate
-
-        # Update the fitness of the rules.
-        self.update_fitness(action_set)
-
-        # If the parameters so indicate, perform action set subsumption.
-        if self.do_action_set_subsumption:
-            self.action_set_subsumption(action_set)
-
-    @staticmethod
-    def get_average_time_stamp(action_set):
-        """Return the average time stamp for the rules in this action set."""
-        # This is the average value of the iteration counter upon the most
-        # recent update of each rule in this action set.
-        return (
-            sum(metadata.time_stamp * metadata.numerosity for metadata in action_set.metadata) /
-            (sum(metadata.numerosity for metadata in action_set.metadata) or 1)
-        )
-
-    @staticmethod
-    def set_timestamps(action_set):
-        """Set the time stamp of each rule in this action set to the given value."""
-        # Indicate that each rule has been updated at the given iteration.
-        for metadata in action_set.metadata:
-            metadata.time_stamp = action_set.population.time_stamp
-
-    @staticmethod
-    def select_parent(action_set):
-        """Select a rule from this action set, with probability proportionate to its fitness, to act as a parent for a
-        new rule in the population. Return its bit condition."""
-        total_fitness = sum(metadata.fitness for metadata in action_set.metadata)
-        selector = random.uniform(0, total_fitness)
-        for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
-            selector -= metadata.fitness
-            if selector <= 0:
-                return condition
-        # If for some reason a case slips through the above loop, perhaps due to floating point error,
-        # we fall back on uniform selection.
-        return random.choice(list(action_set.conditions))
 
     def cover(self, time_stamp, situation, existing_actions):
         """Create a new rule that matches the given situation and return it. Preferentially choose an action that is
@@ -590,24 +478,27 @@ class XCSAlgorithm(LCSAlgorithm):
         # The actual rule is just a condition/action/metadata triple
         return condition, action, metadata
 
-    def mutate(self, condition, situation):
-        """Create a new condition from the given one by probabilistically applying point-wise mutations. Bits that were
-        originally wildcarded in the parent condition acquire their values from the provided situation, to ensure the
-        child condition continues to match it."""
+    def distribute_payoff(self, action_set, payoff):
+        """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
+        action_set_size = sum(metadata.numerosity for metadata in action_set.metadata)
 
-        # TODO: Revamp to take advantage of numpy array speeds
+        # Update the average reward, error, and action set size of each rule participating in the
+        # action set.
+        for metadata in action_set.metadata:
+            metadata.experience += 1
 
-        # Go through each position in the condition, randomly flipping whether
-        # the position is a value (0 or 1) or a wildcard (#). We do this in
-        # a new list because the original condition's mask is immutable.
-        mask = list(condition.mask)
-        for index in range(len(mask)):
-            if random.random() < self.mutation_probability:
-                mask[index] = not mask[index]
+            update_rate = max(self.learning_rate, 1 / metadata.experience)
 
-        # The bits that aren't wildcards always have the same value as the situation,
-        # which ensures that the mutated condition still matches the situation.
-        return BitCondition(situation, mask)
+            metadata.average_reward += (payoff - metadata.average_reward) * update_rate
+            metadata.error += (abs(payoff - metadata.average_reward) - metadata.error) * update_rate
+            metadata.action_set_size += (action_set_size - metadata.action_set_size) * update_rate
+
+        # Update the fitness of the rules.
+        self._update_fitness(action_set)
+
+        # If the parameters so indicate, perform action set subsumption.
+        if self.do_action_set_subsumption:
+            self._action_set_subsumption(action_set)
 
     def update(self, action_set, situation):
         """Update the time stamp. If sufficient time has passed, apply the genetic algorithm's operators to update the
@@ -618,15 +509,15 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # If the average number of iterations since the last update for each rule in the action set
         # is too small, return early instead of applying the GA.
-        if action_set.population.time_stamp - self.get_average_time_stamp(action_set) <= self.GA_threshold:
+        if action_set.population.time_stamp - self._get_average_time_stamp(action_set) <= self.GA_threshold:
             return
 
         # Update the time step for each rule to indicate that they were updated by the GA.
-        self.set_timestamps(action_set)
+        self._set_timestamps(action_set)
 
         # Select two parents from the action set, with probability proportionate to their fitness.
-        parent1 = self.select_parent(action_set)
-        parent2 = self.select_parent(action_set)
+        parent1 = self._select_parent(action_set)
+        parent2 = self._select_parent(action_set)
 
         parent1_metadata = (action_set.population.get_metadata(parent1, action_set.action) or
                             XCSRuleMetadata(action_set.population.time_stamp, self))
@@ -641,8 +532,8 @@ class XCSAlgorithm(LCSAlgorithm):
             child1, child2 = parent1, parent2
 
         # Apply the mutation operator to each child, randomly flipping their mask bits with a small probability.
-        child1 = self.mutate(child1, situation)
-        child2 = self.mutate(child2, situation)
+        child1 = self._mutate(child1, situation)
+        child2 = self._mutate(child2, situation)
 
         # If the newly generated children are already present in the population (or if they
         # should be subsumed due to GA subsumption) then simply increment the numerosities
@@ -730,6 +621,121 @@ class XCSAlgorithm(LCSAlgorithm):
             if selector <= 0:
                 population.remove(condition, action)
                 return
+
+    def _update_fitness(self, action_set):
+        """Update the fitness of the rules belonging to this action set."""
+        # Compute the accuracy of each rule. Accuracy is inversely proportional to error. Below a certain error
+        # threshold, accuracy becomes constant. Accuracy values range over (0, 1].
+        total_accuracy = 0
+        accuracies = {}
+        for condition in action_set.conditions:
+            metadata = action_set.get_metadata(condition)
+            if metadata.error < self.error_threshold:
+                accuracy = 1
+            else:
+                accuracy = (
+                    self.accuracy_coefficient *
+                    (metadata.error / self.error_threshold) ** -self.accuracy_power
+                )
+            accuracies[condition] = accuracy
+            total_accuracy += accuracy * metadata.numerosity
+
+        # Use the relative accuracies of the rules to update their fitness
+        for condition in action_set.conditions:
+            metadata = action_set.get_metadata(condition)
+            accuracy = accuracies[condition]
+            metadata.fitness += (
+                self.learning_rate *
+                (accuracy * metadata.numerosity / total_accuracy - metadata.fitness)
+            )
+
+    def _action_set_subsumption(self, action_set):
+        """Perform action set subsumption."""
+        # Select a condition with maximum bit count among those having sufficient experience and
+        # sufficiently low error.
+        selected_condition = None
+        selected_bit_count = None
+        for condition in action_set.conditions:
+            metadata = action_set.get_metadata(condition)
+            if not (metadata.experience > self.subsumption_threshold and
+                    metadata.error < self.error_threshold):
+                continue
+            bit_count = condition.count()
+            if (selected_condition is None or
+                    bit_count > selected_bit_count or
+                    (bit_count == selected_bit_count and random.randrange(2))):
+                selected_condition = condition
+                selected_bit_count = bit_count
+
+        # If no condition was found satisfying the requirements, return early.
+        if selected_condition is None:
+            return
+
+        selected_metadata = action_set.get_metadata(selected_condition)
+
+        # Subsume each rule which the selected rule generalizes. When a rule is subsumed, all
+        # instances of the subsumed rule are replaced with instances of the more general one
+        # in the population.
+        to_remove = []
+        for condition in action_set.conditions:
+            metadata = action_set.get_metadata(condition)
+            if selected_condition is not condition and selected_condition(condition):
+                selected_metadata.numerosity += metadata.numerosity
+                action_set.population.remove(condition, action_set.action, metadata.numerosity)
+                to_remove.append(condition)
+        for condition in to_remove:
+            action_set.remove_condition(condition)
+
+    @staticmethod
+    def _get_average_time_stamp(action_set):
+        """Return the average time stamp for the rules in this action set."""
+        # This is the average value of the iteration counter upon the most
+        # recent update of each rule in this action set.
+        return (
+            sum(metadata.time_stamp * metadata.numerosity for metadata in action_set.metadata) /
+            (sum(metadata.numerosity for metadata in action_set.metadata) or 1)
+        )
+
+    @staticmethod
+    def _set_timestamps(action_set):
+        """Set the time stamp of each rule in this action set to the given value."""
+        # Indicate that each rule has been updated at the given iteration.
+        for metadata in action_set.metadata:
+            metadata.time_stamp = action_set.population.time_stamp
+
+    @staticmethod
+    def _select_parent(action_set):
+        """Select a rule from this action set, with probability proportionate to its fitness, to act as a parent for a
+        new rule in the population. Return its bit condition."""
+        total_fitness = sum(metadata.fitness for metadata in action_set.metadata)
+        selector = random.uniform(0, total_fitness)
+        for condition in action_set.conditions:
+            metadata = action_set.get_metadata(condition)
+            selector -= metadata.fitness
+            if selector <= 0:
+                return condition
+        # If for some reason a case slips through the above loop, perhaps due to floating point error,
+        # we fall back on uniform selection.
+        return random.choice(list(action_set.conditions))
+
+    def _mutate(self, condition, situation):
+        """Create a new condition from the given one by probabilistically applying point-wise mutations. Bits that were
+        originally wildcarded in the parent condition acquire their values from the provided situation, to ensure the
+        child condition continues to match it."""
+
+        # TODO: Revamp to take advantage of numpy array speeds
+
+        # Go through each position in the condition, randomly flipping whether
+        # the position is a value (0 or 1) or a wildcard (#). We do this in
+        # a new list because the original condition's mask is immutable.
+        mask = list(condition.mask)
+        for index in range(len(mask)):
+            if random.random() < self.mutation_probability:
+                mask[index] = not mask[index]
+
+        # The bits that aren't wildcards always have the same value as the situation,
+        # which ensures that the mutated condition still matches the situation.
+        return BitCondition(situation, mask)
 
 
 class LCS:
