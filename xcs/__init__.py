@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
 # Name:     xcs
 # Purpose:  Implements the XCS (Accuracy-based Classifier System) algorithm,
@@ -55,7 +56,7 @@ A quick explanation of the XCS algorithm:
 # TODO: Clean up docstrings and comments with obsolete references to pre-refactoring code.
 
 __author__ = 'Aaron Hosford'
-__version__ = '1.0.0a6'
+__version__ = '1.0.0a7'
 __all__ = [
     '__author__',
     '__version__',

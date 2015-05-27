@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
 # Name:     problems
 # Purpose:  Implements the problem interface, used by problems the XCS algorithm

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
 # Name:     xcs._slow_bitstrings
 # Purpose:  Slow bit-string and bit-condition classes, implemented using standard

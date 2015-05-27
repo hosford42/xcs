@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
 # Name:     xcs.bitstrings
 # Purpose:  Implements bit-string and bit-condition data types used by the XCS

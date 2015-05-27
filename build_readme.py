@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """
 See https://coderwall.com/p/qawuyq/use-markdown-readme-s-in-python-modules (Thanks for the idea, Will McKenzie!)
 This module attempts to build a README.rst from a README.md.

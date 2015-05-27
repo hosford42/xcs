@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
 # Name:     xcs._fast_bitstrings
 # Purpose:  Fast bit-string, implemented on top of numpy bool arrays.

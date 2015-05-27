@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # Prepares for registration.
 __author__ = 'Aaron Hosford'
 
