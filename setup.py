@@ -66,7 +66,7 @@ setup(
     version=__version__,
     description='XCS (Accuracy-based Classifier System)',
     long_description=long_description,
-    url='https://github.com/hosford42/xcs',
+    url='http://hosford42.github.io/xcs',
     author=__author__,
     author_email='hosford42@gmail.com',
     license='Revised BSD',
@@ -87,5 +87,5 @@ setup(
 
     keywords='xcs accuracy classifier lcs machine learning',
     packages=['xcs'],
-    # install_requires=['numpy'],
+    # install_requires=['numpy'],  # No longer required
 )
