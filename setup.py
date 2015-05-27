@@ -58,7 +58,7 @@ else:
 # Get the long description from the relevant file. First try README.rst, then fall back on
 # the default string defined here in this file.
 if path.isfile(path.join(here, 'README.rst')):
-    with open(path.join(here, 'README.rst'), encoding='utf-8') as description_file:
+    with open(path.join(here, 'README.rst'), encoding='utf-8', mode='rU') as description_file:
         long_description = description_file.read()
 
 setup(

@@ -37,9 +37,9 @@ input, and attempts to select the best action from a predetermined list
 of choices using an evolving set of rules that match inputs and offer
 appropriate suggestions. It then receives a reward signal indicating the
 quality of its decision, which it uses to adjust the rule set that was
-used to make the decision. This process is then repeated, allowing the
-algorithm to evaluate the changes it has already made and further refine
-the rule set.
+used to make the decision. This process is subsequently repeated,
+allowing the algorithm to evaluate the changes it has already made and
+further refine the rule set.
 
 A key feature of XCS is that, unlike many other machine learning
 algorithms, it not only learns the optimal input/output mapping, but
