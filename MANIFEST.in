@@ -1,5 +1,5 @@
 include README.md
-
+include doc/Tutorial.*
 
 # Include the test suite (FIXME: does not work yet)
 # recursive-include tests *
