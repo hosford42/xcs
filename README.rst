@@ -5,8 +5,6 @@ xcs
 * Source_
 * Download_
 * Tutorial_
-* Wiki_
-* FAQ_
 .. _`Project Home`: http://hosford42.github.io/xcs
 .. _Source: https://github.com/hosford42/xcs
 .. _Download: https://pypi.python.org/pypi/xcs
