@@ -55,7 +55,7 @@ A quick explanation of the XCS algorithm:
 # TODO: Clean up docstrings and comments with obsolete references to pre-refactoring code.
 
 __author__ = 'Aaron Hosford'
-__version__ = '1.0.0a5'
+__version__ = '1.0.0a6'
 __all__ = [
     '__author__',
     '__version__',
