@@ -56,7 +56,7 @@ A quick explanation of the XCS algorithm:
 # TODO: Clean up docstrings and comments with obsolete references to pre-refactoring code.
 
 __author__ = 'Aaron Hosford'
-__version__ = '1.0.0a7'
+__version__ = '1.0.0a8'
 __all__ = [
     '__author__',
     '__version__',
@@ -135,7 +135,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def update(self, action_set, situation):
+    def update(self, action_set):
         """Update the population, e.g. by applying GA, based on the situation and action set."""
         raise NotImplementedError()
 
@@ -148,7 +148,8 @@ class LCSAlgorithm(metaclass=ABCMeta):
 class ActionSet:
     """Abstract base class for a set of rules (classifiers) with the same action that matched the same situation."""
 
-    def __init__(self, action, rules, population):
+    def __init__(self, situation, action, rules, population):
+        self._situation = situation
         self._action = action
         self._rules = rules  # {condition: metadata}
         self._prediction = None  # We'll calculate this later if it is needed
@@ -163,6 +164,11 @@ class ActionSet:
     def metadata(self):
         """An iterator over the metadata of the rules in the action set."""
         return self._rules.values()
+
+    @property
+    def situation(self):
+        """The situation for which this action set was created."""
+        return self._situation
 
     @property
     def action(self):
@@ -308,7 +314,7 @@ class Population:
                 by_action.clear()
 
         # Return a match set which succinctly represents the information we just gathered.
-        return MatchSet(ActionSet(action, rules, self) for action, rules in by_action.items())
+        return MatchSet(ActionSet(situation, action, rules, self) for action, rules in by_action.items())
 
     def add(self, condition, action, metadata=1):
         """Add a new rule to the population."""
@@ -505,7 +511,7 @@ class XCSAlgorithm(LCSAlgorithm):
         if self.do_action_set_subsumption:
             self._action_set_subsumption(action_set)
 
-    def update(self, action_set, situation):
+    def update(self, action_set):
         """Update the time stamp. If sufficient time has passed, apply the genetic algorithm's operators to update the
          population."""
 
@@ -537,8 +543,8 @@ class XCSAlgorithm(LCSAlgorithm):
             child1, child2 = parent1, parent2
 
         # Apply the mutation operator to each child, randomly flipping their mask bits with a small probability.
-        child1 = self._mutate(child1, situation)
-        child2 = self._mutate(child2, situation)
+        child1 = self._mutate(child1, action_set.situation)
+        child2 = self._mutate(child2, action_set.situation)
 
         # If the newly generated children are already present in the population (or if they
         # should be subsumed due to GA subsumption) then simply increment the numerosities
@@ -782,7 +788,6 @@ class LCS:
         """The main loop/entry point of the XCS algorithm. Create a problem instance and pass it in to this method to
         perform the algorithm and optimize the rule set. Problem instances must implement the OnLineProblem interface.
         """
-        previous_situation = None
         previous_reward = 0
         previous_action_set = None
 
@@ -813,9 +818,7 @@ class LCS:
                 discount_factor = self._algorithm.get_discount_factor(self._population.time_stamp)
                 payoff = previous_reward + discount_factor * action_set.prediction
                 previous_action_set.accept_payoff(payoff)
-                # TODO: Should the action set remember the situation, making this second argument obsolete?
-                self._algorithm.update(previous_action_set, previous_situation)
-            previous_situation = situation
+                self._algorithm.update(previous_action_set)
             previous_reward = reward
             previous_action_set = action_set
 
@@ -823,7 +826,7 @@ class LCS:
         # immediate reward; there is no future reward expected.
         if previous_action_set:
             previous_action_set.accept_payoff(previous_reward)
-            self._algorithm.update(previous_action_set, previous_situation)
+            self._algorithm.update(previous_action_set)
 
 
 def test(algorithm=None, problem=None):
