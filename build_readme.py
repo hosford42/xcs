@@ -10,9 +10,10 @@ It requires pandoc to be installed (http://pandoc.org/) as well as pypandoc, the
 __author__ = 'Aaron Hosford'
 
 import os
+import time
 
 
-def convert_md_to_rst(source, destination=None):
+def convert_md_to_rst(source, destination=None, backup_dir=None):
     """Try to convert the source, an .md (markdown) file, to an .rst (reStructuredText) file at the destination. If
     the destination isn't provided, it defaults to be the same as the source path except for the filename extension.
     If the destination file already exists, it will be overwritten. In the event of an error, the destination file will
@@ -30,11 +31,17 @@ def convert_md_to_rst(source, destination=None):
     # Set our destination path to a default, if necessary
     destination = destination or (os.path.splitext(source)[0] + '.rst')
 
+    # Likewise for the backup directory
+    backup_dir = backup_dir or os.path.join(os.path.dirname(destination), 'bak')
+
+    bak_name = os.path.basename(destination) + time.strftime('.%Y%m%d%H%M%S.bak')
+    bak_path = os.path.join(backup_dir, bak_name)
+
     # If there's already a file at the destination path, move it out of the way, but don't delete it.
     if os.path.isfile(destination):
-        if os.path.isfile(destination + '.bak'):
-            os.remove(destination + '.bak')
-        os.rename(destination, destination + '.bak')
+        if not os.path.isdir(os.path.dirname(bak_path)):
+            os.mkdir(os.path.dirname(bak_path))
+        os.rename(destination, bak_path)
 
     try:
         # Try to convert the file.
@@ -43,8 +50,8 @@ def convert_md_to_rst(source, destination=None):
         # If for any reason the conversion fails, try to put things back like we found them.
         if os.path.isfile(destination):
             os.remove(destination)
-        if os.path.isfile(destination + '.bak'):
-            os.rename(destination + '.bak', destination)
+        if os.path.isfile(bak_path):
+            os.rename(bak_path, destination)
         raise
 
     # The .bak is intentionally left in place; it's easy to add a .gitignore line for it, and it's important to keep
@@ -60,4 +67,3 @@ def build_readme(base_path=None):
         path = 'README.md'
     convert_md_to_rst(path)
     print("Successfully converted README.md to README.rst")
-

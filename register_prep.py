@@ -6,10 +6,10 @@ __author__ = 'Aaron Hosford'
 
 import glob
 import os
-import shutil
 import zipfile
 
 from xcs import __version__
+# noinspection PyUnresolvedReferences
 import build_readme
 
 build_readme.build_readme()
@@ -27,15 +27,15 @@ with open('xcs.egg-info/PKG-INFO', encoding='utf-8', mode='rU') as infile:
 os.remove('xcs.egg-info/PKG-INFO')
 os.rename('xcs.egg-info/PKG-INFO-FIXED', 'xcs.egg-info/PKG-INFO')
 
-dist = glob.glob('dist\\*' + __version__ + '*.whl')[-1]
+dist = glob.glob('dist/*' + __version__ + '*.whl')[-1]
 print(dist)
-os.system('pip install dist\\' + os.path.basename(dist) + ' --upgrade')
+os.system('pip install ' + os.path.join('dist', os.path.basename(dist)) + ' --upgrade')
 
 
-if os.path.isfile('pythonhosted\\index.html'):
-    os.remove('pythonhosted\\index.html')
-if os.path.isfile('pythonhosted.zip'):
-    os.remove('pythonhosted.zip')
-shutil.copy('doc\\Tutorial.html', 'pythonhosted\\index.html')
-with zipfile.ZipFile('pythonhosted.zip', mode="w") as zf:
-    zf.write('pythonhosted\\index.html', 'index.html')
+zip_path = os.path.join('dist/pythonhosted.zip')
+tutorial_path = 'doc/Tutorial.html'
+
+if os.path.isfile(zip_path):
+    os.remove(zip_path)
+with zipfile.ZipFile(zip_path, mode="w") as zf:
+    zf.write(tutorial_path, 'index.html')

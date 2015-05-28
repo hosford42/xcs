@@ -6,6 +6,7 @@ pythonhosted.zip
 .ipynb_checkpoints/
 
 # Backup files
+bak/
 *.~
 *.bak
 

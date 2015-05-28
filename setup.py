@@ -39,16 +39,19 @@ Butz, M. and Wilson, S. (2001). An algorithmic description of XCS.
 
 Related projects:
     * Pier Luca Lanzi's xcslib (C++): http://xcslib.sourceforge.net/
-    * Ryan J. Urbanowicz's implementations (Python): http://gbml.org/2010/03/24/python-lcs-implementations-xcs-ucs-mcs-for-snp-environment/
+    * Ryan J. Urbanowicz's implementations (Python):
+      http://gbml.org/2010/03/24/python-lcs-implementations-xcs-ucs-mcs-for-snp-environment/
 """.strip()
 
 
 # Try to build the readme file, but don't fail out if it doesn't work.
 try:
+    # noinspection PyUnresolvedReferences
     from build_readme import build_readme
 except ImportError:
     traceback.format_exc()
 else:
+    # noinspection PyBroadException
     try:
         build_readme(here)
     except Exception:
