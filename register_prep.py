@@ -6,6 +6,8 @@ __author__ = 'Aaron Hosford'
 
 import glob
 import os
+import shutil
+import zipfile
 
 from xcs import __version__
 import build_readme
@@ -30,3 +32,10 @@ print(dist)
 os.system('pip install dist\\' + os.path.basename(dist) + ' --upgrade')
 
 
+if os.path.isfile('pythonhosted\\index.html'):
+    os.remove('pythonhosted\\index.html')
+if os.path.isfile('pythonhosted.zip'):
+    os.remove('pythonhosted.zip')
+shutil.copy('doc\\Tutorial.html', 'pythonhosted\\index.html')
+with zipfile.ZipFile('pythonhosted.zip', mode="w") as zf:
+    zf.write('pythonhosted\\index.html', 'index.html')
