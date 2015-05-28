@@ -2,6 +2,10 @@
 pythonhosted/
 pythonhosted.zip
 
+# In-place install files
+repodata.json*
+.index.json
+
 # iPython Notebook
 .ipynb_checkpoints/
 

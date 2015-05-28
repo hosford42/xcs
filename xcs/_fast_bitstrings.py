@@ -25,9 +25,18 @@ __all__ = [
     'BitString',
 ]
 
+import random
+
 # If numpy isn't installed, this will raise an ImportError, causing bitstrings.py to fall back on the pure Python
 # implementation defined in _slow_bitstrings.py
 import numpy
+
+# Sometimes numpy isn't uninstalled properly and what's left is an empty folder. It's unusable, but still imports
+# without error. This ensures we don't take it for granted that the module is usable.
+try:
+    numpy.ndarray
+except AttributeError:
+    raise ImportError('The numpy module failed to uninstall properly.')
 
 
 class BitString:
@@ -77,6 +86,33 @@ class BitString:
         """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
          defaults to .5."""
         bits = numpy.random.choice([False, True], size=(length,), p=[1-bit_prob, bit_prob])
+        bits.flags.writeable = False
+        return cls(bits)
+
+    @classmethod
+    def crossover_template(cls, length, points=2):
+        """Create a crossover template with the given number of points. The crossover template can be used as a mask
+        to crossover two bitstrings of the same length:
+
+            assert len(parent1) == len(parent2)
+            template = BitString.crossover_template(len(parent1))
+            inv_template = ~template
+            child1 = (parent1 & template) | (parent2 & inv_template)
+            child2 = (parent1 & inv_template) | (parent2 & template)
+        """
+        points = random.sample(range(length + 1), points)
+        points.sort()
+        points.append(length)
+        previous = 0
+        include_range = bool(random.randrange(2))
+        pieces = []
+        for point in points:
+            if point > previous:
+                fill = (numpy.ones if include_range else numpy.zeros)
+                pieces.append(fill(point - previous, dtype=bool))
+            include_range = not include_range
+            previous = point
+        bits = numpy.concatenate(pieces)
         bits.flags.writeable = False
         return cls(bits)
 

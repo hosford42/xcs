@@ -196,7 +196,7 @@ class BitCondition:
         mismatches = self // other
         return not mismatches.any()
 
-    def crossover_with(self, other):
+    def crossover_with(self, other, points=2):
         """Perform 2-point crossover on this bit condition and another of the same length, returning the two resulting
         children."""
 
@@ -205,25 +205,14 @@ class BitCondition:
         if len(self) != len(other):
             raise ValueError(other)
 
-        # TODO: Revamp this to take advantage of numpy array speeds
+        template = BitString.crossover_template(len(self), points)
+        inv_template = ~template
 
-        # Select two crossover points with point1 <= point2
-        point1 = random.randrange(len(self._bits))
-        point2 = random.randrange(len(self._bits))
-        if point1 > point2:
-            point1, point2 = point2, point1
+        bits1 = (self._bits & template) | (other._bits & inv_template)
+        mask1 = (self._mask & template) | (other._mask & inv_template)
 
-        # Convert the two conditions into list form so we can modify them; remember BitConditions are immutable.
-        bits1 = list(self._bits)
-        mask1 = list(self._mask)
-        bits2 = list(other._bits)
-        mask2 = list(other._mask)
-
-        # Perform the crossover, swapping the values of the two conditions for each index such that
-        # point1 <= index < point2
-        for index in range(point1, point2):
-            bits1[index], bits2[index] = bits2[index], bits1[index]
-            mask1[index], mask2[index] = mask2[index], mask1[index]
+        bits2 = (self._bits & inv_template) | (other._bits & template)
+        mask2 = (self._mask & inv_template) | (other._mask & template)
 
         # Convert the modified sequences back into BitConditions
         return type(self)(bits1, mask1), type(self)(bits2, mask2)

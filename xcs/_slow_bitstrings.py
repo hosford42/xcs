@@ -77,6 +77,30 @@ class BitString:
         bits = tuple(random.random() < bit_prob for _ in range(length))
         return cls(bits)
 
+    @classmethod
+    def crossover_template(cls, length, points=2):
+        """Create a crossover template with the given number of points. The crossover template can be used as a mask
+        to crossover two bitstrings of the same length:
+
+            assert len(parent1) == len(parent2)
+            template = BitString.crossover_template(len(parent1))
+            inv_template = ~template
+            child1 = (parent1 & template) | (parent2 & inv_template)
+            child2 = (parent1 & inv_template) | (parent2 & template)
+        """
+        points = random.sample(range(length + 1), points)
+        points.sort()
+        points.append(length)
+        previous = 0
+        include_range = bool(random.randrange(2))
+        bits = []
+        for point in points:
+            if point > previous:
+                bits.extend(include_range for _ in range(point - previous))
+            include_range = not include_range
+            previous = point
+        return cls(bits)
+
     def __init__(self, bits):
         if isinstance(bits, int):
             self._bits = (False,) * bits
