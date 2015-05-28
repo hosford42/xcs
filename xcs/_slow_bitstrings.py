@@ -27,6 +27,8 @@ __all__ = [
     'BitString',
 ]
 
+import random
+
 
 class BitString:
     """A hashable, immutable sequence of bits (Boolean values). This is the slower, Python-only implementation that
@@ -66,6 +68,13 @@ class BitString:
         # number written out in binary.
         bits.reverse()
 
+        return cls(bits)
+
+    @classmethod
+    def random(cls, length, bit_prob=.5):
+        """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
+         defaults to .5."""
+        bits = tuple(random.random() < bit_prob for _ in range(length))
         return cls(bits)
 
     def __init__(self, bits):

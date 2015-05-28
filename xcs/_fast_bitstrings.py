@@ -72,6 +72,14 @@ class BitString:
 
         return cls(bits)
 
+    @classmethod
+    def random(cls, length, bit_prob=.5):
+        """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
+         defaults to .5."""
+        bits = numpy.random.choice([False, True], size=(length,), p=[1-bit_prob, bit_prob])
+        bits.flags.writeable = False
+        return cls(bits)
+
     def __init__(self, bits):
         if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
             # noinspection PyUnresolvedReferences

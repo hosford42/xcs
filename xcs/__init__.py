@@ -74,7 +74,6 @@ __all__ = [
 import random
 from abc import ABCMeta, abstractmethod
 
-# noinspection PyUnresolvedReferences
 from xcs.bitstrings import BitString, BitCondition
 from xcs.problems import MUXProblem, OnLineObserver
 
@@ -746,18 +745,17 @@ class XCSAlgorithm(LCSAlgorithm):
         originally wildcarded in the parent condition acquire their values from the provided situation, to ensure the
         child condition continues to match it."""
 
-        # TODO: Revamp to take advantage of numpy array speeds
-
         # Go through each position in the condition, randomly flipping whether
         # the position is a value (0 or 1) or a wildcard (#). We do this in
         # a new list because the original condition's mask is immutable.
-        mask = list(condition.mask)
-        for index in range(len(mask)):
-            if random.random() < self.mutation_probability:
-                mask[index] = not mask[index]
+        mutation_points = BitString.random(len(condition.mask), self.mutation_probability)
+        mask = condition.mask ^ mutation_points
 
         # The bits that aren't wildcards always have the same value as the situation,
         # which ensures that the mutated condition still matches the situation.
+        if isinstance(situation, BitCondition):
+            mask &= situation.mask
+            return BitCondition(situation.bits, mask)
         return BitCondition(situation, mask)
 
 
