@@ -7,7 +7,7 @@ Links
 -----
 
 -  `Project Home <http://hosford42.github.io/xcs/>`__
--  `Tutorial <https://github.com/hosford42/xcs/blob/master/doc/Tutorial.ipynb>`__
+-  `Tutorial <https://pythonhosted.org/xcs/>`__
 -  `Source <https://github.com/hosford42/xcs>`__
 -  `Distribution <https://pypi.python.org/pypi/xcs>`__
 
