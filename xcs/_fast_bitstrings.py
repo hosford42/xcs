@@ -82,6 +82,21 @@ class BitString:
         return cls(bits)
 
     @classmethod
+    def from_string(cls, value):
+        """Create a bit string from an ordinary string value consisting of 0 and 1 characters."""
+        bits = []
+        for char in value:
+            if char == '1':
+                bits.append(True)
+            elif char == '0':
+                bits.append(False)
+            elif char == '#':
+                raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
+            else:
+                raise ValueError("Invalid character: " + repr(char))
+        return cls(bits)
+
+    @classmethod
     def random(cls, length, bit_prob=.5):
         """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
          defaults to .5."""

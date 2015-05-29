@@ -64,6 +64,25 @@ class BitCondition:
     """
 
     @classmethod
+    def from_string(cls, value):
+        """Create a bit condition from an ordinary string value consisting of 0, 1, and # characters."""
+        bits = []
+        mask = []
+        for char in value:
+            if char == '1':
+                bits.append(True)
+                mask.append(True)
+            elif char == '0':
+                bits.append(False)
+                mask.append(True)
+            elif char == '#':
+                bits.append(False)
+                mask.append(False)
+            else:
+                raise ValueError("Invalid character: " + repr(char))
+        return cls(BitString(bits), BitString(mask))
+
+    @classmethod
     def cover(cls, bits, wildcard_probability):
         """Create a new bit condition that matches the provided bit string, with the indicated per-index wildcard
          probability."""
@@ -205,6 +224,7 @@ class BitCondition:
         if len(self) != len(other):
             raise ValueError(other)
 
+        # noinspection PyUnresolvedReferences
         template = BitString.crossover_template(len(self), points)
         inv_template = ~template
 
