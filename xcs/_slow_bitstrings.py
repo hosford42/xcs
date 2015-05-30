@@ -71,21 +71,6 @@ class BitString:
         return cls(bits)
 
     @classmethod
-    def from_string(cls, value):
-        """Create a bit string from an ordinary string value consisting of 0 and 1 characters."""
-        bits = []
-        for char in value:
-            if char == '1':
-                bits.append(True)
-            elif char == '0':
-                bits.append(False)
-            elif char == '#':
-                raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
-            else:
-                raise ValueError("Invalid character: " + repr(char))
-        return cls(bits)
-
-    @classmethod
     def random(cls, length, bit_prob=.5):
         """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
          defaults to .5."""
@@ -124,6 +109,18 @@ class BitString:
             self._bits = bits._bits
         elif isinstance(bits, tuple) and all(isinstance(value, bool) for value in bits):
             self._bits = bits
+        elif isinstance(bits, str):
+            bit_list = []
+            for char in bits:
+                if char == '1':
+                    bit_list.append(True)
+                elif char == '0':
+                    bit_list.append(False)
+                elif char == '#':
+                    raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
+                else:
+                    raise ValueError("Invalid character: " + repr(char))
+            self._bits = tuple(bit_list)
         else:
             self._bits = tuple(bool(value) for value in bits)
 

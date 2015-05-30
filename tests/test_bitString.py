@@ -28,7 +28,7 @@ class TestBitString(unittest.TestCase):
         else:
             bitstrings.use_pure_python()
 
-        self.bitstring = bitstrings.BitString.from_string('10010101')  # 149
+        self.bitstring = bitstrings.BitString('10010101')  # 149
 
     def test_using(self):
         if self.use_numpy:
@@ -59,7 +59,7 @@ class TestBitString(unittest.TestCase):
         self.assertTrue(self.bitstring == bitstring)
 
     def test_from_string(self):
-        self.assertTrue(bitstrings.BitString.from_string(str(self.bitstring)) == self.bitstring)
+        self.assertTrue(bitstrings.BitString(str(self.bitstring)) == self.bitstring)
 
     def test_random(self):
         previous = bitstrings.BitString.random(len(self.bitstring), .5)

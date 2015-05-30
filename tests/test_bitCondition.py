@@ -8,13 +8,13 @@ from xcs.bitstrings import BitString, BitCondition
 class TestBitCondition(unittest.TestCase):
 
     def setUp(self):
-        self.bitstring1 = BitString.from_string('101101')
-        self.bitstring2 = BitString.from_string('100101')
-        self.bitstring3 = BitString.from_string('100011')
-        self.bitstring4 = BitString.from_string('010010')
+        self.bitstring1 = BitString('101101')
+        self.bitstring2 = BitString('100101')
+        self.bitstring3 = BitString('100011')
+        self.bitstring4 = BitString('010010')
 
     def test_init(self):
-        condition1 = BitCondition.from_string('1###01')
+        condition1 = BitCondition('1###01')
         condition2 = BitCondition(self.bitstring2, self.bitstring3)
         condition3 = BitCondition(self.bitstring2, self.bitstring2)
         condition4 = BitCondition(self.bitstring1, self.bitstring3)
@@ -25,15 +25,15 @@ class TestBitCondition(unittest.TestCase):
         self.assertTrue(condition1 != condition5)
 
     def test_matched(self):
-        condition = BitCondition.from_string('###101')
+        condition = BitCondition('###101')
         self.assertTrue(condition(self.bitstring1))
 
     def test_unmatched(self):
-        condition = BitCondition.from_string('001###')
+        condition = BitCondition('001###')
         self.assertFalse(condition(self.bitstring1))
 
     def test_cover(self):
-        condition = BitCondition.from_string('1###01')
+        condition = BitCondition('1###01')
         covered = condition.cover(self.bitstring1, .5)
         self.assertTrue(covered(covered))
         self.assertTrue(covered(self.bitstring1))

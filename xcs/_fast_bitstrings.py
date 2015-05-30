@@ -82,21 +82,6 @@ class BitString:
         return cls(bits)
 
     @classmethod
-    def from_string(cls, value):
-        """Create a bit string from an ordinary string value consisting of 0 and 1 characters."""
-        bits = []
-        for char in value:
-            if char == '1':
-                bits.append(True)
-            elif char == '0':
-                bits.append(False)
-            elif char == '#':
-                raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
-            else:
-                raise ValueError("Invalid character: " + repr(char))
-        return cls(bits)
-
-    @classmethod
     def random(cls, length, bit_prob=.5):
         """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
          defaults to .5."""
@@ -132,6 +117,7 @@ class BitString:
         return cls(bits)
 
     def __init__(self, bits):
+        self._hash = None  # We'll calculate this later if we need it.
         if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
             # noinspection PyUnresolvedReferences
             if bits.flags.writeable:
@@ -146,11 +132,23 @@ class BitString:
         elif isinstance(bits, BitString):
             # No need to make a copy because we use immutable bit arrays
             self._bits = bits._bits  # We can just grab a reference to the same bit array the other bitstring is using
+            self._hash = bits._hash
+        elif isinstance(bits, str):
+            bit_list = []
+            for char in bits:
+                if char == '1':
+                    bit_list.append(True)
+                elif char == '0':
+                    bit_list.append(False)
+                elif char == '#':
+                    raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
+                else:
+                    raise ValueError("Invalid character: " + repr(char))
+            self._bits = numpy.array(bit_list, bool)
+            self._bits.flags.writeable = False
         else:
             self._bits = numpy.array(bits, bool)  # Make a new bit array from the given values
             self._bits.flags.writeable = False  # Make sure the bit array isn't writable
-
-        self._hash = None  # We'll calculate this later if we need it.
 
     def any(self):
         """Returns True iff at least one bit is set."""

@@ -109,25 +109,6 @@ class BitCondition:
     """
 
     @classmethod
-    def from_string(cls, value):
-        """Create a bit condition from an ordinary string value consisting of 0, 1, and # characters."""
-        bits = []
-        mask = []
-        for char in value:
-            if char == '1':
-                bits.append(True)
-                mask.append(True)
-            elif char == '0':
-                bits.append(False)
-                mask.append(True)
-            elif char == '#':
-                bits.append(False)
-                mask.append(False)
-            else:
-                raise ValueError("Invalid character: " + repr(char))
-        return cls(BitString(bits), BitString(mask))
-
-    @classmethod
     def cover(cls, bits, wildcard_probability):
         """Create a new bit condition that matches the provided bit string, with the indicated per-index wildcard
          probability."""
@@ -138,16 +119,36 @@ class BitCondition:
         mask = BitString([random.random() < wildcard_probability for _ in range(len(bits))])
         return cls(bits, mask)
 
-    def __init__(self, bits, mask):
-        # Convert bits to a bit string if it isn't one already
-        if not isinstance(bits, BitString):
-            bits = BitString(bits)
-
-        # Convert mask to a bit string of the same length as bits
-        if isinstance(mask, int):
-            mask = BitString.from_int(mask, len(bits))
-        elif not isinstance(mask, BitString):
-            mask = BitString(mask)
+    def __init__(self, bits, mask=None):
+        if mask is None:
+            if isinstance(bits, str):
+                bit_list = []
+                mask = []
+                for char in bits:
+                    if char == '1':
+                        bit_list.append(True)
+                        mask.append(True)
+                    elif char == '0':
+                        bit_list.append(False)
+                        mask.append(True)
+                    elif char == '#':
+                        bit_list.append(False)
+                        mask.append(False)
+                    else:
+                        raise ValueError("Invalid character: " + repr(char))
+                bits = BitString(bit_list)
+                mask = BitString(mask)
+            elif isinstance(bits, BitCondition):
+                bits, mask = bits._bits, bits._mask
+            else:
+                if not isinstance(bits, BitString):
+                    bits = BitString(bits)
+                mask = BitString.from_int(~0, len(bits))
+        else:
+            if not isinstance(bits, BitString):
+                bits = BitString(bits)
+            if not isinstance(mask, BitString):
+                bits = BitString(mask)
 
         # Verify the bits and mask bit strings have the same length
         if len(bits) != len(mask):
