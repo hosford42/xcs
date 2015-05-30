@@ -32,8 +32,7 @@ import logging
 import random
 from abc import ABCMeta, abstractmethod
 
-# noinspection PyUnresolvedReferences
-from xcs.bitstrings import BitString, BitCondition
+import xcs.bitstrings as bitstrings
 
 
 class OnLineProblem(metaclass=ABCMeta):
@@ -80,7 +79,7 @@ class MUXProblem(OnLineProblem):
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
-        self.current_situation = BitString([
+        self.current_situation = bitstrings.BitString([
             random.randrange(2)
             for _ in range(self.address_size + (1 << self.address_size))
         ])
@@ -90,7 +89,7 @@ class MUXProblem(OnLineProblem):
         """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
         reward program."""
         self.remaining_cycles -= 1
-        index = int(BitString(self.current_situation[:self.address_size]))
+        index = int(bitstrings.BitString(self.current_situation[:self.address_size]))
         bit = self.current_situation[self.address_size + index]
         return action == bit
 

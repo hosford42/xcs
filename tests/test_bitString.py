@@ -1,10 +1,14 @@
 __author__ = 'Aaron Hosford'
 
+import logging
 import unittest
 
+import xcs
 import xcs.bitstrings as bitstrings
+import xcs.problems
 
 
+# noinspection PyUnresolvedReferences
 class TestBitString(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
@@ -36,9 +40,19 @@ class TestBitString(unittest.TestCase):
             bitstrings.use_numpy()
             self.assertTrue(bitstrings.using_numpy())
             self.assertTrue('fast' in bitstrings.BitString.__module__)
+            logging.disable(logging.CRITICAL)
+            try:
+                xcs.test(problem=xcs.problems.MUXProblem(1000))
+            finally:
+                logging.disable(logging.NOTSET)
         else:
             self.assertFalse(bitstrings.using_numpy())
             self.assertTrue('slow' in bitstrings.BitString.__module__)
+            logging.disable(logging.CRITICAL)
+            try:
+                xcs.test(problem=xcs.problems.MUXProblem(1000))
+            finally:
+                logging.disable(logging.NOTSET)
 
     def test_from_int(self):
         bitstring = bitstrings.BitString.from_int(149, 8)

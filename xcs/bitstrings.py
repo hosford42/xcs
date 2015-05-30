@@ -33,6 +33,7 @@ import random
 def numpy_is_available():
     """Attempt to import numpy and return a Boolean indicating whether successful."""
     try:
+        # noinspection PyUnresolvedReferences
         import numpy
     except ImportError:
         return False
@@ -50,9 +51,11 @@ def numpy_is_available():
 # dependencies. By default, the numpy implementation is used if it is available, and the pure Python implementation is
 # used otherwise.
 if numpy_is_available():
+    # noinspection PyProtectedMember
     from xcs._fast_bitstrings import BitString
     _using_numpy = True
 else:
+    # noinspection PyProtectedMember
     from xcs._slow_bitstrings import BitString
     _using_numpy = False
 
@@ -67,14 +70,18 @@ def use_numpy():
     """Force the package to use the numpy-based BitString implementation. If numpy is not available, this will result
     in an ImportError. IMPORTANT: Bitstrings of different implementations cannot be mixed. Attempting to do so will
     result in undefined behavior."""
+    # noinspection PyGlobalUndefined
     global BitString, _using_numpy
+    # noinspection PyProtectedMember
     from xcs._fast_bitstrings import BitString
     _using_numpy = True
+
 
 def use_pure_python():
     """Force the package to use the pure Python BitString implementation. IMPORTANT: Bitstrings of different
     implementations cannot be mixed. Attempting to do so will result in undefined behavior."""
     global BitString, _using_numpy
+    # noinspection PyProtectedMember
     from xcs._slow_bitstrings import BitString
     _using_numpy = False
 
