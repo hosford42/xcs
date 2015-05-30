@@ -45,6 +45,11 @@ class OnLineProblem(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
+    def reset(self):
+        """Reset the problem, starting it over for a new run."""
+        raise NotImplementedError()
+
+    @abstractmethod
     def sense(self):
         """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
         raise NotImplementedError()
@@ -71,11 +76,16 @@ class MUXProblem(OnLineProblem):
         self.address_size = address_size
         self.current_situation = None
         self.possible_actions = (True, False)
+        self.initial_training_cycles = training_cycles
         self.remaining_cycles = training_cycles
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
         return self.possible_actions
+
+    def reset(self):
+        """Reset the problem, starting it over for a new run."""
+        self.remaining_cycles = self.initial_training_cycles
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
@@ -134,6 +144,11 @@ class OnLineObserver(OnLineProblem):
             self.logger.info('    %s', action)
 
         return possible_actions
+
+    def reset(self):
+        """Reset the problem, starting it over for a new run."""
+        self.logger.info('Resetting problem.')
+        self.wrapped.reset()
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
