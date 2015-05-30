@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # Prepares for registration.
+
+# TODO: Clean this hacked together script up!
+
 __author__ = 'Aaron Hosford'
 
 import glob
@@ -39,3 +42,5 @@ if os.path.isfile(zip_path):
     os.remove(zip_path)
 with zipfile.ZipFile(zip_path, mode="w") as zf:
     zf.write(tutorial_path, 'index.html')
+
+# TODO: Run all tests.

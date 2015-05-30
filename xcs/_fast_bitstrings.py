@@ -184,7 +184,11 @@ class BitString:
 
     def __getitem__(self, index):
         # Overloads bitstring[index]
-        return self._bits[index]
+        result = self._bits[index]
+        if isinstance(result, numpy.ndarray):
+            result.flags.writeable = False
+            return BitString(result)
+        return result
 
     def __hash__(self):
         # Overloads hash(bitstring)
