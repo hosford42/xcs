@@ -1,0 +1,93 @@
+__author__ = 'Aaron Hosford'
+
+import unittest
+
+import xcs.bitstrings as bitstrings
+
+
+class TestBitString(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_numpy = False
+
+    def run(self, result=None):
+        if bitstrings.numpy_is_available():
+            self.use_numpy = True
+            super().run(result)
+        self.use_numpy = False
+        super().run(result)
+
+    def setUp(self):
+        if self.use_numpy:
+            bitstrings.use_numpy()
+        else:
+            bitstrings.use_pure_python()
+
+        self.bitstring = bitstrings.BitString.from_string('10010101')  # 149
+
+    def test_using(self):
+        if self.use_numpy:
+            self.assertTrue(bitstrings.using_numpy())
+            self.assertTrue('fast' in bitstrings.BitString.__module__)
+            bitstrings.use_pure_python()
+            self.assertFalse(bitstrings.using_numpy())
+            self.assertTrue('slow' in bitstrings.BitString.__module__)
+            bitstrings.use_numpy()
+            self.assertTrue(bitstrings.using_numpy())
+            self.assertTrue('fast' in bitstrings.BitString.__module__)
+        else:
+            self.assertFalse(bitstrings.using_numpy())
+            self.assertTrue('slow' in bitstrings.BitString.__module__)
+
+    def test_from_int(self):
+        bitstring = bitstrings.BitString.from_int(149, 8)
+        self.assertTrue(self.bitstring == bitstring)
+
+    def test_from_string(self):
+        self.assertTrue(bitstrings.BitString.from_string(str(self.bitstring)) == self.bitstring)
+
+    def test_random(self):
+        previous = bitstrings.BitString.random(len(self.bitstring), .5)
+        for i in range(10):
+            current = bitstrings.BitString.random(len(self.bitstring), 1 / (i + 2))
+            if previous != current:
+                break
+            previous = current
+        else:
+            self.fail("Failed to produce distinct random bitstrings.")
+
+    def test_crossover_template(self):
+        previous = bitstrings.BitString.crossover_template(len(self.bitstring), 2)
+        for i in range(10):
+            current = bitstrings.BitString.crossover_template(len(self.bitstring), i + 1)
+            if previous != current:
+                break
+            previous = current
+        else:
+            self.fail("Failed to produce distinct crossover templates.")
+
+    def test_any(self):
+        self.assertTrue(self.bitstring.any())
+        self.assertFalse(bitstrings.BitString.from_int(0, len(self.bitstring)).any())
+        self.assertTrue(bitstrings.BitString.from_int(-1, len(self.bitstring)).any())
+
+    def test_count(self):
+        self.assertTrue(self.bitstring.count() == 4)
+        self.assertTrue(bitstrings.BitString.from_int(0, len(self.bitstring)).count() == 0)
+        self.assertTrue(bitstrings.BitString.from_int(-1, len(self.bitstring)).count() == len(self.bitstring))
+
+
+# def suite():
+#     print("HI")
+#     suite = unittest.TestSuite()
+#     if bitstrings.numpy_is_available():
+#         suite.addTest(TestBitString(use_numpy=True))
+#     suite.addTest(TestBitString(use_numpy=False))
+#     return suite
+
+def main():
+    unittest.main()  # testRunner=suite())
+
+if __name__ == "__main__":
+    main()

@@ -30,15 +30,53 @@ __all__ = [
 import random
 
 
-# We have two different implementations of BitString, one in _fast_bitstrings and one in _slow_bitstrings. The fast
+def numpy_is_available():
+    """Attempt to import numpy and return a Boolean indicating whether successful."""
+    try:
+        import numpy
+    except ImportError:
+        return False
+
+    try:
+        numpy.ndarray
+    except AttributeError:
+        return False
+
+    return True
+
+
+# There are two different implementations of BitString, one in _fast_bitstrings and one in _slow_bitstrings. The fast
 # version is dependent on numpy being installed, whereas the slow one is written in pure Python with no external
-# dependencies. This attempts to load the fast version and, failing that, falls back on the slower one.
-try:
-    # noinspection PyProtectedMember
+# dependencies. By default, the numpy implementation is used if it is available, and the pure Python implementation is
+# used otherwise.
+if numpy_is_available():
     from xcs._fast_bitstrings import BitString
-except ImportError:
-    # noinspection PyUnresolvedReferences,PyProtectedMember
+    _using_numpy = True
+else:
     from xcs._slow_bitstrings import BitString
+    _using_numpy = False
+
+
+def using_numpy():
+    """Return a Boolean indicating whether the numpy implementation is currently in use."""
+    return _using_numpy
+
+
+# TODO: Make sure these will actually work.
+def use_numpy():
+    """Force the package to use the numpy-based BitString implementation. If numpy is not available, this will result
+    in an ImportError. IMPORTANT: Bitstrings of different implementations cannot be mixed. Attempting to do so will
+    result in undefined behavior."""
+    global BitString, _using_numpy
+    from xcs._fast_bitstrings import BitString
+    _using_numpy = True
+
+def use_pure_python():
+    """Force the package to use the pure Python BitString implementation. IMPORTANT: Bitstrings of different
+    implementations cannot be mixed. Attempting to do so will result in undefined behavior."""
+    global BitString, _using_numpy
+    from xcs._slow_bitstrings import BitString
+    _using_numpy = False
 
 
 class BitCondition:

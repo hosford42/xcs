@@ -74,7 +74,7 @@ __all__ = [
 import random
 from abc import ABCMeta, abstractmethod
 
-from xcs.bitstrings import BitString, BitCondition
+import xcs.bitstrings as bitstrings
 from xcs.problems import MUXProblem, OnLineObserver
 
 
@@ -289,7 +289,7 @@ class Population:
         """Accept a situation, encoded as a bit string. Return the set of matching rules (classifiers) for the given
         situation."""
 
-        if not isinstance(situation, (BitString, BitCondition)):
+        if not isinstance(situation, (bitstrings.BitString, bitstrings.BitCondition)):
             raise TypeError(situation)
 
         # Find the conditions that match against the current situation, and group them according to which
@@ -474,7 +474,7 @@ class XCSAlgorithm(LCSAlgorithm):
         not present in the existing actions, if possible."""
 
         # Create a new condition that matches the situation.
-        condition = BitCondition.cover(situation, self.wildcard_probability)
+        condition = bitstrings.BitCondition.cover(situation, self.wildcard_probability)
 
         # Pick a random action that (preferably) isn't already suggested by some
         # other rule for this situation.
@@ -748,15 +748,15 @@ class XCSAlgorithm(LCSAlgorithm):
         # Go through each position in the condition, randomly flipping whether
         # the position is a value (0 or 1) or a wildcard (#). We do this in
         # a new list because the original condition's mask is immutable.
-        mutation_points = BitString.random(len(condition.mask), self.mutation_probability)
+        mutation_points = bitstrings.BitString.random(len(condition.mask), self.mutation_probability)
         mask = condition.mask ^ mutation_points
 
         # The bits that aren't wildcards always have the same value as the situation,
         # which ensures that the mutated condition still matches the situation.
-        if isinstance(situation, BitCondition):
+        if isinstance(situation, bitstrings.BitCondition):
             mask &= situation.mask
-            return BitCondition(situation.bits, mask)
-        return BitCondition(situation, mask)
+            return bitstrings.BitCondition(situation.bits, mask)
+        return bitstrings.BitCondition(situation, mask)
 
 
 class LCS:
