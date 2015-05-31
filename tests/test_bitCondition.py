@@ -34,10 +34,15 @@ class TestBitCondition(unittest.TestCase):
         self.assertFalse(condition(self.bitstring1))
 
     def test_cover(self):
-        condition = BitCondition('1###01')
-        covered = condition.cover(self.bitstring1, .5)
+        covered = BitCondition.cover(self.bitstring1, .5)
         self.assertTrue(covered(covered))
         self.assertTrue(covered(self.bitstring1))
+
+        covered = BitCondition.cover(self.bitstring1, 0)
+        self.assertTrue(covered.mask.count() == len(self.bitstring1))
+
+        covered = BitCondition.cover(self.bitstring1, 1)
+        self.assertTrue(covered.mask.count() == 0)
 
     def test_bits(self):
         condition = BitCondition(self.bitstring1, self.bitstring2)

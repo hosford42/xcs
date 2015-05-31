@@ -116,7 +116,7 @@ class BitCondition:
         if not isinstance(bits, BitString):
             bits = BitString(bits)
 
-        mask = BitString([random.random() < wildcard_probability for _ in range(len(bits))])
+        mask = BitString([random.random() > wildcard_probability for _ in range(len(bits))])
         return cls(bits, mask)
 
     def __init__(self, bits, mask=None):
