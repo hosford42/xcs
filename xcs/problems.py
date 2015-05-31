@@ -108,6 +108,37 @@ class MUXProblem(OnLineProblem):
         return int(self.remaining_cycles > 0)
 
 
+# TODO: Add docstrings here.
+class HaystackProblem(OnLineProblem):
+
+    def __init__(self, training_cycles=1000, input_size=500):
+        self.input_size = input_size
+        self.possible_actions = (True, False)
+        self.initial_training_cycles = training_cycles
+        self.remaining_cycles = training_cycles
+        self.needle = random.randrange(input_size)
+        self.needle_value = None
+
+    def get_possible_actions(self):
+        return self.possible_actions
+
+    def reset(self):
+        self.remaining_cycles = self.initial_training_cycles
+        self.needle = random.randrange(self.input_size)
+
+    def more(self):
+        return self.remaining_cycles > 0
+
+    def sense(self):
+        haystack = bitstrings.BitString.random(self.input_size)
+        self.needle_value = haystack[self.needle]
+        return haystack
+
+    def execute(self, action):
+        self.remaining_cycles -= 1
+        return action == self.needle_value
+
+
 class OnLineObserver(OnLineProblem):
     """Wrapper for other OnLineProblem instances which prints details of the agent/problem interaction as they take
     place, forwarding the actual work on to the wrapped instance."""
