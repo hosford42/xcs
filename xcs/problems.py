@@ -108,35 +108,44 @@ class MUXProblem(OnLineProblem):
         return int(self.remaining_cycles > 0)
 
 
-# TODO: Add docstrings here.
 class HaystackProblem(OnLineProblem):
+    """This is the problem that appears in the tutorial in the section, "Defining a new problem type". This problem is
+     designed to test the algorithm's ability to find a single important input bit (the "needle") from among a large
+     number of irrelevant input bits (the "haystack")."""
 
-    def __init__(self, training_cycles=1000, input_size=500):
+    def __init__(self, training_cycles=10000, input_size=500):
         self.input_size = input_size
         self.possible_actions = (True, False)
         self.initial_training_cycles = training_cycles
         self.remaining_cycles = training_cycles
-        self.needle = random.randrange(input_size)
+        self.needle_index = random.randrange(input_size)
         self.needle_value = None
 
     def get_possible_actions(self):
+        """Return a sequence containing the possible actions that can be executed within the environment."""
         return self.possible_actions
 
     def reset(self):
+        """Reset the problem, starting it over for a new run."""
         self.remaining_cycles = self.initial_training_cycles
-        self.needle = random.randrange(self.input_size)
-
-    def more(self):
-        return self.remaining_cycles > 0
+        self.needle_index = random.randrange(self.input_size)
 
     def sense(self):
+        """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
         haystack = bitstrings.BitString.random(self.input_size)
-        self.needle_value = haystack[self.needle]
+        self.needle_value = haystack[self.needle_index]
         return haystack
 
     def execute(self, action):
+        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
+        reward program."""
         self.remaining_cycles -= 1
         return action == self.needle_value
+
+    def more(self):
+        """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
+        return self.remaining_cycles > 0
+
 
 
 class OnLineObserver(OnLineProblem):
