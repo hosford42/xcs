@@ -27,6 +27,7 @@ __all__ = [
     'BitCondition',
 ]
 
+from abc import ABCMeta, abstractmethod
 import random
 
 
@@ -44,6 +45,145 @@ def numpy_is_available():
         return False
 
     return True
+
+
+class _BitStringBase(metaclass=ABCMeta):
+    """Abstract base class for hashable, immutable sequences of bits (Boolean values).
+
+    In addition to operations for indexing and iteration, provides standard bitwise operations, including & (bitwise
+    and), | (bitwise or), ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator, which acts like string
+    concatenation.
+
+    A bit string can also be cast as an integer or an ordinary string.
+    """
+
+    @classmethod
+    def from_int(cls, value, length=None):
+        """Create a bit string from an integer value. If the length parameter is provided, it determines the number of
+        bits in the bit string. Otherwise, the minimum length required to represent the value is used."""
+
+        if not isinstance(value, int):
+            raise TypeError(value)
+
+        # Progressively chop off low-end bits from the int, adding them to the bits list,
+        # until we have reached the given length (if provided) or no more non-zero bits
+        # remain (if length was not specified).
+        bits = []
+        while value:
+            if length is not None and len(bits) >= length:
+                break
+            bits.append(value % 2)
+            value >>= 1
+
+        # Ensure that if length was provided, we have the correct number of bits in our list.
+        if length:
+            if len(bits) < length:
+                bits.extend([0] * (length - len(bits)))
+            elif len(bits) > length:
+                bits = bits[:length]
+
+        # Reverse the order of the bits, so the high-order bits go on the left and the low-
+        # order bits go on the right, just as a person would expect when looking at the
+        # number written out in binary.
+        bits.reverse()
+
+        return cls(bits)
+
+    @classmethod
+    @abstractmethod
+    def random(cls, length, bit_prob=.5):
+        """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
+         defaults to .5."""
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def crossover_template(cls, length, points=2):
+        """Create a crossover template with the given number of points. The crossover template can be used as a mask
+        to crossover two bitstrings of the same length:
+
+            assert len(parent1) == len(parent2)
+            template = BitString.crossover_template(len(parent1))
+            inv_template = ~template
+            child1 = (parent1 & template) | (parent2 & inv_template)
+            child2 = (parent1 & inv_template) | (parent2 & template)
+        """
+        raise NotImplementedError()
+
+    def __init__(self, bits, hash_value=None):
+        self._bits = bits
+        self._hash = hash_value
+
+    @abstractmethod
+    def any(self):
+        """Returns True iff at least one bit is set."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def count(self):
+        """Returns the number of bits set to True in the bit string."""
+        raise NotImplementedError()
+
+    def __str__(self):
+        # Overloads str(bitstring)
+        return ''.join('1' if bit else '0' for bit in self._bits)
+
+    def __repr__(self):
+        # Overloads repr(bitstring)
+        return type(self).__name__ + '(' + repr([int(bit) for bit in self._bits]) + ')'
+
+    def __int__(self):
+        # Overloads int(bitstring)
+        value = 0
+        for bit in self._bits:
+            value <<= 1
+            value += int(bit)
+        return value
+
+    def __len__(self):
+        # Overloads len(bitstring)
+        return len(self._bits)
+
+    def __iter__(self):
+        # Overloads iter(bitstring), and also, for bit in bitstring
+        return iter(self._bits)
+
+    @abstractmethod
+    def __getitem__(self, index):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __hash__(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __eq__(self, other):
+        raise NotImplementedError()
+
+    def __ne__(self, other):
+        # Overloads !=
+        return not self == other
+
+    @abstractmethod
+    def __and__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __or__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __xor__(self, other):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __invert__(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def __add__(self, other):
+        raise NotImplementedError()
+
 
 
 # There are two different implementations of BitString, one in _fast_bitstrings and one in _slow_bitstrings. The fast
@@ -65,7 +205,6 @@ def using_numpy():
     return _using_numpy
 
 
-# TODO: Make sure these will actually work.
 def use_numpy():
     """Force the package to use the numpy-based BitString implementation. If numpy is not available, this will result
     in an ImportError. IMPORTANT: Bitstrings of different implementations cannot be mixed. Attempting to do so will

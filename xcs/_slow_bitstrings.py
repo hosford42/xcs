@@ -30,7 +30,10 @@ __all__ = [
 import random
 
 
-class BitString:
+from xcs.bitstrings import _BitStringBase
+
+
+class BitString(_BitStringBase):
     """A hashable, immutable sequence of bits (Boolean values). This is the slower, Python-only implementation that
     doesn't depend on numpy.
 
@@ -40,35 +43,6 @@ class BitString:
 
     A bit string can also be cast as an integer or an ordinary string.
     """
-
-    @classmethod
-    def from_int(cls, value, length=None):
-        """Create a bit string from an integer value. If the length parameter is provided, it determines the number of
-        bits in the bit string. Otherwise, the minimum length required to represent the value is used."""
-
-        # Progressively chop off low-end bits from the int, adding them to the bits list,
-        # until we have reached the given length (if provided) or no more non-zero bits
-        # remain (if length was not specified).
-        bits = []
-        while value:
-            if length is not None and len(bits) >= length:
-                break
-            bits.append(value % 2)
-            value >>= 1
-
-        # Ensure that if length was provided, we have the correct number of bits in our list.
-        if length:
-            if len(bits) < length:
-                bits.extend([0] * (length - len(bits)))
-            elif len(bits) > length:
-                bits = bits[:length]
-
-        # Reverse the order of the bits, so the high-order bits go on the left and the low-
-        # order bits go on the right, just as a person would expect when looking at the
-        # number written out in binary.
-        bits.reverse()
-
-        return cls(bits)
 
     @classmethod
     def random(cls, length, bit_prob=.5):
@@ -103,12 +77,15 @@ class BitString:
 
     def __init__(self, bits):
         if isinstance(bits, int):
-            self._bits = (False,) * bits
+            bits = (False,) * bits
+            hash_value = None
         elif isinstance(bits, BitString):
             # No need to make a copy because we use immutable bit arrays
-            self._bits = bits._bits
+            bits = bits._bits
+            hash_value = bits._hash
         elif isinstance(bits, tuple) and all(isinstance(value, bool) for value in bits):
             self._bits = bits
+            hash_value = None
         elif isinstance(bits, str):
             bit_list = []
             for char in bits:
@@ -120,11 +97,13 @@ class BitString:
                     raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
                 else:
                     raise ValueError("Invalid character: " + repr(char))
-            self._bits = tuple(bit_list)
+            bits = tuple(bit_list)
+            hash_value = None
         else:
-            self._bits = tuple(bool(value) for value in bits)
+            bits = tuple(bool(value) for value in bits)
+            hash_value = None
 
-        self._hash = None
+        super().__init__(bits, hash_value)
 
     def any(self):
         """Returns True iff at least one bit is set."""
@@ -134,34 +113,10 @@ class BitString:
         """Returns the number of bits set to True in the bit string."""
         return sum(self._bits)
 
-    def __str__(self):
-        # Overloads str(bitstring)
-        return ''.join('1' if bit else '0' for bit in self._bits)
-
-    def __repr__(self):
-        # Overloads repr(bitstring)
-        return type(self).__name__ + '(' + repr([int(bit) for bit in self._bits]) + ')'
-
-    def __int__(self):
-        # Overloads int(bitstring)
-        value = 0
-        for bit in self._bits:
-            value <<= 1
-            value += int(bit)
-        return value
-
-    def __len__(self):
-        # Overloads len(bitstring)
-        return len(self._bits)
-
-    def __iter__(self):
-        # Overloads iter(bitstring), and also, for bit in bitstring
-        return iter(self._bits)
-
     def __getitem__(self, index):
         # Overloads bitstring[index]
         result = self._bits[index]
-        if isinstance(result, tuple):
+        if isinstance(index, slice):
             return BitString(result)
         return result
 
@@ -175,10 +130,6 @@ class BitString:
         # Overloads ==
         # noinspection PyProtectedMember
         return isinstance(other, BitString) and self._bits == other._bits
-
-    def __ne__(self, other):
-        # Overloads !=
-        return not self == other
 
     def __and__(self, other):
         # Overloads &
