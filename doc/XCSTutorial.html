@@ -3,7 +3,7 @@
 <head>
 
 <meta charset="utf-8" />
-<title>Tutorial</title>
+<title>XCSTutorial</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -589,6 +589,624 @@ INFO:xcs:Total time: 24.01673 seconds</code></pre>
 </div>
 </div>
 
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Defining-a-new-problem-type">Defining a new problem type<a class="anchor-link" href="#Defining-a-new-problem-type">&#182;</a></h2><p>To define a new problem type, inherit from the <code>OnLineProblem</code> abstract class defined in the <code>xcs.problems</code> submodule. Suppose, as an example, that we wish to test the algorithm's ability to find a single important input bit from among a large number of irrelevant input bits.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[1]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>We defined a new class, <code>HaystackProblem</code>, to represent this test case, which inherits from <code>OnLineProblem</code> to ensure that we cannot instantiate the problem until the appropriate methods have been implemented.</p>
+<p>Now let's define an <code>__init__</code> method for this class. We'll need a parameter, <code>training_cycles</code>, to determine how many reward cycles the algorithm has to identify the "needle", and another parameter, <code>input_size</code>, to determine how big the "haystack" is.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[2]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span> <span class="o">=</span> <span class="p">(</span><span class="k">True</span><span class="p">,</span> <span class="k">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>The <code>input_size</code> is saved as a member for later use. Likewise, the value of <code>training_cycles</code> was saved in two places: the <code>remaining_cycles</code> member, which tells the instance how many training cycles remain for the current run, and the <code>intitial_training_cycles</code> member, which the instance will use to reset <code>remaining_cycles</code> to the original value for a new run.</p>
+<p>We also defined the <code>possible_actions</code> member, which we set to <code>(True, False)</code>. This is the value we will return when the algorithm asks for the possible actions. We will expect the algorithm to return <code>True</code> when the needle bit is set, and <code>False</code> when the needle bit is clear, in order to indicate that it has correctly identified the needle's location.</p>
+<p>Now let's define some methods for the class. The <code>OnLineProblem</code> defines several abstract methods:</p>
+<ul>
+<li><code>get_possible_actions()</code> should return the actions the algorithm can take.</li>
+<li><code>reset()</code> should restart the problem for a new run.</li>
+<li><code>sense()</code> should return a new input (the "situation").</li>
+<li><code>execute(action)</code> should accept an action from among those returned by <code>get_possible_actions()</code>, in response to the last situation that was returned by <code>sense()</code>. It should then return a reward value indicating how well the algorithm is doing at solving the problem.</li>
+<li><code>more()</code> should return a Boolean value to indicate whether the algorithm has remaining reward cycles in which to solve the problem.</li>
+</ul>
+<p>Each of these abstract methods must be defined, or we will get a TypeError when we attempt to instantiate the class:</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[3]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="n">problem</span> <span class="o">=</span> <span class="n">HaystackProblem</span><span class="p">()</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area"><div class="prompt"></div>
+<div class="output_subarea output_text output_error">
+<pre>
+<span class="ansired">---------------------------------------------------------------------------</span>
+<span class="ansired">TypeError</span>                                 Traceback (most recent call last)
+<span class="ansigreen">&lt;ipython-input-3-3ba8a9996059&gt;</span> in <span class="ansicyan">&lt;module&gt;</span><span class="ansiblue">()</span>
+<span class="ansigreen">----&gt; 1</span><span class="ansiyellow"> </span>problem <span class="ansiyellow">=</span> HaystackProblem<span class="ansiyellow">(</span><span class="ansiyellow">)</span><span class="ansiyellow"></span>
+
+<span class="ansired">TypeError</span>: Can&apos;t instantiate abstract class HaystackProblem with abstract methods execute, get_possible_actions, more, reset, sense</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>The implementations for the methods other than <code>sense()</code> and <code>execute()</code> will be trivial, so let's start with those:</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[4]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span> <span class="o">=</span> <span class="p">(</span><span class="k">True</span><span class="p">,</span> <span class="k">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+
+    <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
+    
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span>
+        
+    <span class="k">def</span> <span class="nf">more</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">&gt;</span> <span class="mi">0</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Now we are going to get into the meat of the problem. We want to give the algorithm a random string of bits of size <code>input_size</code> and have it pick out the location of the needle bit through trial and error, by telling us what it thinks the value of the needle bit is. For this to be a useful test, the needle bit needs to be in a fixed location, which we have not yet defined. Let's choose a random bit from among inputs on each run.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[5]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span> <span class="o">=</span> <span class="p">(</span><span class="k">True</span><span class="p">,</span> <span class="k">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
+    
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">more</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">&gt;</span> <span class="mi">0</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>The <code>sense()</code> method is going to create a string of random bits of size <code>input_size</code> and return it. But first it will pick out the value of the needle bit, located at <code>needle_index</code>, and store it in a new member, <code>needle_value</code>, so that <code>execute(action)</code> will know what the correct value for <code>action</code> is.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[6]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<span class="kn">from</span> <span class="nn">xcs.bitstrings</span> <span class="k">import</span> <span class="n">BitString</span>
+
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span> <span class="o">=</span> <span class="p">(</span><span class="k">True</span><span class="p">,</span> <span class="k">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_value</span> <span class="o">=</span> <span class="k">None</span>
+
+    <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
+    
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">more</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    
+    <span class="k">def</span> <span class="nf">sense</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">haystack</span> <span class="o">=</span> <span class="n">BitString</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_value</span> <span class="o">=</span> <span class="n">haystack</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">haystack</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Now we need to define the <code>execute(action)</code> method. In order to give the algorithm appropriate feedback to make problem solvable, we should return a high reward when it guesses the correct value for the needle bit, and a low value otherwise. Thus we will return a <code>1</code> when the action is the value of the needle bit, and a <code>0</code> otherwise. We must also make sure to decrement the remaining cycles to prevent the problem from running indefinitely.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[7]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<span class="kn">from</span> <span class="nn">xcs.bitstrings</span> <span class="k">import</span> <span class="n">BitString</span>
+
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span> <span class="o">=</span> <span class="p">(</span><span class="k">True</span><span class="p">,</span> <span class="k">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_value</span> <span class="o">=</span> <span class="k">None</span>
+
+    <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
+    
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">more</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    
+    <span class="k">def</span> <span class="nf">sense</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">haystack</span> <span class="o">=</span> <span class="n">BitString</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">needle_value</span> <span class="o">=</span> <span class="n">haystack</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">haystack</span>
+    
+    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">action</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">needle_value</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>We have now defined all of the methods that <code>OnLineProblem</code> requires. Let's give it a test run.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">xcs</span>
+
+<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineObserver</span>
+
+<span class="c"># Setup logging so we can see the test run as it progresses.</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+
+<span class="c"># Create the problem instance</span>
+<span class="n">problem</span> <span class="o">=</span> <span class="n">HaystackProblem</span><span class="p">()</span>
+
+<span class="c"># Wrap the problem instance in an observer so progress gets logged,</span>
+<span class="c"># and pass it on to the test() function.</span>
+<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">problem</span><span class="o">=</span><span class="n">OnLineObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+
+<pre><code>INFO:xcs.problems:Possible actions:
+INFO:xcs.problems:    False
+INFO:xcs.problems:    True
+INFO:xcs.problems:Steps completed: 0
+INFO:xcs.problems:Average reward per step: 0.00000
+INFO:xcs.problems:Steps completed: 100
+INFO:xcs.problems:Average reward per step: 0.60000
+
+.
+.
+.
+
+INFO:xcs.problems:Steps completed: 900
+INFO:xcs.problems:Average reward per step: 0.51556
+INFO:xcs.problems:Steps completed: 1000
+INFO:xcs.problems:Average reward per step: 0.51400
+INFO:xcs.problems:Run completed.
+INFO:xcs.problems:Total steps: 1000
+INFO:xcs.problems:Total reward received: 514.00000
+INFO:xcs.problems:Average reward per step: 0.51400
+INFO:xcs:Population:
+
+######11#0##10##1000#0#1#1##010##1011000###11101#100##00#0011111#0001000###10#100#0#0#01100000#011###1#01##000##011#1##000###001#1#1#000001#0#10#0#00101##111#1#1#1#110##0#111000101010#101001#1#100#1##0##1#01#0#0111##1###1000#111111#01##0#0001###00##1#01#00#0100111#1010#00#11#111#11#0#101#11#10#10###1110#1000##0#0#0#1#10##011#101#00100##111##0##10010001010#0#00###1####10#00#1010010#0110111#10###011#1011110101010101#001###100011##0#010#001#01#1100#1#1#001##0#001##11#000110010###101111100110##11#0# =&gt; True
+    Time Stamp: 853
+    Average Reward: 1e-05
+    Error: 1e-05
+    Fitness: 1.0000000000000002e-06
+    Experience: 0
+    Action Set Size: 1
+    Numerosity: 1
+1#01101010101#010#1#1010#0###00##1#1#0##010#01##1#0100100#00001000#000#0000#0#0#0#001#0110111##011011001101##00###111#00#11010#10#01#1#1#00#1111000001#0##101###1#11#1#0#00011010#1010##0##1000101#110##0#0#0#1#00#0100##1#0101###0010#0#0#1#0#0###101#001010###00#1##011001100#0##1111#111##0000000####000#11####0##10101#100100#0#1#00000#0###1011#1#1##0#0##00###11##110#1#10#01#111###01011#011001##1011#1000#10#11011#0010#1##00#11#0###0###1##00010#011110#1#0#000##101#100##10#0101#01#0#1#1110#1###111111### =&gt; True
+    Time Stamp: 604
+    Average Reward: 1e-05
+    Error: 1e-05
+    Fitness: 1e-05
+    Experience: 0
+    Action Set Size: 1
+    Numerosity: 1
+
+.
+.
+.
+
+#0010#11011#0#1###1#100100#001001##00000010#0#1010#1#11001#0#1##10##100110###0#110#001101###1#00#011###01111011100#1110#000#11001100010###010001#01#001110111##1001001#01#1101#1#11###101#00000#0#1011110#0#1#100#0##0#1#001#10#1###00100100###1#100#0#00101#1110#11#01#10#0111###10#00###10#00#110####1#1#000#1###1101#0100###111#1#1#11100#10##1##0##1#010#1#010#1#0#1#1101111#0#00010##0#0#00#0#0##10011##1##011001#110#0#0000#11111#1011##0#01#000##10###110010#01001#101001#11100111##101#10###0###0#111#110#00 =&gt; True
+    Time Stamp: 997
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.15000850000000002
+    Experience: 1
+    Action Set Size: 1.0
+    Numerosity: 1
+11#10#00#11##101#1#111100###001#1#1#00#01##0100##00#11###0##100111#10##0#100#1010#0#100011##1####1#01#10000##11101#0#00101101####1#100#01##10010#001#111##001##0#10100#01##11##0#1#000####1#01###0#0110#111#####110#100#0#00#1#1##1010011##1#1#0#1##0#01#0#101001#0#00110110#1110#11#0#0#10####101#111#100#0###0001111##10101100#10111111#11001#1#00#01000#101#1#11#1#1#0##1#0##010#0##010010100010##001110#0#10010##0#00##00#111#01#111#01110###11#110###01#1#1###001100000#10#11100##0#00#000001#1##010000###11111 =&gt; False
+    Time Stamp: 998
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.15000850000000002
+    Experience: 1
+    Action Set Size: 1.0
+    Numerosity: 1
+
+INFO:xcs:Total time: 14.70052 seconds</code></pre>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Hmm, the algorithm didn't do so hot. Maybe we've found a weakness in the algorithm, or maybe some different parameter settings will improve its performance. Let's reduce the size of the haystack and give it more reward cycles so we can see whether it's learning at all.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="n">problem</span> <span class="o">=</span> <span class="n">HaystackProblem</span><span class="p">(</span><span class="n">training_cycles</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">problem</span><span class="o">=</span><span class="n">OnLineObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+
+<pre><code>INFO:xcs.problems:Possible actions:
+INFO:xcs.problems:    False
+INFO:xcs.problems:    True
+INFO:xcs.problems:Steps completed: 0
+INFO:xcs.problems:Average reward per step: 0.00000
+INFO:xcs.problems:Steps completed: 100
+INFO:xcs.problems:Average reward per step: 0.49000
+
+.
+.
+.
+
+INFO:xcs.problems:Steps completed: 9900
+INFO:xcs.problems:Average reward per step: 0.50051
+INFO:xcs.problems:Steps completed: 10000
+INFO:xcs.problems:Average reward per step: 0.50070
+INFO:xcs.problems:Run completed.
+INFO:xcs.problems:Total steps: 10000
+INFO:xcs.problems:Total reward received: 5007.00000
+INFO:xcs.problems:Average reward per step: 0.50070
+INFO:xcs:Population:
+
+##1#1101011#01#1#0#1100000001##111000#110#0100#1###0#010101#111###0#0100#0#0#0#0#11###00#101##1#0000 =&gt; True
+    Time Stamp: 9953
+    Average Reward: 1e-05
+    Error: 1e-05
+    Fitness: 1.0000000000000002e-06
+    Experience: 0
+    Action Set Size: 1
+    Numerosity: 1
+##1#1101011#01#1#0#110000000111111000##10#0100#1###0#010101##11###0#01#0#0#0#0#0#11#1#00#101##1#0000 =&gt; True
+    Time Stamp: 9953
+    Average Reward: 1e-05
+    Error: 1e-05
+    Fitness: 1.0000000000000002e-06
+    Experience: 0
+    Action Set Size: 1
+    Numerosity: 1
+
+.
+.
+.
+
+#0##00##00#0#101#11#1##10011010#0#111#11110100110#01#0#1101000#1#010#000#0#10#1#10##0#1#1#100###00## =&gt; True
+    Time Stamp: 9995
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.15000850000000002
+    Experience: 1
+    Action Set Size: 1.0
+    Numerosity: 1
+1###1#0##101#1#010#11001#1#101010#001#110#011100#00##110##0#0#001##1000#0#01#1#0#00111#001110##11010 =&gt; True
+    Time Stamp: 9996
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.15000850000000002
+    Experience: 1
+    Action Set Size: 1.0
+    Numerosity: 1
+
+INFO:xcs:Total time: 142.01913 seconds</code></pre>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>It appears the algorithm isn't learning at all, at least not at a visible rate. But after a few rounds of playing with the parameter values, it becomes apparent that with the correct settings, it's possible for the algorithm to handle the new problem provided sufficient training cycles.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="n">problem</span> <span class="o">=</span> <span class="n">HaystackProblem</span><span class="p">(</span><span class="n">training_cycles</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+
+<span class="n">algorithm</span> <span class="o">=</span> <span class="n">xcs</span><span class="o">.</span><span class="n">XCSAlgorithm</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">get_possible_actions</span><span class="p">())</span>
+
+<span class="c"># Default parameter settings in test()</span>
+<span class="n">algorithm</span><span class="o">.</span><span class="n">exploration_probability</span> <span class="o">=</span> <span class="o">.</span><span class="mi">1</span>
+<span class="n">algorithm</span><span class="o">.</span><span class="n">discount_factor</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="c"># Modified parameter settings</span>
+<span class="n">algorithm</span><span class="o">.</span><span class="n">do_action_set_subsumption</span> <span class="o">=</span> <span class="k">False</span>
+<span class="n">algorithm</span><span class="o">.</span><span class="n">do_GA_subsumption</span> <span class="o">=</span> <span class="k">False</span>
+<span class="n">algorithm</span><span class="o">.</span><span class="n">wildcard_probability</span> <span class="o">=</span> <span class="o">.</span><span class="mi">99</span>
+<span class="n">algorithm</span><span class="o">.</span><span class="n">deletion_threshold</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">algorithm</span><span class="o">.</span><span class="n">mutation_probability</span> <span class="o">=</span> <span class="o">.</span><span class="mi">0001</span>
+
+<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">problem</span><span class="o">=</span><span class="n">OnLineObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+
+<pre><code>INFO:xcs.problems:Steps completed: 0
+INFO:xcs.problems:Average reward per step: 0.00000
+INFO:xcs.problems:Steps completed: 100
+INFO:xcs.problems:Average reward per step: 0.35000
+
+.
+.
+.
+
+INFO:xcs.problems:Steps completed: 9900
+INFO:xcs.problems:Average reward per step: 0.77162
+INFO:xcs.problems:Steps completed: 10000
+INFO:xcs.problems:Average reward per step: 0.77310
+INFO:xcs.problems:Run completed.
+INFO:xcs.problems:Total steps: 10000
+INFO:xcs.problems:Total reward received: 7731.00000
+INFO:xcs.problems:Average reward per step: 0.77310
+INFO:xcs:Population:
+
+.
+.
+.
+
+#################################################################################################################################################################################################################################################################################################################################################################################################################################1##############################################1################################### =&gt; True
+    Time Stamp: 9987
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.0306583767106
+    Experience: 2198
+    Action Set Size: 82.26092203736687
+    Numerosity: 2
+########################################################################################################################################################################################################################################################################################0########################################################################################################################################1################################################################################## =&gt; True
+    Time Stamp: 9953
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.0310299306533
+    Experience: 327
+    Action Set Size: 81.08109639159954
+    Numerosity: 2
+
+.
+.
+.
+
+#########################################################################################################1###########################1#####################################################################################################################################################################0#################################0#################################################################################0#0################################################################################## =&gt; False
+    Time Stamp: 9899
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.813623338102
+    Experience: 18
+    Action Set Size: 47.56505816951893
+    Numerosity: 6
+
+.
+.
+.
+
+#################################################################################################################################################################################################################################################################################################################################################################################################################################1################################################################################## =&gt; True
+    Time Stamp: 9987
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.943011424064
+    Experience: 3094
+    Action Set Size: 80.59117604558953
+    Numerosity: 60
+
+INFO:xcs:Total time: 12.67547 seconds</code></pre>
+
+</div>
+</div>
 </div>
     </div>
   </div>

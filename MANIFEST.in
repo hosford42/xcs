@@ -1,5 +1,5 @@
 include README.md
-include doc/Tutorial.*
+include doc/XCSTutorial.*
 
 # Include the test suite (FIXME: does not work yet)
 # recursive-include tests *
