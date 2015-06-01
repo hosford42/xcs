@@ -1,7 +1,7 @@
 XCS
 ===
 
-*Accuracy-based Learning Classifier Systems for Python*
+*Accuracy-based Learning Classifier Systems for Python 3*
 
 Links
 -----
