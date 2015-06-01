@@ -31,12 +31,19 @@ class TestMUXProblem(unittest.TestCase):
             self.fail("All situations are the same.")
 
     def test_execute(self):
-        # TODO
-        pass
+        situation = self.problem.sense()
+        index = int(situation[:self.problem.address_size])
+        value = situation[self.problem.address_size + index]
+        self.assertEqual(1, self.problem.execute(value))
+        self.assertEqual(0, self.problem.execute(not value))
 
     def test_more(self):
-        # TODO
-        pass
+        self.problem.reset()
+        for _ in range(self.problem.initial_training_cycles):
+            self.problem.sense()
+            self.assertTrue(self.problem.more())
+            self.problem.execute(False)
+        self.assertFalse(self.problem.more())
 
 
 def main():
