@@ -15,7 +15,15 @@ from xcs import __version__
 # noinspection PyUnresolvedReferences
 import build_readme
 
-build_readme.build_readme()
+os.chdir('.\\doc')
+try:
+    os.system('ipython nbconvert XCSTutorial.ipynb')
+finally:
+    os.chdir('..')
+
+# This is already done in setup.py. No need to do it here.
+# build_readme.build_readme()
+
 os.system('python setup.py sdist bdist_wheel')
 
 with open('xcs.egg-info/PKG-INFO', encoding='utf-8', mode='rU') as infile:
@@ -36,7 +44,7 @@ os.system('pip install ' + os.path.join('dist', os.path.basename(dist)) + ' --up
 
 
 zip_path = os.path.join('dist/pythonhosted.zip')
-tutorial_path = 'doc/Tutorial.html'
+tutorial_path = 'doc/XCSTutorial.html'
 
 if os.path.isfile(zip_path):
     os.remove(zip_path)
