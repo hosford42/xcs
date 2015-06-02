@@ -16,6 +16,8 @@ Relevant Literature
 [Learning Classiﬁer Systems: A Complete Introduction, Review, and Roadmap](http://downloads.hindawi.com/archive/2009/736398.pdf)
 
 [Learning Classifier Systems](http://www.victormontielargaiz.net/Projects/EvolutionaryComputing/Learning_Classifier_Systems.pdf)
+
+[A Preliminary Investigation of Modified XCS as a Generic Data Mining Tool](http://link.springer.com/chapter/10.1007%2F3-540-48104-4_9)
 	
 
 	
