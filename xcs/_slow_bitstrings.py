@@ -89,8 +89,7 @@ class BitString(_BitStringBase):
             hash_value = None
         elif isinstance(bits, BitString):
             # No need to make a copy because we use immutable bit arrays
-            bits = bits._bits
-            hash_value = bits._hash
+            bits, hash_value = bits._bits, bits._hash
         elif isinstance(bits, tuple) and all(isinstance(value, bool) for value in bits):
             self._bits = bits
             hash_value = None
