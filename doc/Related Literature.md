@@ -18,6 +18,7 @@ Relevant Literature
 [Learning Classifier Systems](http://www.victormontielargaiz.net/Projects/EvolutionaryComputing/Learning_Classifier_Systems.pdf)
 
 [A Preliminary Investigation of Modified XCS as a Generic Data Mining Tool](http://link.springer.com/chapter/10.1007%2F3-540-48104-4_9)
+
 	
 
 	
@@ -74,3 +75,4 @@ Potentially Relevant Literature
 
 [The Combining Classifier: to Train or Not to Train?](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.19.2114&rep=rep1&type=pdf)
 
+[Is XCS Suitable For Problems with Temporal Rewards?](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.85.8623&rep=rep1&type=pdf)
