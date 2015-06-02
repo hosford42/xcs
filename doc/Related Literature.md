@@ -88,3 +88,5 @@ Potentially Relevant Literature
 
 [Domain of Competence of XCS Classifier System in Complexity Measurement Space](http://ect.bell-labs.com/who/tkh/publications/papers/xcs.pdf)
 
+[Extending Learning Classifier System with Cyclic Graphs for Scalability on Complex, Large-Scale Boolean Problems](https://www.lri.fr/~hansen/proceedings/2013/GECCO/proceedings/p1045.pdf)
+
