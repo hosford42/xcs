@@ -19,10 +19,6 @@ Relevant Literature
 
 [Gradient-Based Learning Updates Improve XCS Performance in Multistep Problems](http://www.researchgate.net/profile/Martin_Butz/publication/220743089_Gradient-Based_Learning_Updates_Improve_XCS_Performance_in_Multistep_Problems/links/5433fc5c0cf2dc341daf2a62.pdf)
 
-[Data Mining in Learning Classifier Systems: Comparing XCS with GAssist](http://homepages.cs.ncl.ac.uk/jaume.bacardit/publications/bacardit07data.pdf)
-
-[Domain of Competence of XCS Classifier System in Complexity Measurement Space](http://ect.bell-labs.com/who/tkh/publications/papers/xcs.pdf)
-
 
 
 
@@ -88,4 +84,7 @@ Potentially Relevant Literature
 
 [Learning Classifier Systems for Data Mining: A Comparison of XCS with Other Classifiers for the Forest Cover Data Set](http://heather.cs.ucdavis.edu/~matloff/132/Data/ForestCover/BagnallXCS.pdf)
 
+[Data Mining in Learning Classifier Systems: Comparing XCS with GAssist](http://homepages.cs.ncl.ac.uk/jaume.bacardit/publications/bacardit07data.pdf)
+
+[Domain of Competence of XCS Classifier System in Complexity Measurement Space](http://ect.bell-labs.com/who/tkh/publications/papers/xcs.pdf)
 
