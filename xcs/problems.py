@@ -72,7 +72,7 @@ class MUXProblem(OnLineProblem):
     bits in the situations returned by sense(). The agent is expected to return the value of the indexed bit from the
     situation."""
 
-    def __init__(self, training_cycles=1000, address_size=3):
+    def __init__(self, training_cycles=10000, address_size=3):
 
         assert isinstance(training_cycles, int) and training_cycles > 0
         assert isinstance(address_size, int) and address_size > 0
@@ -172,7 +172,7 @@ class OnLineObserver(OnLineProblem):
 
         self.logger = logging.getLogger(__name__)
         self.wrapped = wrapped
-        self.reward = 0
+        self.total_reward = 0
         self.steps = 0
 
     def get_possible_actions(self):
@@ -218,11 +218,11 @@ class OnLineObserver(OnLineProblem):
         self.logger.debug('Executing action: %s', action)
 
         reward = self.wrapped.execute(action)
-        self.reward += reward
+        self.total_reward += reward
         self.steps += 1
 
         self.logger.debug('Reward received on this step: %.5f', reward)
-        self.logger.debug('Average reward per step: %.5f', self.reward / self.steps)
+        self.logger.debug('Average reward per step: %.5f', self.total_reward / self.steps)
 
         return reward
 
@@ -232,11 +232,11 @@ class OnLineObserver(OnLineProblem):
 
         if not self.steps % 100:
             self.logger.info('Steps completed: %d', self.steps)
-            self.logger.info('Average reward per step: %.5f', self.reward / (self.steps or 1))
+            self.logger.info('Average reward per step: %.5f', self.total_reward / (self.steps or 1))
         if not more:
             self.logger.info('Run completed.')
             self.logger.info('Total steps: %d', self.steps)
-            self.logger.info('Total reward received: %.5f', self.reward)
-            self.logger.info('Average reward per step: %.5f', self.reward / (self.steps or 1))
+            self.logger.info('Total reward received: %.5f', self.total_reward)
+            self.logger.info('Average reward per step: %.5f', self.total_reward / (self.steps or 1))
 
         return more
