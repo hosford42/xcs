@@ -76,3 +76,6 @@ Potentially Relevant Literature
 [The Combining Classifier: to Train or Not to Train?](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.19.2114&rep=rep1&type=pdf)
 
 [Is XCS Suitable For Problems with Temporal Rewards?](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.85.8623&rep=rep1&type=pdf)
+
+[Learning from Data using XCS](http://www.nt.ntnu.no/users/skoge/prost/proceedings/ifac2008/data/papers/1801.pdf)
+
