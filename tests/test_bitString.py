@@ -92,16 +92,8 @@ class TestBitString(unittest.TestCase):
         self.assertTrue(bitstrings.BitString.from_int(-1, len(self.bitstring)).count() == len(self.bitstring))
 
 
-# def suite():
-#     print("HI")
-#     suite = unittest.TestSuite()
-#     if bitstrings.numpy_is_available():
-#         suite.addTest(TestBitString(use_numpy=True))
-#     suite.addTest(TestBitString(use_numpy=False))
-#     return suite
-
 def main():
-    unittest.main()  # testRunner=suite())
+    unittest.main()
 
 if __name__ == "__main__":
     main()
