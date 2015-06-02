@@ -868,6 +868,7 @@ def test(algorithm=None, problem=None):
         # Define the problem.
         problem = MUXProblem(10000)
 
+    if not isinstance(problem, OnLineObserver):
         # Put the problem into a wrapper that will report things back to us for visibility.
         problem = OnLineObserver(problem)
 
@@ -897,3 +898,6 @@ def test(algorithm=None, problem=None):
     end_time = time.time()
 
     logger.info("Total time: %.5f seconds", end_time - start_time)
+
+    return problem.steps, problem.total_reward, end_time - start_time, lcs.population
+
