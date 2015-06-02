@@ -48,6 +48,10 @@ class BitString(_BitStringBase):
     def random(cls, length, bit_prob=.5):
         """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
          defaults to .5."""
+
+        assert isinstance(length, int) and length >= 0
+        assert isinstance(bit_prob, (int, float)) and 0 <= bit_prob <= 1
+
         bits = tuple(random.random() < bit_prob for _ in range(length))
         return cls(bits)
 
@@ -62,6 +66,10 @@ class BitString(_BitStringBase):
             child1 = (parent1 & template) | (parent2 & inv_template)
             child2 = (parent1 & inv_template) | (parent2 & template)
         """
+
+        assert isinstance(length, int) and length >= 0
+        assert isinstance(points, int) and points >= 0
+
         points = random.sample(range(length + 1), points)
         points.sort()
         points.append(length)

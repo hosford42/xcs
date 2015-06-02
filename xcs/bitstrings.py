@@ -111,6 +111,8 @@ class _BitStringBase(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def __init__(self, bits, hash_value=None):
+        assert hash_value is None or isinstance(hash_value, int)
+
         self._bits = bits
         self._hash = hash_value
 
@@ -277,25 +279,26 @@ class BitCondition:
                         raise ValueError("Invalid character: " + repr(char))
                 bits = BitString(bit_list)
                 mask = BitString(mask)
+                hash_value = None
             elif isinstance(bits, BitCondition):
-                bits, mask = bits._bits, bits._mask
+                bits, mask, hash_value = bits._bits, bits._mask, bits._hash
             else:
                 if not isinstance(bits, BitString):
                     bits = BitString(bits)
                 mask = BitString.from_int(~0, len(bits))
+                hash_value = None
         else:
             if not isinstance(bits, BitString):
                 bits = BitString(bits)
             if not isinstance(mask, BitString):
                 bits = BitString(mask)
+            hash_value = None
 
-        # Verify the bits and mask bit strings have the same length
-        if len(bits) != len(mask):
-            raise ValueError("Length mismatch between bits and mask")
+        assert len(bits) == len(mask)
 
         self._bits = bits & mask
         self._mask = mask
-        self._hash = None  # We will calculate this later if it is needed.
+        self._hash = hash_value
 
     @property
     def bits(self):
@@ -333,6 +336,8 @@ class BitCondition:
     def __getitem__(self, index):
         # Overloads condition[index]
         # The values yielded by the index operator are True (1), False (0), or None (#)
+        if isinstance(index, slice):
+            return BitCondition(self._bits[index], self._mask[index])
         return self._bits[index] if self._mask[index] else None
 
     def __hash__(self):
@@ -397,6 +402,9 @@ class BitCondition:
     def __call__(self, other):
         # Overloads condition(bitstring)
         # Returns a Boolean value that indicates whether the other value satisfies this condition.
+
+        assert isinstance(other, (BitString, BitCondition))
+
         mismatches = self // other
         return not mismatches.any()
 
@@ -404,10 +412,8 @@ class BitCondition:
         """Perform 2-point crossover on this bit condition and another of the same length, returning the two resulting
         children."""
 
-        if not isinstance(other, BitCondition):
-            raise TypeError(other)
-        if len(self) != len(other):
-            raise ValueError(other)
+        assert isinstance(other, BitCondition)
+        assert len(self) == len(other)
 
         # noinspection PyUnresolvedReferences
         template = BitString.crossover_template(len(self), points)

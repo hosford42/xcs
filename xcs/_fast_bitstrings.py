@@ -56,6 +56,10 @@ class BitString(_BitStringBase):
     def random(cls, length, bit_prob=.5):
         """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
          defaults to .5."""
+
+        assert isinstance(length, int) and length >= 0
+        assert isinstance(bit_prob, (int, float)) and 0 <= bit_prob <= 1
+
         bits = numpy.random.choice([False, True], size=(length,), p=[1-bit_prob, bit_prob])
         bits.flags.writeable = False
         return cls(bits)
@@ -71,6 +75,10 @@ class BitString(_BitStringBase):
             child1 = (parent1 & template) | (parent2 & inv_template)
             child2 = (parent1 & inv_template) | (parent2 & template)
         """
+
+        assert isinstance(length, int) and length >= 0
+        assert isinstance(points, int) and points >= 0
+
         points = random.sample(range(length + 1), points)
         points.sort()
         points.append(length)
@@ -88,22 +96,21 @@ class BitString(_BitStringBase):
         return cls(bits)
 
     def __init__(self, bits):
-        self._hash = None  # We'll calculate this later if we need it.
         if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
             # noinspection PyUnresolvedReferences
             if bits.flags.writeable:
                 # noinspection PyNoneFunctionAssignment
-                self._bits = bits.copy()  # If it's writable, we need to make a copy
-                self._bits.writeable = False  # Make sure our copy isn't writable
-            else:
-                self._bits = bits  # If it isn't writable, it's safe to just keep a reference
+                bits = bits.copy()  # If it's writable, we need to make a copy
+                bits.writeable = False  # Make sure our copy isn't writable
+            hash_value = None
         elif isinstance(bits, int):
-            self._bits = numpy.zeros(bits, bool)  # If we're just given a number, treat it as a length and fill with 0s
-            self._bits.flags.writeable = False  # Make sure the bit array isn't writable
+            bits = numpy.zeros(bits, bool)  # If we're just given a number, treat it as a length and fill with 0s
+            bits.flags.writeable = False  # Make sure the bit array isn't writable
+            hash_value = None
         elif isinstance(bits, BitString):
             # No need to make a copy because we use immutable bit arrays
-            self._bits = bits._bits  # We can just grab a reference to the same bit array the other bitstring is using
-            self._hash = bits._hash
+            # We can just grab a reference to the same bit array the other bitstring is using
+            bits, hash_value = bits._bits, bits._hash
         elif isinstance(bits, str):
             bit_list = []
             for char in bits:
@@ -115,11 +122,15 @@ class BitString(_BitStringBase):
                     raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
                 else:
                     raise ValueError("Invalid character: " + repr(char))
-            self._bits = numpy.array(bit_list, bool)
-            self._bits.flags.writeable = False
+            bits = numpy.array(bit_list, bool)
+            bits.flags.writeable = False
+            hash_value = None
         else:
-            self._bits = numpy.array(bits, bool)  # Make a new bit array from the given values
-            self._bits.flags.writeable = False  # Make sure the bit array isn't writable
+            bits = numpy.array(bits, bool)  # Make a new bit array from the given values
+            bits.flags.writeable = False  # Make sure the bit array isn't writable
+            hash_value = None
+
+        super().__init__(bits, hash_value)
 
     def any(self):
         """Returns True iff at least one bit is set."""

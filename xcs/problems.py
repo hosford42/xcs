@@ -73,6 +73,10 @@ class MUXProblem(OnLineProblem):
     situation."""
 
     def __init__(self, training_cycles=1000, address_size=3):
+
+        assert isinstance(training_cycles, int) and training_cycles > 0
+        assert isinstance(address_size, int) and address_size > 0
+
         self.address_size = address_size
         self.current_situation = None
         self.possible_actions = (True, False)
@@ -98,6 +102,9 @@ class MUXProblem(OnLineProblem):
     def execute(self, action):
         """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
         reward program."""
+
+        assert action in self.possible_actions
+
         self.remaining_cycles -= 1
         index = int(bitstrings.BitString(self.current_situation[:self.address_size]))
         bit = self.current_situation[self.address_size + index]
@@ -114,6 +121,10 @@ class HaystackProblem(OnLineProblem):
      number of irrelevant input bits (the "haystack")."""
 
     def __init__(self, training_cycles=10000, input_size=500):
+
+        assert isinstance(training_cycles, int) and training_cycles > 0
+        assert isinstance(input_size, int) and input_size > 0
+
         self.input_size = input_size
         self.possible_actions = (True, False)
         self.initial_training_cycles = training_cycles
@@ -139,6 +150,9 @@ class HaystackProblem(OnLineProblem):
     def execute(self, action):
         """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
         reward program."""
+
+        assert action in self.possible_actions
+
         self.remaining_cycles -= 1
         return action == self.needle_value
 
@@ -154,8 +168,7 @@ class OnLineObserver(OnLineProblem):
 
     def __init__(self, wrapped):
         # Ensure that the wrapped object implements the same interface
-        if not isinstance(wrapped, OnLineProblem):
-            raise TypeError(wrapped)
+        assert isinstance(wrapped, OnLineProblem)
 
         self.logger = logging.getLogger(__name__)
         self.wrapped = wrapped

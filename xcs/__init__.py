@@ -75,7 +75,7 @@ import random
 from abc import ABCMeta, abstractmethod
 
 import xcs.bitstrings as bitstrings
-from xcs.problems import MUXProblem, OnLineObserver
+from xcs.problems import OnLineProblem, MUXProblem, OnLineObserver
 
 
 class RuleMetadata(metaclass=ABCMeta):
@@ -148,6 +148,10 @@ class ActionSet:
     """Abstract base class for a set of rules (classifiers) with the same action that matched the same situation."""
 
     def __init__(self, situation, action, rules, population):
+        assert isinstance(rules, dict)
+        assert all(isinstance(metadata, RuleMetadata) for metadata in rules.values())
+        assert isinstance(population, Population)
+
         self._situation = situation
         self._action = action
         self._rules = rules  # {condition: metadata}
@@ -217,6 +221,7 @@ class MatchSet:
         """Select an action set from among those belonging to this match set. If the explore parameter is provided, it
         is used as the probability of exploration, i.e. uniform action set selection. Otherwise the action set with the
         best predicted payoff is selected with probability 1."""
+        assert isinstance(explore, bool) or (isinstance(explore, (int, float)) and 0 <= explore <= 1)
 
         # If an exploration probability has been provided, then with that probability,
         # select an action uniformly rather than proportionally to the prediction
@@ -249,8 +254,7 @@ class Population:
     within those classes of situations."""
 
     def __init__(self, algorithm):
-        if not isinstance(algorithm, LCSAlgorithm):
-            raise TypeError(algorithm)
+        assert isinstance(algorithm, LCSAlgorithm)
 
         self._population = {}
         self._algorithm = algorithm
@@ -289,9 +293,6 @@ class Population:
         """Accept a situation, encoded as a bit string. Return the set of matching rules (classifiers) for the given
         situation."""
 
-        if not isinstance(situation, (bitstrings.BitString, bitstrings.BitCondition)):
-            raise TypeError(situation)
-
         # Find the conditions that match against the current situation, and group them according to which
         # action(s) they recommend.
         by_action = {}
@@ -299,11 +300,13 @@ class Population:
             for condition, actions in self._population.items():
                 if not condition(situation):
                     continue
+
                 for action, rule_metadata in actions.items():
                     if action in by_action:
                         by_action[action][condition] = rule_metadata
                     else:
                         by_action[action] = {condition: rule_metadata}
+
             # If an insufficient number of actions are recommended, create some new rules (condition/action pairs)
             # until there are enough actions being recommended.
             if self._algorithm.covering_is_required(by_action):
@@ -317,6 +320,9 @@ class Population:
 
     def add(self, condition, action, metadata=1):
         """Add a new rule to the population."""
+
+        assert isinstance(metadata, RuleMetadata) or (isinstance(metadata, int) and metadata >= 0)
+
         if condition not in self._population:
             self._population[condition] = {}
 
@@ -326,7 +332,7 @@ class Population:
         if isinstance(metadata, int):
             if condition not in self._population or action not in self._population[condition]:
                 raise ValueError("Metadata must be supplied for new members of population.")
-            self._population[condition][action].numerosity += 1
+            self._population[condition][action].numerosity += metadata
         elif isinstance(metadata, RuleMetadata):
             if action in self._population[condition]:
                 self._population[condition][action].numerosity += metadata.numerosity
@@ -340,6 +346,9 @@ class Population:
 
     def remove(self, condition, action, count=1):
         """Remove one or more instances of a rule in the population."""
+
+        assert isinstance(count, int) and count >= 0
+
         metadata = self.get_metadata(condition, action)
         if metadata is None:
             return False
@@ -369,6 +378,9 @@ class XCSRuleMetadata(RuleMetadata):
     """Metadata used by the XCS algorithm to track the rules (classifiers) in a population."""
 
     def __init__(self, time_stamp, algorithm):
+        assert isinstance(time_stamp, int)
+        assert isinstance(algorithm, LCSAlgorithm)
+
         self.time_stamp = time_stamp  # The iteration of the algorithm at which this rule was last updated
         self.average_reward = algorithm.initial_prediction  # The predicted (averaged) reward for this rule
         self.error = algorithm.initial_error  # The observed error in this rule's prediction
@@ -490,6 +502,12 @@ class XCSAlgorithm(LCSAlgorithm):
 
     def distribute_payoff(self, action_set, payoff):
         """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
+
+        assert isinstance(action_set, ActionSet)
+        assert action_set.population.algorithm is self
+
+        payoff = float(payoff)
+
         action_set_size = sum(metadata.numerosity for metadata in action_set.metadata)
 
         # Update the average reward, error, and action set size of each rule participating in the
@@ -513,6 +531,9 @@ class XCSAlgorithm(LCSAlgorithm):
     def update(self, action_set):
         """Update the time stamp. If sufficient time has passed, apply the genetic algorithm's operators to update the
          population."""
+
+        assert isinstance(action_set, ActionSet)
+        assert action_set.population.algorithm is self
 
         # Increment the iteration counter.
         action_set.population.update_time_stamp()
@@ -595,6 +616,9 @@ class XCSAlgorithm(LCSAlgorithm):
     def prune(self, population):
         """Reduce the population size, if necessary, to ensure that it does not exceed the maximum population size set
         out in the parameters."""
+
+        assert isinstance(population, Population)
+        assert population.algorithm is self
 
         # Determine the virtual population size.
         total_numerosity = sum(
@@ -764,10 +788,8 @@ class LCS:
     algorithm. Then create a problem instance and pass it to drive()."""
 
     def __init__(self, algorithm, population=None):
-        if not isinstance(algorithm, LCSAlgorithm):
-            raise TypeError(algorithm)
-        if population is not None and not isinstance(population, Population):
-            raise TypeError(population)
+        assert isinstance(algorithm, LCSAlgorithm)
+        assert population is None or isinstance(population, Population)
 
         self._algorithm = algorithm
         self._population = population or Population(algorithm)
@@ -786,6 +808,9 @@ class LCS:
         """The main loop/entry point of the XCS algorithm. Create a problem instance and pass it in to this method to
         perform the algorithm and optimize the rule set. Problem instances must implement the OnLineProblem interface.
         """
+
+        assert isinstance(problem, OnLineProblem)
+
         previous_reward = 0
         previous_action_set = None
 
@@ -829,6 +854,10 @@ class LCS:
 
 def test(algorithm=None, problem=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
+
+    assert algorithm is None or isinstance(algorithm, LCSAlgorithm)
+    assert problem is None or isinstance(problem, OnLineProblem)
+
     import logging
     import time
 
