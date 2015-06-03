@@ -30,6 +30,7 @@ __all__ = [
 import random
 
 
+# noinspection PyProtectedMember
 from xcs.bitstrings import _BitStringBase
 
 

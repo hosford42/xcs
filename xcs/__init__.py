@@ -56,7 +56,7 @@ A quick explanation of the XCS algorithm:
 # TODO: Clean up docstrings and comments with obsolete references to pre-refactoring code.
 
 __author__ = 'Aaron Hosford'
-__version__ = '1.0.0a8'
+__version__ = '1.0.0a9'
 __all__ = [
     '__author__',
     '__version__',
@@ -74,8 +74,23 @@ __all__ = [
 import random
 from abc import ABCMeta, abstractmethod
 
+
+# Attempt to import numpy. If unsuccessful, set numpy = None.
+try:
+    # noinspection PyUnresolvedReferences
+    import numpy
+except ImportError:
+    numpy = None
+else:
+    # This is necessary because sometimes the numpy folder is left in place when it is uninstalled.
+    try:
+        numpy.ndarray
+    except AttributeError:
+        numpy = None
+
+
 import xcs.bitstrings as bitstrings
-from xcs.problems import OnLineProblem, MUXProblem, OnLineObserver
+import xcs.problems as problems
 
 
 class RuleMetadata(metaclass=ABCMeta):
@@ -141,6 +156,11 @@ class LCSAlgorithm(metaclass=ABCMeta):
     @abstractmethod
     def prune(self, population):
         """Reduce the population size, if necessary, by removing lower-quality rules."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_possible_actions(self):
+        """Return the actions this algorithm is capable of generating."""
         raise NotImplementedError()
 
 
@@ -379,7 +399,7 @@ class XCSRuleMetadata(RuleMetadata):
 
     def __init__(self, time_stamp, algorithm):
         assert isinstance(time_stamp, int)
-        assert isinstance(algorithm, LCSAlgorithm)
+        assert isinstance(algorithm, XCSAlgorithm)
 
         self.time_stamp = time_stamp  # The iteration of the algorithm at which this rule was last updated
         self.average_reward = algorithm.initial_prediction  # The predicted (averaged) reward for this rule
@@ -611,6 +631,7 @@ class XCSAlgorithm(LCSAlgorithm):
                 metadata.average_reward = average_reward
                 metadata.error = error
                 metadata.fitness = fitness
+                # noinspection PyTypeChecker
                 action_set.population.add(child, action_set.action, metadata)
 
     def prune(self, population):
@@ -664,6 +685,10 @@ class XCSAlgorithm(LCSAlgorithm):
             if selector <= 0:
                 population.remove(condition, action)
                 return
+
+    def get_possible_actions(self):
+        """Return the actions this algorithm is capable of generating."""
+        return self.possible_actions
 
     def _update_fitness(self, action_set):
         """Update the fitness of the rules belonging to this action set."""
@@ -784,8 +809,8 @@ class XCSAlgorithm(LCSAlgorithm):
 
 
 class LCS:
-    """The XCS algorithm. Create the parameters and (optionally) a population, passing them in to initialize the XCS
-    algorithm. Then create a problem instance and pass it to drive()."""
+    """An Learning Classifier System model instance. Create the algorithm and (optionally) a population, passing them
+    in to initialize the instance. Then create a problem instance and pass it to learn()."""
 
     def __init__(self, algorithm, population=None):
         assert isinstance(algorithm, LCSAlgorithm)
@@ -804,14 +829,10 @@ class LCS:
         """The population used by this instance of the XCS algorithm."""
         return self._population
 
-    def learn(self, problem):
-        """The main loop/entry point of the XCS algorithm. Create a problem instance and pass it in to this method to
-        perform the algorithm and optimize the rule set. Problem instances must implement the OnLineProblem interface.
-        """
+    def _run(self, problem, apply_reward):
+        assert isinstance(problem, problems.OnLineProblem)
 
-        assert isinstance(problem, OnLineProblem)
-
-        previous_reward = 0
+        previous_reward = None
         previous_action_set = None
 
         # Repeat until the problem has run its course.
@@ -837,7 +858,7 @@ class LCS:
             # learning algorithms, which acts to stitch together a general picture of the
             # future expected reward without actually waiting the full duration to find out
             # what it will be.
-            if previous_action_set:
+            if previous_reward is not None and apply_reward:
                 discount_factor = self._algorithm.get_discount_factor(self._population.time_stamp)
                 payoff = previous_reward + discount_factor * action_set.prediction
                 previous_action_set.accept_payoff(payoff)
@@ -847,16 +868,60 @@ class LCS:
 
         # This serves to tie off the final stitch. The last action taken gets only the
         # immediate reward; there is no future reward expected.
-        if previous_action_set:
+        if previous_reward is not None and apply_reward:
             previous_action_set.accept_payoff(previous_reward)
             self._algorithm.update(previous_action_set)
+
+    def learn(self, problem):
+        """Learn the situation/action mapping that maximizes reward.
+
+        Create a problem instance and pass it in to this method to perform the algorithm and optimize the rule set.
+        Problem instances must implement the OnLineProblem interface.
+        """
+
+        self._run(problem, True)
+
+    def solve(self, problem):
+        """Apply the previously learned situation/action mapping to the given problem, ignoring reward.
+
+        Create a problem instance and pass it in to this method to perform the algorithm without affecting the rule set.
+        Problem instances must implement the OnLineProblem interface.
+        """
+
+        self._run(problem, False)
+
+    # TODO: Should these be named X and y, or something else? Are there other, optional arguments accepted in scikit-
+    #       learn?
+    # TODO: Testing.
+    # noinspection PyPep8Naming
+    def fit(self, X, y, reward_function=None):
+        """Fit the given data with the LCS model. This method is provided to support the scikit-learn interface, for
+        users who prefer it."""
+        problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
+        self._run(problem, True)
+
+    # TODO: Testing.
+    # noinspection PyPep8Naming
+    def predict(self, X):
+        """Classify the given data with the LCS model. This method is provided to support the scikit-learn interface,
+        for users who prefer it."""
+        problem = problems.PredictionDataAsOnLineProblem(X, self._algorithm.get_possible_actions())
+        self._run(problem, False)
+        return problem.classifications
+
+    # TODO: Testing.
+    # noinspection PyPep8Naming
+    def score(self, X, y, reward_function=None):
+        problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
+        self._run(problem, False)
+        return problem.total_reward / problem.steps
 
 
 def test(algorithm=None, problem=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
 
     assert algorithm is None or isinstance(algorithm, LCSAlgorithm)
-    assert problem is None or isinstance(problem, OnLineProblem)
+    assert problem is None or isinstance(problem, problems.OnLineProblem)
 
     import logging
     import time
@@ -866,11 +931,11 @@ def test(algorithm=None, problem=None):
 
     if problem is None:
         # Define the problem.
-        problem = MUXProblem(10000)
+        problem = problems.MUXProblem(10000)
 
-    if not isinstance(problem, OnLineObserver):
+    if not isinstance(problem, problems.OnLineObserver):
         # Put the problem into a wrapper that will report things back to us for visibility.
-        problem = OnLineObserver(problem)
+        problem = problems.OnLineObserver(problem)
 
     if algorithm is None:
         # Define the algorithm.
@@ -900,4 +965,3 @@ def test(algorithm=None, problem=None):
     logger.info("Total time: %.5f seconds", end_time - start_time)
 
     return problem.steps, problem.total_reward, end_time - start_time, lcs.population
-

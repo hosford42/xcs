@@ -30,21 +30,12 @@ __all__ = [
 from abc import ABCMeta, abstractmethod
 import random
 
+import xcs
+
 
 def numpy_is_available():
-    """Attempt to import numpy and return a Boolean indicating whether successful."""
-    try:
-        # noinspection PyUnresolvedReferences
-        import numpy
-    except ImportError:
-        return False
-
-    try:
-        numpy.ndarray
-    except AttributeError:
-        return False
-
-    return True
+    """Return a Boolean indicating whether numpy can be imported."""
+    return xcs.numpy is not None
 
 
 class _BitStringBase(metaclass=ABCMeta):
@@ -185,7 +176,6 @@ class _BitStringBase(metaclass=ABCMeta):
     @abstractmethod
     def __add__(self, other):
         raise NotImplementedError()
-
 
 
 # There are two different implementations of BitString, one in _fast_bitstrings and one in _slow_bitstrings. The fast

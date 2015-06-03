@@ -5,6 +5,7 @@ import unittest
 from xcs.bitstrings import BitString
 from xcs.problems import MUXProblem
 
+
 class TestMUXProblem(unittest.TestCase):
 
     def setUp(self):

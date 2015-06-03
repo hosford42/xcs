@@ -39,6 +39,7 @@ except AttributeError:
     raise ImportError('The numpy module failed to uninstall properly.')
 
 
+# noinspection PyProtectedMember
 from xcs.bitstrings import _BitStringBase
 
 

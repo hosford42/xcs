@@ -32,6 +32,7 @@ import logging
 import random
 from abc import ABCMeta, abstractmethod
 
+from xcs import numpy
 import xcs.bitstrings as bitstrings
 
 
@@ -161,7 +162,6 @@ class HaystackProblem(OnLineProblem):
         return self.remaining_cycles > 0
 
 
-
 class OnLineObserver(OnLineProblem):
     """Wrapper for other OnLineProblem instances which prints details of the agent/problem interaction as they take
     place, forwarding the actual work on to the wrapped instance."""
@@ -240,3 +240,108 @@ class OnLineObserver(OnLineProblem):
             self.logger.info('Average reward per step: %.5f', self.total_reward / (self.steps or 1))
 
         return more
+
+
+# TODO: Testing.
+class ClassifiedDataAsOnLineProblem(OnLineProblem):
+    """Wrap off-line (non-interactive) training/test data as an on-line (interactive) problem."""
+
+    def __init__(self, situations, classifications, reward_function=None):
+        if bitstrings.using_numpy() and isinstance(situations, numpy.ndarray):
+            self.situations = []
+            for situation_bits in situations:
+                # This doesn't affect the original situations array.
+                situation_bits.setflags(write=False)
+                situation = bitstrings.BitString(situation_bits)
+                self.situations.append(situation)
+        else:
+            self.situations = [bitstrings.BitString(situation_bits) for situation_bits in situations]
+
+        if isinstance(classifications, (list, tuple)) or (bitstrings.using_numpy() and
+                                                          isinstance(classifications, numpy.ndarray)):
+            self.classifications = classifications
+        else:
+            self.classifications = list(classifications)
+
+        assert len(self.situations) == len(self.classifications)
+
+        self.reward_function = reward_function or (lambda action, target: float(action == target))
+        self.possible_actions = set(self.classifications)
+        self.steps = 0
+        self.total_reward = 0
+
+    def get_possible_actions(self):
+        """Return a sequence containing the possible actions that can be executed within the environment."""
+        return self.possible_actions
+
+    def reset(self):
+        """Reset the problem, starting it over for a new run."""
+        self.steps = 0
+        self.total_reward = 0
+
+    def sense(self):
+        """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
+        return self.situations[self.steps]
+
+    def execute(self, action):
+        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
+        reward program."""
+        reward = self.reward_function(action, self.classifications[self.steps])
+        self.total_reward += reward
+        self.steps += 1
+        return reward
+
+    def more(self):
+        """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
+        return self.steps < len(self.situations)
+
+
+# TODO: Testing.
+class PredictionDataAsOnLineProblem(OnLineProblem):
+    """Wrap off-line (non-interactive) prediction data as an on-line (interactive) problem."""
+
+    def __init__(self, situations, possible_actions):
+        if bitstrings.using_numpy() and isinstance(situations, numpy.ndarray):
+            self.situations = []
+            for situation_bits in situations:
+                # This doesn't affect the original situations array.
+                situation_bits.setflags(write=False)
+                situation = bitstrings.BitString(situation_bits)
+                self.situations.append(situation)
+        else:
+            self.situations = [bitstrings.BitString(situation_bits) for situation_bits in situations]
+
+        self.possible_actions = frozenset(possible_actions)
+        self.steps = 0
+        self.classifications = []
+
+    def get_possible_actions(self):
+        """Return a sequence containing the possible actions that can be executed within the environment."""
+        return self.possible_actions
+
+    def reset(self):
+        """Reset the problem, starting it over for a new run."""
+        self.steps = 0
+        self.classifications.clear()
+
+    def sense(self):
+        """Return a situation, encoded as a bit string, which represents the observable state of the environment."""
+        return self.situations[self.steps]
+
+    def execute(self, action):
+        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
+        reward program."""
+        self.classifications.append(action)
+        self.steps += 1
+        return None  # This problem is not meant to be used for learning.
+
+    def more(self):
+        """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
+        return self.steps < len(self.situations)
+
+    def get_classifications(self):
+        """Return the classifications made by the algorithm for this problem."""
+        if bitstrings.using_numpy():
+            return numpy.array(self.classifications)
+        else:
+            return self.classifications
