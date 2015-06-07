@@ -53,8 +53,12 @@ class BitString(_BitStringBase):
         assert isinstance(length, int) and length >= 0
         assert isinstance(bit_prob, (int, float)) and 0 <= bit_prob <= 1
 
-        bits = tuple(random.random() < bit_prob for _ in range(length))
-        return cls(bits)
+        bits = 0
+        for _ in range(length):
+            bits <<= 1
+            bits += (random.random() < bit_prob)
+
+        return cls(bits, length)
 
     @classmethod
     def crossover_template(cls, length, points=2):
@@ -76,106 +80,158 @@ class BitString(_BitStringBase):
         points.append(length)
         previous = 0
         include_range = bool(random.randrange(2))
-        bits = []
+        bits = 0
         for point in points:
             if point > previous:
-                bits.extend(include_range for _ in range(point - previous))
+                bits <<= point - previous
+                if include_range:
+                    bits += (1 << (point - previous)) - 1
             include_range = not include_range
             previous = point
-        return cls(bits)
+        return cls(bits, length)
 
-    def __init__(self, bits):
+    def __init__(self, bits, length=None):
         if isinstance(bits, int):
-            bits = (False,) * bits
+            if length is None:
+                length = bits.bit_length()
+            else:
+                assert length >= bits.bit_length()
+            if bits < 0:
+                bits &= (1 << length) - 1
             hash_value = None
         elif isinstance(bits, BitString):
             # No need to make a copy because we use immutable bit arrays
-            bits, hash_value = bits._bits, bits._hash
-        elif isinstance(bits, tuple) and all(isinstance(value, bool) for value in bits):
-            self._bits = bits
-            hash_value = None
+            bits, length, hash_value = bits._bits, bits._length, bits._hash
         elif isinstance(bits, str):
-            bit_list = []
-            for char in bits:
+            bit_str = bits
+            bits = 0
+            for char in bit_str:
+                bits <<= 1
                 if char == '1':
-                    bit_list.append(True)
-                elif char == '0':
-                    bit_list.append(False)
-                elif char == '#':
-                    raise ValueError("BitStrings cannot contain wildcards. Did you mean to create a BitCondition?")
+                    bits += 1
                 else:
-                    raise ValueError("Invalid character: " + repr(char))
-            bits = tuple(bit_list)
+                    assert char == '0'
+            if length is None:
+                length = len(bit_str)
+            else:
+                assert length >= len(bit_str)
             hash_value = None
         else:
-            bits = tuple(bool(value) for value in bits)
+            bit_sequence = bits
+            bits = 0
+            count = 0
+            for bit in bit_sequence:
+                count += 1
+                bits <<= 1
+                if bit:
+                    bits += 1
+            if length is None:
+                length = count
+            else:
+                assert length >= count
             hash_value = None
 
         super().__init__(bits, hash_value)
+        self._length = length
 
     def any(self):
         """Returns True iff at least one bit is set."""
-        return any(self._bits)
+        return bool(self._bits)
 
     def count(self):
         """Returns the number of bits set to True in the bit string."""
-        return sum(self._bits)
+        result = 0
+        bits = self._bits
+        while bits:
+            result += bits % 2
+            bits >>= 1
+        return result
+
+    def __len__(self):
+        return self._length
 
     def __getitem__(self, index):
         # Overloads bitstring[index]
-        result = self._bits[index]
         if isinstance(index, slice):
-            return BitString(result)
-        return result
+            start, stop, step = index.indices(self._length)
+            if start < 0:
+                return BitString(0, 0)
+            if step == -1:
+                step = 1
+                start, stop = stop, start
+            if step == 1:
+                length = stop - start
+                bits = (self._bits >> (self._length - stop)) % (1 << start)
+                return BitString(bits, length)
+            else:
+                return BitString([self[point] for point in range(start, stop, step)])
+
+        assert isinstance(index, int)
+
+        if index >= 0:
+            assert index < self._length
+            return (self._bits >> (self._length - index - 1)) % 2
+        else:
+            assert -index <= self._length
+            return (self._bits >> (-index - 1)) % 2
 
     def __hash__(self):
         # Overloads hash(bitstring)
         if self._hash is None:
-            self._hash = hash(self._bits)
+            self._hash = hash(self._bits) ^ hash(self._length)
         return self._hash
 
     def __eq__(self, other):
         # Overloads ==
         # noinspection PyProtectedMember
-        return isinstance(other, BitString) and self._bits == other._bits
+        return isinstance(other, BitString) and self._bits == other._bits and self._length == other._length
 
     def __and__(self, other):
         # Overloads &
-        if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
-        elif not isinstance(other, BitString):
-            other = BitString(other)
-        bits = tuple(my_bit and other_bit for my_bit, other_bit in zip(self._bits, other._bits))
-        return type(self)(bits)
+        if isinstance(other, BitString):
+            assert self._length == other._length
+        else:
+            other = BitString(other, self._length)
+        return BitString(self._bits & other._bits, self._length)
 
     def __or__(self, other):
         # Overloads |
-        if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
-        elif not isinstance(other, BitString):
-            other = BitString(other)
-        bits = tuple(my_bit or other_bit for my_bit, other_bit in zip(self._bits, other._bits))
-        return type(self)(bits)
+        if isinstance(other, BitString):
+            assert self._length == other._length
+        else:
+            other = BitString(other, self._length)
+        return BitString(self._bits | other._bits, self._length)
 
     def __xor__(self, other):
         # Overloads ^
-        if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
-        elif not isinstance(other, BitString):
-            other = BitString(other)
-        bits = tuple(my_bit != other_bit for my_bit, other_bit in zip(self._bits, other._bits))
-        return type(self)(bits)
+        if isinstance(other, BitString):
+            assert self._length == other._length
+        else:
+            other = BitString(other, self._length)
+        return BitString(self._bits ^ other._bits, self._length)
 
     def __invert__(self):
         # Overloads unary ~
-        bits = tuple(not bit for bit in self._bits)
-        return type(self)(bits)
+        return BitString(~self._bits % (1 << self._length), self._length)
 
     def __add__(self, other):
         # Overloads +
-        if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
-        elif not isinstance(other, BitString):
+        if not isinstance(other, BitString):
             other = BitString(other)
-        bits = self._bits + other._bits
-        return type(self)(bits)
+        return BitString((self._bits << other._length) + other._bits, self._length + other._length)
+
+    @classmethod
+    def from_int(cls, value, length=None):
+        """Create a bit string from an integer value. If the length parameter is provided, it determines the number of
+        bits in the bit string. Otherwise, the minimum length required to represent the value is used."""
+
+        return cls(value, length)
+
+    def __int__(self):
+        # Overloads int(bitstring)
+        return self._bits
+
+    def __iter__(self):
+        # Overloads iter(bitstring), and also, for bit in bitstring
+        for index in range(self._length - 1, -1, -1):
+            yield (self._bits >> index) % 2

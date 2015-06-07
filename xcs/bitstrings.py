@@ -48,6 +48,7 @@ class _BitStringBase(metaclass=ABCMeta):
     A bit string can also be cast as an integer or an ordinary string.
     """
 
+    # TODO: Get rid of this; add an optional length parameter to the __init__ method.
     @classmethod
     def from_int(cls, value, length=None):
         """Create a bit string from an integer value. If the length parameter is provided, it determines the number of
@@ -119,11 +120,11 @@ class _BitStringBase(metaclass=ABCMeta):
 
     def __str__(self):
         # Overloads str(bitstring)
-        return ''.join('1' if bit else '0' for bit in self._bits)
+        return ''.join('1' if bit else '0' for bit in self)
 
     def __repr__(self):
         # Overloads repr(bitstring)
-        return type(self).__name__ + '(' + repr([int(bit) for bit in self._bits]) + ')'
+        return type(self).__name__ + '(' + repr([int(bit) for bit in self]) + ')'
 
     def __int__(self):
         # Overloads int(bitstring)
