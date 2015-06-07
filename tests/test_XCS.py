@@ -55,7 +55,7 @@ class TestXCS(unittest.TestCase):
                 logging.disable(logging.NOTSET)
 
             average_reward = total_reward / steps
-            self.assertGreater(average_reward, .49)
+            self.assertGreater(average_reward, .48)
             self.assertLess(time_passed, 20)
             if average_reward >= .6:
                 break
