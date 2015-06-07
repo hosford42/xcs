@@ -46,7 +46,7 @@ class TestXCS(unittest.TestCase):
         algorithm.deletion_threshold = 10
         algorithm.mutation_probability = .0001
 
-        for _ in range(3):
+        for _ in range(4):
             logging.disable(logging.CRITICAL)
             try:
                 problem.reset()
