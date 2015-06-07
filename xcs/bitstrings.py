@@ -282,7 +282,7 @@ class BitCondition:
             if not isinstance(bits, BitString):
                 bits = BitString(bits)
             if not isinstance(mask, BitString):
-                bits = BitString(mask)
+                mask = BitString(mask)
             hash_value = None
 
         assert len(bits) == len(mask)
