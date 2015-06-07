@@ -33,13 +33,13 @@ class TestBitString(unittest.TestCase):
     def test_using(self):
         if self.use_numpy:
             self.assertTrue(bitstrings.using_numpy())
-            self.assertTrue('fast' in bitstrings.BitString.__module__)
+            self.assertTrue('numpy' in bitstrings.BitString.__module__)
             bitstrings.use_pure_python()
             self.assertFalse(bitstrings.using_numpy())
-            self.assertTrue('slow' in bitstrings.BitString.__module__)
+            self.assertTrue('python' in bitstrings.BitString.__module__)
             bitstrings.use_numpy()
             self.assertTrue(bitstrings.using_numpy())
-            self.assertTrue('fast' in bitstrings.BitString.__module__)
+            self.assertTrue('numpy' in bitstrings.BitString.__module__)
             logging.disable(logging.CRITICAL)
             try:
                 xcs.test(problem=xcs.problems.MUXProblem(1000))
@@ -47,7 +47,7 @@ class TestBitString(unittest.TestCase):
                 logging.disable(logging.NOTSET)
         else:
             self.assertFalse(bitstrings.using_numpy())
-            self.assertTrue('slow' in bitstrings.BitString.__module__)
+            self.assertTrue('python' in bitstrings.BitString.__module__)
             logging.disable(logging.CRITICAL)
             try:
                 xcs.test(problem=xcs.problems.MUXProblem(1000))

@@ -89,8 +89,7 @@ else:
         numpy = None
 
 
-import xcs.bitstrings as bitstrings
-import xcs.problems as problems
+from . import bitstrings, problems
 
 
 class RuleMetadata(metaclass=ABCMeta):

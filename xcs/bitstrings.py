@@ -30,6 +30,7 @@ __all__ = [
 from abc import ABCMeta, abstractmethod
 import random
 
+
 import xcs
 
 
@@ -183,14 +184,14 @@ class _BitStringBase(metaclass=ABCMeta):
 # version is dependent on numpy being installed, whereas the slow one is written in pure Python with no external
 # dependencies. By default, the numpy implementation is used if it is available, and the pure Python implementation is
 # used otherwise.
-if numpy_is_available():
-    # noinspection PyProtectedMember
-    from xcs._fast_bitstrings import BitString
-    _using_numpy = True
-else:
-    # noinspection PyProtectedMember
-    from xcs._slow_bitstrings import BitString
-    _using_numpy = False
+# if numpy_is_available():
+#    # noinspection PyProtectedMember
+#    from ._numpy_bitstrings import BitString
+#    _using_numpy = True
+# else:
+# noinspection PyProtectedMember
+from ._python_bitstrings import BitString
+_using_numpy = False
 
 
 def using_numpy():
@@ -205,7 +206,7 @@ def use_numpy():
     # noinspection PyGlobalUndefined
     global BitString, _using_numpy
     # noinspection PyProtectedMember
-    from xcs._fast_bitstrings import BitString
+    from ._numpy_bitstrings import BitString
     _using_numpy = True
 
 
@@ -214,7 +215,7 @@ def use_pure_python():
     implementations cannot be mixed. Attempting to do so will result in undefined behavior."""
     global BitString, _using_numpy
     # noinspection PyProtectedMember
-    from xcs._slow_bitstrings import BitString
+    from ._python_bitstrings import BitString
     _using_numpy = False
 
 

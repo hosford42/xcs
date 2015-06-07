@@ -32,8 +32,8 @@ import logging
 import random
 from abc import ABCMeta, abstractmethod
 
-from xcs import numpy
-import xcs.bitstrings as bitstrings
+from . import numpy
+from . import bitstrings
 
 
 class OnLineProblem(metaclass=ABCMeta):
