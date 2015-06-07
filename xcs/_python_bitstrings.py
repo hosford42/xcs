@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------
 
 """
-xcs/_slow_bitstrings.py
+xcs/_python_bitstrings.py
 (c) Aaron Hosford 2015, all rights reserved
 Revised BSD License
 

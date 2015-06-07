@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------
 
 """
-xcs/_fast_bitstrings.py
+xcs/_numpy_bitstrings.py
 (c) Aaron Hosford 2015, all rights reserved
 Revised BSD License
 
