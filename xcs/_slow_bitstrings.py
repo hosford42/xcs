@@ -161,7 +161,7 @@ class BitString(_BitStringBase):
                 start, stop = stop, start
             if step == 1:
                 length = stop - start
-                bits = (self._bits >> (self._length - stop)) % (1 << start)
+                bits = (self._bits >> (self._length - stop)) % (1 << length)
                 return BitString(bits, length)
             else:
                 return BitString([self[point] for point in range(start, stop, step)])
