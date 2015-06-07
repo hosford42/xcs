@@ -31,7 +31,7 @@ import random
 
 
 # noinspection PyProtectedMember
-from xcs.bitstrings import _BitStringBase
+from .bitstrings import _BitStringBase
 
 
 class BitString(_BitStringBase):
