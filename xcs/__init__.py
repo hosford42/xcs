@@ -879,53 +879,6 @@ class LCS:
             self._algorithm.update(previous_action_set)
 
 
-# TODO: To be incorporated into the scikit-learn code base, it needs to inherit from sklearn.base.BaseEstimator, as
-#       well as several other things described in the "Estimators" section under
-#       http://scikit-learn.org/stable/developers/#apis-of-scikit-learn-objects; while I want this project to be
-#       compatible, it is not immediately planned to be added to their project, so this is not something that needs to
-#       be done at this point.
-class XCSEstimator:
-    """Wrap the XCS algorithm in an interface that supports the scikit-learn estimator API."""
-
-    def __init__(self):
-        self._algorithm = None
-        self._population = None
-
-    def set_params(self, ...):
-
-    # TODO: Per scikit-learn API, reward_function shouldn't be a parameter here.
-    #       It doesn't make sense to put it anywhere else, though, so not sure what to do.
-    # noinspection PyPep8Naming
-    def fit(self, X, y, reward_function=None):
-        """Fit the given data with the model. X should be an array of """
-        # Per scikit-learn API, raise ValueError if len(X) != len(y)
-        if len(X) != len(y):
-            raise ValueError(len(y))
-
-        problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
-        self._run(problem, True)
-
-        # Per scikit-learn API, return self
-        return self
-
-    # noinspection PyPep8Naming
-    def predict(self, T):
-        """Classify the given data with the LCS model. This method is provided to support the scikit-learn estimator
-        API."""
-        problem = problems.PredictionDataAsOnLineProblem(T, self._algorithm.get_possible_actions())
-        self._run(problem, False)
-        # TODO: Return a numpy array, if numpy is available.
-        return problem.classifications
-
-    # noinspection PyPep8Naming
-    def score(self, X, y, reward_function=None):
-        """Score the performance of the model on the given test data. Return the average reward received per time step.
-        This method is provided to support the scikit-learn estimator API."""
-        problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
-        self._run(problem, False)
-        return problem.total_reward / problem.steps
-
-
 def test(algorithm=None, problem=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
 
