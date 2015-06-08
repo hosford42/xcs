@@ -903,7 +903,7 @@ class XCSEstimator:
             raise ValueError(len(y))
 
         problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
-        self._run(problem, True)
+        self._algorithm.run(problem, True)
 
         # Per scikit-learn API, return self
         return self
@@ -913,7 +913,7 @@ class XCSEstimator:
         """Classify the given data with the LCS model. This method is provided to support the scikit-learn estimator
         API."""
         problem = problems.PredictionDataAsOnLineProblem(T, self._algorithm.get_possible_actions())
-        self._run(problem, False)
+        self._algorithm.run(problem, False)
         # TODO: Return a numpy array, if numpy is available.
         return problem.classifications
 
@@ -922,7 +922,7 @@ class XCSEstimator:
         """Score the performance of the model on the given test data. Return the average reward received per time step.
         This method is provided to support the scikit-learn estimator API."""
         problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
-        self._run(problem, False)
+        self._algorithm.run(problem, False)
         return problem.total_reward / problem.steps
 
 
