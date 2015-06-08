@@ -828,7 +828,7 @@ class LCS:
         """The population used by this instance of the XCS algorithm."""
         return self._population
 
-    def run(self, problem, apply_reward=True):
+    def run(self, problem, learn=True):
         """Run the algorithm, utilizing the population to choose the most appropriate action for each situation produced
         by the problem. If apply_reward is True, improve the situation/action mapping to maximize reward. Otherwise,
         ignore any reward received.
@@ -864,7 +864,7 @@ class LCS:
             # learning algorithms, which acts to stitch together a general picture of the
             # future expected reward without actually waiting the full duration to find out
             # what it will be.
-            if previous_reward is not None and apply_reward:
+            if previous_reward is not None and learn:
                 discount_factor = self._algorithm.get_discount_factor(self._population.time_stamp)
                 payoff = previous_reward + discount_factor * action_set.prediction
                 previous_action_set.accept_payoff(payoff)
@@ -874,7 +874,7 @@ class LCS:
 
         # This serves to tie off the final stitch. The last action taken gets only the
         # immediate reward; there is no future reward expected.
-        if previous_reward is not None and apply_reward:
+        if previous_reward is not None and learn:
             previous_action_set.accept_payoff(previous_reward)
             self._algorithm.update(previous_action_set)
 
@@ -918,7 +918,7 @@ def test(algorithm=None, problem=None):
     # Since initially the algorithm's model has no experience incorporated
     # into it, performance will be poor, but it will improve over time as
     # the algorithm continues to be exposed to the problem.
-    lcs.learn(problem)
+    lcs.run(problem)
 
     logger.info('Population:\n\n%s\n', lcs.population)
 
