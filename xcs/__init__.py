@@ -828,7 +828,14 @@ class LCS:
         """The population used by this instance of the XCS algorithm."""
         return self._population
 
-    def _run(self, problem, apply_reward):
+    def run(self, problem, apply_reward=True):
+        """Run the algorithm, utilizing the population to choose the most appropriate action for each situation produced
+        by the problem. If apply_reward is True, improve the situation/action mapping to maximize reward. Otherwise,
+        ignore any reward received.
+
+        Create a problem instance and pass it in to this method. Problem instances must implement the OnLineProblem
+        interface.
+        """
         assert isinstance(problem, problems.OnLineProblem)
 
         previous_reward = None
@@ -871,46 +878,49 @@ class LCS:
             previous_action_set.accept_payoff(previous_reward)
             self._algorithm.update(previous_action_set)
 
-    def learn(self, problem):
-        """Learn the situation/action mapping that maximizes reward.
 
-        Create a problem instance and pass it in to this method to perform the algorithm and optimize the rule set.
-        Problem instances must implement the OnLineProblem interface.
-        """
+# TODO: To be incorporated into the scikit-learn code base, it needs to inherit from sklearn.base.BaseEstimator, as
+#       well as several other things described in the "Estimators" section under
+#       http://scikit-learn.org/stable/developers/#apis-of-scikit-learn-objects; while I want this project to be
+#       compatible, it is not immediately planned to be added to their project, so this is not something that needs to
+#       be done at this point.
+class XCSEstimator:
+    """Wrap the XCS algorithm in an interface that supports the scikit-learn estimator API."""
 
-        self._run(problem, True)
+    def __init__(self):
+        self._algorithm = None
+        self._population = None
 
-    def solve(self, problem):
-        """Apply the previously learned situation/action mapping to the given problem, ignoring reward.
+    def set_params(self, ...):
 
-        Create a problem instance and pass it in to this method to perform the algorithm without affecting the rule set.
-        Problem instances must implement the OnLineProblem interface.
-        """
-
-        self._run(problem, False)
-
-    # TODO: Should these be named X and y, or something else? Are there other, optional arguments accepted in scikit-
-    #       learn?
-    # TODO: Testing.
+    # TODO: Per scikit-learn API, reward_function shouldn't be a parameter here.
+    #       It doesn't make sense to put it anywhere else, though, so not sure what to do.
     # noinspection PyPep8Naming
     def fit(self, X, y, reward_function=None):
-        """Fit the given data with the LCS model. This method is provided to support the scikit-learn interface, for
-        users who prefer it."""
+        """Fit the given data with the model. X should be an array of """
+        # Per scikit-learn API, raise ValueError if len(X) != len(y)
+        if len(X) != len(y):
+            raise ValueError(len(y))
+
         problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
         self._run(problem, True)
 
-    # TODO: Testing.
+        # Per scikit-learn API, return self
+        return self
+
     # noinspection PyPep8Naming
-    def predict(self, X):
-        """Classify the given data with the LCS model. This method is provided to support the scikit-learn interface,
-        for users who prefer it."""
-        problem = problems.PredictionDataAsOnLineProblem(X, self._algorithm.get_possible_actions())
+    def predict(self, T):
+        """Classify the given data with the LCS model. This method is provided to support the scikit-learn estimator
+        API."""
+        problem = problems.PredictionDataAsOnLineProblem(T, self._algorithm.get_possible_actions())
         self._run(problem, False)
+        # TODO: Return a numpy array, if numpy is available.
         return problem.classifications
 
-    # TODO: Testing.
     # noinspection PyPep8Naming
     def score(self, X, y, reward_function=None):
+        """Score the performance of the model on the given test data. Return the average reward received per time step.
+        This method is provided to support the scikit-learn estimator API."""
         problem = problems.ClassifiedDataAsOnLineProblem(X, y, reward_function)
         self._run(problem, False)
         return problem.total_reward / problem.steps
