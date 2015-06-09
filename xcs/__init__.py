@@ -830,9 +830,10 @@ class LCS:
 
     def run(self, problem, learn=True):
         """Run the algorithm, utilizing the population to choose the most appropriate action for each situation produced
-        by the problem. If apply_reward is True, improve the situation/action mapping to maximize reward. Otherwise,
+        by the problem. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
         ignore any reward received.
 
+        Usage:
         Create a problem instance and pass it in to this method. Problem instances must implement the OnLineProblem
         interface.
         """
