@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
-# Name:     xcs
-# Purpose:  Implements the XCS (Accuracy-based Classifier System) algorithm,
-#           roughly according to the description provided in the paper, "An
-#           Algorithmic Description of XCS," by Martin Butz and Stewart Wilson.
+# xcs
+# ---
+# Accuracy-based Classifier Systems for Python 3
 #
-# Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P., 
-#   Stolzmann, W., and Wilson, S., editors, Advances in Learning Classifier Systems:
-#   Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in 
-#   Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
+# http://hosford42.github.io/xcs/
 #
-# Author:       Aaron Hosford
+# (c) Aaron Hosford 2015, all rights reserved
+# Revised (3 Clause) BSD License
 #
-# Created:      5/5/2015
-# Copyright:    (c) Aaron Hosford 2015, all rights reserved
-# Licence:      Revised (3 Clause) BSD License
+# Description
+# -----------
+# Implements the XCS (Accuracy-based Classifier System) algorithm,
+# roughly according to the description provided in the 2001 paper, "An
+# Algorithmic Description of XCS," by Martin Butz and Stewart Wilson.
+#
 # -------------------------------------------------------------------------------
 
 """
@@ -26,13 +26,14 @@ Implements the XCS (Accuracy-based Classifier System) algorithm,
 roughly according to the description provided in the paper, "An
 Algorithmic Description of XCS," by Martin Butz and Stewart Wilson.
 
-Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
+    Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
     Stolzmann, W., and Wilson, S., editors, Advances in Learning Classifier Systems:
     Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in
     Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
 
 
 A quick explanation of the XCS algorithm:
+
     The XCS algorithm attempts to solve the reinforcement learning problem, which is to maximize a reward signal by
     learning the optimal mapping from inputs to outputs, where inputs are represented as sequences of bits and
     outputs are selected from a finite set of predetermined actions. It does so by using a genetic algorithm to
@@ -49,12 +50,6 @@ A quick explanation of the XCS algorithm:
     population.
 """
 
-# TODO: Finish refactoring the code to isolate the algorithm-specific code from the algorithm-agnostic code. When all
-#       is said and done, we should be able to implement a new algorithm with minimal effort or rewritten code, and
-#       zero change to the interface.
-
-# TODO: Clean up docstrings and comments with obsolete references to pre-refactoring code.
-
 __author__ = 'Aaron Hosford'
 __version__ = '1.0.0a9'
 __all__ = [
@@ -69,6 +64,8 @@ __all__ = [
     'XCSAlgorithm',
     'LCS',
     'test',
+    'bitstrings',
+    'problems',
 ]
 
 import random
@@ -82,7 +79,7 @@ try:
 except ImportError:
     numpy = None
 else:
-    # This is necessary because sometimes the numpy folder is left in place when it is uninstalled.
+    # This is necessary because sometimes the empty numpy folder is left in place when it is uninstalled.
     try:
         numpy.ndarray
     except AttributeError:
@@ -93,8 +90,13 @@ from . import bitstrings, problems
 
 
 class RuleMetadata(metaclass=ABCMeta):
-    """Abstract base class for metadata used by LCS algorithms to track the rules (classifiers) in a population."""
+    """Abstract base class defining the minimal interface for metadata used by LCS algorithms to track the
+    rules, aka classifiers, in a population. A classifier consists of a condition and an action taken as a
+    pair. Each unique classifier in the population has an associated metadata instance. If there are multiple
+    instances of a single classifier, this is indicated by incrementing the numerosity attribute of the
+    associated metadata instance, rather than adding another copy of that classifier."""
 
+    # The number of instances of the rule (classifier) with which this metadata instance is associated.
     numerosity = 1
 
     @abstractmethod
@@ -108,22 +110,30 @@ class RuleMetadata(metaclass=ABCMeta):
 
     @abstractmethod
     def prediction(self):
-        """The prediction made by this rule."""
+        """The reward prediction made by this rule. This value represents the reward expected if the rule's action
+        is taken when its condition matches."""
         raise NotImplementedError()
 
     @abstractmethod
     def prediction_weight(self):
-        """The weight of this rule's prediction as compared to others in the same action set."""
+        """The weight of this rule's prediction as compared to others in the same action set. This is used to
+        resolve conflicting predictions made by multiple rules whose conditions match and which suggest the
+        same action. The combined reward prediction for the given action is the weighted average of the
+        predictions made by each rule that suggests the same action and whose condition matches."""
         raise NotImplementedError()
 
 
 class LCSAlgorithm(metaclass=ABCMeta):
-    """Abstract interface for LCS algorithms. To create a new algorithm that can be used to create an LCS, inherit from
-    this class."""
+    """Abstract base class defining the minimal interface for LCS algorithms. To create a new algorithm that can
+    be used to initializer an LCS, inherit from this class. An LCS algorithm is responsible for managing the
+    LCS's rule (aka classifier) population, distributing reward to the appropriate rules, and determining the
+    action selection policy that is used."""
 
+    @property
     @abstractmethod
-    def get_exploration_probability(self, time_stamp):
-        """Return the probability of exploration for the given time stamp."""
+    def action_selection_policy(self):
+        """The action selection policy used to govern the trade-off between exploration (acquiring new experience)
+        and exploitation (utilizing existing experience to maximize reward)."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -229,40 +239,75 @@ class ActionSet:
         self._population.algorithm.distribute_payoff(self, payoff)
 
 
+class ActionSelectionPolicy(metaclass=ABCMeta):
+    """Abstract base class defining the minimal interface for action selection policies. The action selection
+    policy is responsible for governing the trade-off between exploration (acquiring new experience) and
+    exploitation (utilizing existing experience to maximize reward)."""
+
+    # Defining this allows the object to be used like a function.
+    @abstractmethod
+    def __call__(self, match_set, time_stamp):
+        raise NotImplementedError()
+
+
+class EpsilonGreedySelectionPolicy(ActionSelectionPolicy):
+    """The epsilon-greedy action selection policy. With probability epsilon, an action is chosen uniformly from all
+     possible actions regardless of predicted payoff. The rest of the time, the action with the highest predicted
+     payoff is chosen. The probability of exploration, epsilon, does not change as time passes."""
+
+    def __init__(self, epsilon=.1):
+        assert 0 <= epsilon <= 1
+        self.epsilon = epsilon
+
+    def __call__(self, match_set, time_stamp):
+        # With probability epsilon, select an action uniformly from all the actions in the match set.
+        if random.random() < self.epsilon:
+            return random.choice(list(match_set.actions))
+
+        # Otherwise, return (one of) the best action(s)
+        best_actions = match_set.best_actions
+        if len(best_actions) == 1:
+            return best_actions[0]
+        else:
+            return random.choice(best_actions)
+
+
 class MatchSet:
     """A collection of coincident action sets. This represents the collection of all rules that matched
     within the same situation, organized into groups according to which action each rule recommends."""
 
     def __init__(self, action_sets):
         self._action_sets = {action_set.action: action_set for action_set in action_sets}
+        self._best_actions = None
+        self._best_prediction = None
 
-    def select_action_set(self, explore=False):
-        """Select an action set from among those belonging to this match set. If the explore parameter is provided, it
-        is used as the probability of exploration, i.e. uniform action set selection. Otherwise the action set with the
-        best predicted payoff is selected with probability 1."""
-        assert isinstance(explore, bool) or (isinstance(explore, (int, float)) and 0 <= explore <= 1)
+    @property
+    def actions(self):
+        """An iterator over the actions suggested by this match set."""
+        return iter(self._action_sets)
 
-        # If an exploration probability has been provided, then with that probability,
-        # select an action uniformly rather than proportionally to the prediction
-        # for each action.
-        if explore and (explore >= 1 or random.random() < explore):
-            return random.choice(list(self._action_sets.values()))
+    def get_action_set(self, action):
+        """Return the action set, if any, associated with this action."""
+        return self._action_sets.get(action, None)
 
-        # Otherwise, determine the collectively predicted reward for each possible action based
-        # on the individual predictions of each rule suggesting that action, and choose the
-        # action having the highest predicted reward.
-        best_prediction = max(action_set.prediction for action_set in self._action_sets.values())
-        best_action_sets = [
-            action_set
-            for action_set in self._action_sets.values()
-            if action_set.prediction >= best_prediction
-        ]
+    @property
+    def best_prediction(self):
+        """The highest prediction of the action sets in this match set."""
+        if self._best_prediction is None and self._action_sets:
+            self._best_prediction = max(action_set.prediction for action_set in self._action_sets.values())
+        return self._best_prediction
 
-        # If only one action has the maximum predicted reward, return it. Otherwise,
-        # choose uniformly from among the actions sharing the maximum predicted reward.
-        if len(best_action_sets) == 1:
-            return best_action_sets[0]
-        return random.choice(best_action_sets)
+    @property
+    def best_actions(self):
+        """A tuple containing the actions whose action sets have the best prediction."""
+        if self._best_actions is None:
+            best_prediction = self.best_prediction
+            self._best_actions = tuple(
+                action
+                for action, action_set in self._action_sets.items()
+                if action_set.prediction == best_prediction
+            )
+        return self._best_actions
 
 
 class Population:
@@ -462,34 +507,40 @@ class XCSAlgorithm(LCSAlgorithm):
 
     # For a detailed explanation of each parameter, please see the original
     # paper by Martin Butz and Stewart Wilson.
-    max_population_size = 200                   # N
-    learning_rate = .15                         # beta
-    accuracy_coefficient = .1                   # alpha
-    error_threshold = .01                       # epsilon_0
-    accuracy_power = 5                          # nu
-    discount_factor = .71                       # gamma
-    GA_threshold = 35                           # theta_GA
-    crossover_probability = .75                 # chi
-    mutation_probability = .03                  # mu
-    deletion_threshold = 20                     # theta_del
-    fitness_threshold = .1                      # delta
-    subsumption_threshold = 20                  # theta_sub
-    wildcard_probability = .33                  # P_#
-    initial_prediction = .00001                 # p_I
-    initial_error = .00001                      # epsilon_I
-    initial_fitness = .00001                    # F_I
-    exploration_probability = .5                # p_explr
-    minimum_actions = 2                         # theta_mna
-    do_GA_subsumption = False                   # doGASubsumption
-    do_action_set_subsumption = False           # doActionSetSubsumption
+    max_population_size = 200                               # N
+    learning_rate = .15                                     # beta
+    accuracy_coefficient = .1                               # alpha
+    error_threshold = .01                                   # epsilon_0
+    accuracy_power = 5                                      # nu
+    discount_factor = .71                                   # gamma
+    GA_threshold = 35                                       # theta_GA
+    crossover_probability = .75                             # chi
+    mutation_probability = .03                              # mu
+    deletion_threshold = 20                                 # theta_del
+    fitness_threshold = .1                                  # delta
+    subsumption_threshold = 20                              # theta_sub
+    wildcard_probability = .33                              # P_#
+    initial_prediction = .00001                             # p_I
+    initial_error = .00001                                  # epsilon_I
+    initial_fitness = .00001                                # F_I
+    exploration_probability = .5                            # p_explr
+    minimum_actions = 2                                     # theta_mna
+    do_GA_subsumption = False                               # doGASubsumption
+    do_action_set_subsumption = False                       # doActionSetSubsumption
+
+    # If this is None, epsilon-greedy selection with epsilon == exploration_probability is used.
+    # Otherwise, exploration_probability is ignored.
+    exploration_policy = None
 
     def __init__(self, possible_actions):
         self.possible_actions = frozenset(possible_actions)
         self.minimum_actions = len(self.possible_actions)
 
-    def get_exploration_probability(self, time_stamp):
-        """Return the probability of exploration for the given time stamp."""
-        return self.exploration_probability
+    @property
+    def action_selection_policy(self):
+        """The action selection policy used to govern the trade-off between exploration (acquiring new experience)
+        and exploitation (utilizing existing experience to maximize reward)."""
+        return self.exploration_policy or EpsilonGreedySelectionPolicy(self.exploration_probability)
 
     def get_discount_factor(self, time_stamp):
         """Return the future reward discount factor for the given time stamp."""
@@ -820,12 +871,12 @@ class LCS:
 
     @property
     def algorithm(self):
-        """The parameter settings used by this instance of the XCS algorithm."""
+        """The parameter settings used by this instance of the algorithm."""
         return self._algorithm
 
     @property
     def population(self):
-        """The population used by this instance of the XCS algorithm."""
+        """The population used by this instance of the algorithm."""
         return self._population
 
     def run(self, problem, learn=True):
@@ -852,11 +903,16 @@ class LCS:
 
             # Select the best action for the current situation (or a random one,
             # if we are on an exploration step).
-            exploration_probability = self._algorithm.get_exploration_probability(self._population.time_stamp)
-            action_set = match_set.select_action_set(exploration_probability)
+            # TODO: Code cleanup here...
+            # exploration_probability = self._algorithm.get_exploration_probability(self._population.time_stamp)
+            # action_set = match_set.select_action_set(exploration_probability)
+            action = self._algorithm.action_selection_policy(match_set, self._population.time_stamp)
 
             # Perform the selected action and find out what the received reward was.
-            reward = problem.execute(action_set.action)
+            reward = problem.execute(action)
+
+            # Get the action set associated with this action
+            action_set = match_set.get_action_set(action)
 
             # Don't immediately apply the reward; instead, wait until the next iteration and
             # factor in not only the reward that was received on the previous step, but the
