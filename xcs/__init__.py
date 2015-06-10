@@ -9,13 +9,12 @@
 # (c) Aaron Hosford 2015, all rights reserved
 # Revised (3 Clause) BSD License
 #
-# Description
-# -----------
 # Implements the XCS (Accuracy-based Classifier System) algorithm,
-# roughly according to the description provided in the 2001 paper, "An
-# Algorithmic Description of XCS," by Martin Butz and Stewart Wilson.
+# as described in the 2001 paper, "An Algorithmic Description of XCS,"
+# by Martin Butz and Stewart Wilson.
 #
 # -------------------------------------------------------------------------------
+
 
 """
 xcs/__init__.py
@@ -23,8 +22,8 @@ xcs/__init__.py
 Revised BSD License
 
 Implements the XCS (Accuracy-based Classifier System) algorithm,
-roughly according to the description provided in the paper, "An
-Algorithmic Description of XCS," by Martin Butz and Stewart Wilson.
+as described in the 2001 paper, "An Algorithmic Description of
+XCS," by Martin Butz and Stewart Wilson.
 
     Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
     Stolzmann, W., and Wilson, S., editors, Advances in Learning Classifier Systems:
@@ -50,6 +49,7 @@ A quick explanation of the XCS algorithm:
     population.
 """
 
+
 __author__ = 'Aaron Hosford'
 __version__ = '1.0.0a9'
 __all__ = [
@@ -67,6 +67,7 @@ __all__ = [
     'bitstrings',
     'problems',
 ]
+
 
 import random
 from abc import ABCMeta, abstractmethod
@@ -119,7 +120,7 @@ class RuleMetadata(metaclass=ABCMeta):
         """The weight of this rule's prediction as compared to others in the same action set. This is used to
         resolve conflicting predictions made by multiple rules whose conditions match and which suggest the
         same action. The combined reward prediction for the given action is the weighted average of the
-        predictions made by each rule that suggests the same action and whose condition matches."""
+        predictions made by each rule whose condition matches and which suggests that action."""
         raise NotImplementedError()
 
 
@@ -137,34 +138,46 @@ class LCSAlgorithm(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_discount_factor(self, time_stamp):
-        """Return the future reward discount factor for the given time stamp."""
+    def get_future_expectation(self, match_set):
         raise NotImplementedError()
 
     @abstractmethod
-    def covering_is_required(self, matches_by_action):
-        """Return a Boolean indicating whether covering is required given the current matches."""
+    def covering_is_required(self, match_set):
+        """Return a Boolean indicating whether covering is required given the current matches. The matches_by_action
+        argument is a nested dictionary of the form {action : {condition : metadata}} which represents the proposed
+        contents of the match set before covering is applied. Note that modifications to the matches_by_action
+        dictionary may be visible to the cover() method."""
         raise NotImplementedError()
 
     @abstractmethod
-    def cover(self, time_stamp, situation, existing_actions):
+    def cover(self, match_set):
         """Return a tuple (condition, action, metadata) representing a new rule that matches the given situation and
-        attempts to avoid duplication of actions already contained in the current matches."""
+        attempts to avoid duplication of actions already contained in the current matches. The situation argument is
+        the input against which the new condition is expected to match. The existing_actions argument is a dictionary
+        of the form {action : {condition : metadata}} which represents the proposed contents of the match set before
+        covering is applied, and the time_stamp argument is the current iteration of the algorithm (for use in
+        initializing the metadata, if appropriate)."""
         raise NotImplementedError()
 
     @abstractmethod
     def distribute_payoff(self, action_set, payoff):
-        """Accept a payoff and distribute it among the rules in the action set which deserve credit for it."""
+        """Accept a payoff in response to a particular action set, and distribute it among the rules in the action
+        set which deserve credit for it. The action_set argument is the ActionSet instance which earned the payoff,
+        and the payoff argument is an int or float value that represents the payoff received."""
         raise NotImplementedError()
 
     @abstractmethod
-    def update(self, action_set):
-        """Update the population, e.g. by applying GA, based on the situation and action set."""
+    def update(self, match_set):
+        """Update the population, e.g. by applying a genetic algorithm. The action_set argument is the ActionSet
+        instance which was last selected, for algorithms which require this information. The total population
+        that is to be updated can be accessed through its population property."""
         raise NotImplementedError()
 
     @abstractmethod
     def prune(self, population):
-        """Reduce the population size, if necessary, by removing lower-quality rules."""
+        """Reduce the population size, if necessary, by removing lower-quality rules. Return a Boolean indicating
+        whether the numerosity of any rule dropped to zero. The population argument is a Population instance which
+        utilizes this algorithm."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -185,7 +198,9 @@ class ActionSet:
         self._action = action
         self._rules = rules  # {condition: metadata}
         self._prediction = None  # We'll calculate this later if it is needed
+        self._prediction_weight = None
         self._population = population
+        self._time_stamp = population.time_stamp
 
     @property
     def conditions(self):
@@ -213,18 +228,33 @@ class ActionSet:
         return self._population
 
     @property
+    def time_stamp(self):
+        """The population time stamp at which this action set was generated."""
+        return self._time_stamp
+
+    def _compute_prediction(self):
+        total_weight = 0
+        total_prediction = 0
+        for metadata in self._rules.values():
+            total_weight += metadata.prediction_weight
+            total_prediction += metadata.prediction * metadata.prediction_weight
+        self._prediction = total_prediction / (total_weight or 1)
+        self._prediction_weight = total_weight
+
+    @property
     def prediction(self):
         """The predicted payoff for this action set."""
         # If the action set's prediction has not already been computed, do so by taking the weighted
         # average of the individual rules' predictions.
         if self._prediction is None:
-            total_weight = 0
-            total_prediction = 0
-            for metadata in self._rules.values():
-                total_weight += metadata.prediction_weight
-                total_prediction += metadata.prediction * metadata.prediction_weight
-            self._prediction = total_prediction / (total_weight or 1)
+            self._compute_prediction()
         return self._prediction
+
+    @property
+    def prediction_weight(self):
+        if self._prediction_weight is None:
+            self._compute_prediction()
+        return self._prediction_weight
 
     def get_metadata(self, condition):
         """Return the metadata of the condition appearing in this action set."""
@@ -246,7 +276,7 @@ class ActionSelectionPolicy(metaclass=ABCMeta):
 
     # Defining this allows the object to be used like a function.
     @abstractmethod
-    def __call__(self, match_set, time_stamp):
+    def __call__(self, match_set):
         raise NotImplementedError()
 
 
@@ -259,10 +289,12 @@ class EpsilonGreedySelectionPolicy(ActionSelectionPolicy):
         assert 0 <= epsilon <= 1
         self.epsilon = epsilon
 
-    def __call__(self, match_set, time_stamp):
+    def __call__(self, match_set):
+        assert isinstance(match_set, MatchSet)
+
         # With probability epsilon, select an action uniformly from all the actions in the match set.
         if random.random() < self.epsilon:
-            return random.choice(list(match_set.actions))
+            return random.choice(list(match_set))
 
         # Otherwise, return (one of) the best action(s)
         best_actions = match_set.best_actions
@@ -276,19 +308,42 @@ class MatchSet:
     """A collection of coincident action sets. This represents the collection of all rules that matched
     within the same situation, organized into groups according to which action each rule recommends."""
 
-    def __init__(self, action_sets):
-        self._action_sets = {action_set.action: action_set for action_set in action_sets}
+    def __init__(self, population, by_action, situation):
+        self._action_sets = {
+            action: ActionSet(situation, action, rules, population)
+            for action, rules in by_action.items()
+        }
         self._best_actions = None
         self._best_prediction = None
+        self._situation = situation
+        self._population = population
+        self._time_stamp = population.time_stamp
+        self._selected_action = None
 
     @property
-    def actions(self):
-        """An iterator over the actions suggested by this match set."""
+    def population(self):
+        return self._population
+
+    @property
+    def situation(self):
+        return self._situation
+
+    @property
+    def time_stamp(self):
+        return self._time_stamp
+
+    def __iter__(self):
         return iter(self._action_sets)
 
-    def get_action_set(self, action):
+    def __len__(self):
+        return len(self._action_sets)
+
+    def __getitem__(self, action):
+        return self._action_sets[action]
+
+    def get(self, action, default=None):
         """Return the action set, if any, associated with this action."""
-        return self._action_sets.get(action, None)
+        return self._action_sets.get(action, default)
 
     @property
     def best_prediction(self):
@@ -308,6 +363,33 @@ class MatchSet:
                 if action_set.prediction == best_prediction
             )
         return self._best_actions
+
+    def _get_selected_action(self):
+        return self._selected_action
+
+    def _set_selected_action(self, action):
+        if self._selected_action is not None:
+            raise ValueError("The action(s) have already been selected.")
+
+        assert action in self._action_sets
+
+        self._selected_action = action
+
+    selected_action = property(
+        _get_selected_action,
+        _set_selected_action,
+        doc="The action which was selected and deserves credit for whatever payoff is received."
+    )
+
+    @property
+    def prediction(self):
+        """The prediction for the selected action."""
+        assert self._selected_action is not None
+        return self._action_sets[self._selected_action].prediction
+
+    def accept_payoff(self, payoff):
+        assert self._selected_action is not None
+        self._action_sets[self._selected_action].accept_payoff(payoff)
 
 
 class Population:
@@ -360,27 +442,41 @@ class Population:
         # Find the conditions that match against the current situation, and group them according to which
         # action(s) they recommend.
         by_action = {}
-        while not by_action:
-            for condition, actions in self._population.items():
-                if not condition(situation):
-                    continue
 
-                for action, rule_metadata in actions.items():
-                    if action in by_action:
-                        by_action[action][condition] = rule_metadata
-                    else:
-                        by_action[action] = {condition: rule_metadata}
+        for condition, actions in self._population.items():
+            if not condition(situation):
+                continue
 
-            # If an insufficient number of actions are recommended, create some new rules (condition/action pairs)
-            # until there are enough actions being recommended.
-            if self._algorithm.covering_is_required(by_action):
-                condition, action, metadata = self._algorithm.cover(self._time_stamp, situation, by_action)
-                assert condition(situation)
-                self.add(condition, action, metadata)
-                by_action.clear()
+            for action, rule_metadata in actions.items():
+                if action in by_action:
+                    by_action[action][condition] = rule_metadata
+                else:
+                    by_action[action] = {condition: rule_metadata}
+
+        match_set = MatchSet(self, by_action, situation)
+
+        # If an insufficient number of actions are recommended, create some new rules (condition/action pairs)
+        # until there are enough actions being recommended.
+        if self._algorithm.covering_is_required(match_set):
+            condition, action, metadata = self._algorithm.cover(match_set)
+            assert condition(situation)
+
+            replaced = self.add(condition, action, metadata)
+
+            for replaced_condition, replaced_action in replaced:
+                if replaced_action in by_action and replaced_condition in by_action[replaced_action]:
+                    del by_action[replaced_action][replaced_condition]
+                    if not by_action[replaced_action]:
+                        del by_action[replaced_action]
+
+            if action not in by_action:
+                by_action[action] = {}
+            by_action[action][condition] = metadata
+
+            match_set = MatchSet(self, by_action, situation)
 
         # Return a match set which succinctly represents the information we just gathered.
-        return MatchSet(ActionSet(situation, action, rules, self) for action, rules in by_action.items())
+        return match_set
 
     def add(self, condition, action, metadata=1):
         """Add a new rule to the population."""
@@ -406,10 +502,11 @@ class Population:
             raise TypeError(metadata)
 
         # Any time we add a rule, we need to call this to keep the population size under control.
-        self._algorithm.prune(self)
+        return self._algorithm.prune(self)
 
     def remove(self, condition, action, count=1):
-        """Remove one or more instances of a rule in the population."""
+        """Remove one or more instances of a rule in the population. Return a Boolean indicating whether the rule's
+        numerosity dropped to zero. (If the rule's numerosity was already zero, do nothing and return False.)"""
 
         assert isinstance(count, int) and count >= 0
 
@@ -424,7 +521,9 @@ class Population:
             if not self._population[condition]:
                 del self._population[condition]
 
-        return True
+            return True
+
+        return False
 
     def get_metadata(self, condition, action):
         """Return the metadata associated with the given rule (classifier). If the rule is not present in the
@@ -532,6 +631,11 @@ class XCSAlgorithm(LCSAlgorithm):
     # Otherwise, exploration_probability is ignored.
     exploration_policy = None
 
+    # This is the ratio that determines how much of the discounted future reward comes from the best prediction
+    # versus the actual prediction for the next match set. For canonical XCS, this is not an available parameter
+    # and should be set to 0 in that case.
+    idealization_factor = 0
+
     def __init__(self, possible_actions):
         self.possible_actions = frozenset(possible_actions)
         self.minimum_actions = len(self.possible_actions)
@@ -542,30 +646,32 @@ class XCSAlgorithm(LCSAlgorithm):
         and exploitation (utilizing existing experience to maximize reward)."""
         return self.exploration_policy or EpsilonGreedySelectionPolicy(self.exploration_probability)
 
-    def get_discount_factor(self, time_stamp):
-        """Return the future reward discount factor for the given time stamp."""
-        return self.discount_factor
+    def get_future_expectation(self, match_set):
+        """Return the future reward expectation for the given match set."""
+        return self.discount_factor * (
+            self.idealization_factor * match_set.best_prediction +
+            (1 - self.idealization_factor) * match_set.prediction
+        )
 
-    def covering_is_required(self, actions):
-        """Return a Boolean value indicating whether covering is required based on the contents of the current action
+    def covering_is_required(self, match_set):
+        """Return a Boolean value indicating whether covering is required based on the contents of the current match
         set."""
-        return len(actions) < self.minimum_actions
+        return len(match_set) < self.minimum_actions
 
-    def cover(self, time_stamp, situation, existing_actions):
+    def cover(self, match_set):
         """Create a new rule that matches the given situation and return it. Preferentially choose an action that is
         not present in the existing actions, if possible."""
 
         # Create a new condition that matches the situation.
-        condition = bitstrings.BitCondition.cover(situation, self.wildcard_probability)
+        condition = bitstrings.BitCondition.cover(match_set.situation, self.wildcard_probability)
 
         # Pick a random action that (preferably) isn't already suggested by some
         # other rule for this situation.
-        action_candidates = ((set(existing_actions) - self.possible_actions) or
-                             self.possible_actions)
+        action_candidates = (set(match_set) - self.possible_actions) or self.possible_actions
         action = random.choice(list(action_candidates))
 
         # Create metadata for the new rule.
-        metadata = XCSRuleMetadata(time_stamp, self)
+        metadata = XCSRuleMetadata(match_set.time_stamp, self)
 
         # The actual rule is just a condition/action/metadata triple
         return condition, action, metadata
@@ -598,19 +704,24 @@ class XCSAlgorithm(LCSAlgorithm):
         if self.do_action_set_subsumption:
             self._action_set_subsumption(action_set)
 
-    def update(self, action_set):
+    def update(self, match_set):
         """Update the time stamp. If sufficient time has passed, apply the genetic algorithm's operators to update the
          population."""
 
-        assert isinstance(action_set, ActionSet)
-        assert action_set.population.algorithm is self
+        assert isinstance(match_set, MatchSet)
+        assert match_set.population.algorithm is self
+
+        if match_set.selected_action is None:
+            return
+
+        action_set = match_set[match_set.selected_action]
 
         # Increment the iteration counter.
-        action_set.population.update_time_stamp()
+        match_set.population.update_time_stamp()
 
         # If the average number of iterations since the last update for each rule in the action set
         # is too small, return early instead of applying the GA.
-        if action_set.population.time_stamp - self._get_average_time_stamp(action_set) <= self.GA_threshold:
+        if match_set.population.time_stamp - self._get_average_time_stamp(action_set) <= self.GA_threshold:
             return
 
         # Update the time step for each rule to indicate that they were updated by the GA.
@@ -699,7 +810,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # If the virtual population size is already small enough, just return early.
         if total_numerosity <= self.max_population_size:
-            return
+            return []  # No rule's numerosity dropped to zero.
 
         # Determine the average fitness of the rules in the virtual population.
         total_fitness = sum(
@@ -733,8 +844,13 @@ class XCSAlgorithm(LCSAlgorithm):
         for (condition, action), vote in deletion_votes.items():
             selector -= vote
             if selector <= 0:
-                population.remove(condition, action)
-                return
+                assert (condition, action) in population
+                if population.remove(condition, action):
+                    return [(condition, action)]
+                else:
+                    return []
+
+        return []  # No rule's numerosity dropped to zero.
 
     def get_possible_actions(self):
         """Return the actions this algorithm is capable of generating."""
@@ -891,7 +1007,7 @@ class LCS:
         assert isinstance(problem, problems.OnLineProblem)
 
         previous_reward = None
-        previous_action_set = None
+        previous_match_set = None
 
         # Repeat until the problem has run its course.
         while problem.more():
@@ -903,16 +1019,10 @@ class LCS:
 
             # Select the best action for the current situation (or a random one,
             # if we are on an exploration step).
-            # TODO: Code cleanup here...
-            # exploration_probability = self._algorithm.get_exploration_probability(self._population.time_stamp)
-            # action_set = match_set.select_action_set(exploration_probability)
-            action = self._algorithm.action_selection_policy(match_set, self._population.time_stamp)
+            match_set.selected_action = self._algorithm.action_selection_policy(match_set)
 
             # Perform the selected action and find out what the received reward was.
-            reward = problem.execute(action)
-
-            # Get the action set associated with this action
-            action_set = match_set.get_action_set(action)
+            reward = problem.execute(match_set.selected_action)
 
             # Don't immediately apply the reward; instead, wait until the next iteration and
             # factor in not only the reward that was received on the previous step, but the
@@ -922,18 +1032,16 @@ class LCS:
             # future expected reward without actually waiting the full duration to find out
             # what it will be.
             if previous_reward is not None and learn:
-                discount_factor = self._algorithm.get_discount_factor(self._population.time_stamp)
-                payoff = previous_reward + discount_factor * action_set.prediction
-                previous_action_set.accept_payoff(payoff)
-                self._algorithm.update(previous_action_set)
+                previous_match_set.accept_payoff(previous_reward + self._algorithm.get_future_expectation(match_set))
+                self._algorithm.update(previous_match_set)
             previous_reward = reward
-            previous_action_set = action_set
+            previous_match_set = match_set
 
         # This serves to tie off the final stitch. The last action taken gets only the
         # immediate reward; there is no future reward expected.
         if previous_reward is not None and learn:
-            previous_action_set.accept_payoff(previous_reward)
-            self._algorithm.update(previous_action_set)
+            previous_match_set.accept_payoff(previous_reward)
+            self._algorithm.update(previous_match_set)
 
 
 def test(algorithm=None, problem=None):

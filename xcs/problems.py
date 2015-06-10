@@ -57,8 +57,8 @@ class OnLineProblem(metaclass=ABCMeta):
 
     @abstractmethod
     def execute(self, action):
-        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
-        reward program."""
+        """Execute the indicated action(s) within the environment and return the resulting immediate reward dictated by
+        the reward program."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -101,8 +101,8 @@ class MUXProblem(OnLineProblem):
         return self.current_situation
 
     def execute(self, action):
-        """Execute the indicated action within the environment and return the resulting immediate reward dictated by the
-        reward program."""
+        """Execute the indicated action(s) within the environment and return the resulting immediate reward dictated by
+        the reward program."""
 
         assert action in self.possible_actions
 
@@ -218,7 +218,8 @@ class OnLineObserver(OnLineProblem):
         self.logger.debug('Executing action: %s', action)
 
         reward = self.wrapped.execute(action)
-        self.total_reward += reward
+        if reward:
+            self.total_reward += reward
         self.steps += 1
 
         self.logger.debug('Reward received on this step: %.5f', reward)
@@ -242,7 +243,6 @@ class OnLineObserver(OnLineProblem):
         return more
 
 
-# TODO: Testing.
 class ClassifiedDataAsOnLineProblem(OnLineProblem):
     """Wrap off-line (non-interactive) training/test data as an on-line (interactive) problem."""
 
@@ -296,7 +296,6 @@ class ClassifiedDataAsOnLineProblem(OnLineProblem):
         return self.steps < len(self.situations)
 
 
-# TODO: Testing.
 class PredictionDataAsOnLineProblem(OnLineProblem):
     """Wrap off-line (non-interactive) prediction data as an on-line (interactive) problem."""
 
