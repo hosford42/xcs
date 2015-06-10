@@ -160,7 +160,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def distribute_payoff(self, action_set, payoff):
+    def distribute_payoff(self, match_set, payoff):
         """Accept a payoff in response to a particular action set, and distribute it among the rules in the action
         set which deserve credit for it. The action_set argument is the ActionSet instance which earned the payoff,
         and the payoff argument is an int or float value that represents the payoff received."""
@@ -263,10 +263,6 @@ class ActionSet:
     def remove_condition(self, condition):
         """Remove the condition from the action set."""
         del self._rules[condition]
-
-    def accept_payoff(self, payoff):
-        """Accept the given payoff and distribute it across the action set."""
-        self._population.algorithm.distribute_payoff(self, payoff)
 
 
 class ActionSelectionPolicy(metaclass=ABCMeta):
@@ -386,10 +382,6 @@ class MatchSet:
         """The prediction for the selected action."""
         assert self._selected_action is not None
         return self._action_sets[self._selected_action].prediction
-
-    def accept_payoff(self, payoff):
-        assert self._selected_action is not None
-        self._action_sets[self._selected_action].accept_payoff(payoff)
 
 
 class Population:
@@ -676,12 +668,14 @@ class XCSAlgorithm(LCSAlgorithm):
         # The actual rule is just a condition/action/metadata triple
         return condition, action, metadata
 
-    def distribute_payoff(self, action_set, payoff):
+    def distribute_payoff(self, match_set, payoff):
         """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
 
-        assert isinstance(action_set, ActionSet)
-        assert action_set.population.algorithm is self
+        assert isinstance(match_set, MatchSet)
+        assert match_set.population.algorithm is self
+        assert match_set.selected_action is not None
 
+        action_set = match_set[match_set.selected_action]
         payoff = float(payoff)
 
         action_set_size = sum(metadata.numerosity for metadata in action_set.metadata)
@@ -710,14 +704,12 @@ class XCSAlgorithm(LCSAlgorithm):
 
         assert isinstance(match_set, MatchSet)
         assert match_set.population.algorithm is self
-
-        if match_set.selected_action is None:
-            return
-
-        action_set = match_set[match_set.selected_action]
+        assert match_set.selected_action is not None
 
         # Increment the iteration counter.
         match_set.population.update_time_stamp()
+
+        action_set = match_set[match_set.selected_action]
 
         # If the average number of iterations since the last update for each rule in the action set
         # is too small, return early instead of applying the GA.
@@ -1032,7 +1024,8 @@ class LCS:
             # future expected reward without actually waiting the full duration to find out
             # what it will be.
             if previous_reward is not None and learn:
-                previous_match_set.accept_payoff(previous_reward + self._algorithm.get_future_expectation(match_set))
+                payoff = previous_reward + self._algorithm.get_future_expectation(match_set)
+                self._algorithm.distribute_payoff(previous_match_set, payoff)
                 self._algorithm.update(previous_match_set)
             previous_reward = reward
             previous_match_set = match_set
@@ -1040,7 +1033,7 @@ class LCS:
         # This serves to tie off the final stitch. The last action taken gets only the
         # immediate reward; there is no future reward expected.
         if previous_reward is not None and learn:
-            previous_match_set.accept_payoff(previous_reward)
+            self._algorithm.distribute_payoff(previous_match_set, previous_reward)
             self._algorithm.update(previous_match_set)
 
 
