@@ -18,6 +18,9 @@ class TestXCS(unittest.TestCase):
         algorithm.do_GA_subsumption = True
         algorithm.do_action_set_subsumption = True
 
+        best = None
+        expected = .6
+
         for _ in range(2):
             logging.disable(logging.CRITICAL)
             try:
@@ -29,10 +32,12 @@ class TestXCS(unittest.TestCase):
             average_reward = total_reward / steps
             self.assertGreater(average_reward, .49)
             self.assertLess(time_passed, 40)
-            if average_reward >= .6:
+            if average_reward >= expected:
                 break
+            elif best is None or best < average_reward:
+                best = average_reward
         else:
-            self.fail("Failed to achieve expected average reward level.")
+            self.fail("Failed to achieve expected average reward level. (Missed by %f.)" % (expected - best))
 
     def test_against_haystack(self):
         problem = HaystackProblem(training_cycles=10000, input_size=500)
@@ -46,6 +51,9 @@ class TestXCS(unittest.TestCase):
         algorithm.deletion_threshold = 10
         algorithm.mutation_probability = .0001
 
+        best = None
+        expected = .6
+
         for _ in range(5):
             logging.disable(logging.CRITICAL)
             try:
@@ -57,10 +65,12 @@ class TestXCS(unittest.TestCase):
             average_reward = total_reward / steps
             self.assertGreater(average_reward, .48)
             self.assertLess(time_passed, 20)
-            if average_reward >= .6:
+            if average_reward >= expected:
                 break
+            elif best is None or best < average_reward:
+                best = average_reward
         else:
-            self.fail("Failed to achieve expected average reward level.")
+            self.fail("Failed to achieve expected average reward level. (Missed by %f.)" % (expected - best))
 
 
 def main():
