@@ -90,6 +90,41 @@ else:
 from . import bitstrings, problems
 
 
+class ActionSelectionStrategy(metaclass=ABCMeta):
+    """Abstract base class defining the minimal interface for action selection policies. The action selection
+    strategy is responsible for governing the trade-off between exploration (acquiring new experience) and
+    exploitation (utilizing existing experience to maximize reward)."""
+
+    # Defining this allows the object to be used like a function.
+    @abstractmethod
+    def __call__(self, match_set):
+        raise NotImplementedError()
+
+
+class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
+    """The epsilon-greedy action selection strategy. With probability epsilon, an action is chosen uniformly from all
+     possible actions regardless of predicted payoff. The rest of the time, the action with the highest predicted
+     payoff is chosen. The probability of exploration, epsilon, does not change as time passes."""
+
+    def __init__(self, epsilon=.1):
+        assert 0 <= epsilon <= 1
+        self.epsilon = epsilon
+
+    def __call__(self, match_set):
+        assert isinstance(match_set, MatchSet)
+
+        # With probability epsilon, select an action uniformly from all the actions in the match set.
+        if random.random() < self.epsilon:
+            return random.choice(list(match_set))
+
+        # Otherwise, return (one of) the best action(s)
+        best_actions = match_set.best_actions
+        if len(best_actions) == 1:
+            return best_actions[0]
+        else:
+            return random.choice(best_actions)
+
+
 class RuleMetadata(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for metadata used by LCS algorithms to track the
     rules, aka classifiers, in a population. A classifier consists of a condition and an action taken as a
@@ -184,45 +219,50 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
 
 class ActionSet:
-    """Abstract base class for a set of rules (classifiers) with the same action that matched the same situation."""
+    """A set of rules (classifiers) drawn from the same population, all suggesting the same action and having
+    conditions which matched the same situation, together with information as to the conditions under which the
+    rules matched together."""
 
-    def __init__(self, situation, action, rules, population):
+    def __init__(self, population, situation, action, rules):
+        assert isinstance(population, Population)
         assert isinstance(rules, dict)
         assert all(isinstance(metadata, RuleMetadata) for metadata in rules.values())
-        assert isinstance(population, Population)
 
+        self._population = population
         self._situation = situation
         self._action = action
         self._rules = rules  # {condition: metadata}
+
         self._prediction = None  # We'll calculate this later if it is needed
         self._prediction_weight = None
-        self._population = population
+
+        # Capture the time stamp of the population at which the action set was created
         self._time_stamp = population.time_stamp
 
     @property
-    def conditions(self):
-        """An iterator over the conditions in the action set."""
-        return iter(self._rules)
-
-    @property
-    def metadata(self):
-        """An iterator over the metadata of the rules in the action set."""
-        return self._rules.values()
+    def population(self):
+        """The population from which the action set was drawn."""
+        return self._population
 
     @property
     def situation(self):
-        """The situation for which this action set was created."""
+        """The common situation against which all the classifiers' conditions matched."""
         return self._situation
 
     @property
     def action(self):
-        """The action shared by the matching rules."""
+        """The common action suggested by all the classifiers in the action set."""
         return self._action
 
     @property
-    def population(self):
-        """The population from which the action set was taken."""
-        return self._population
+    def conditions(self):
+        """An iterator over the conditions of the classifiers in the action set."""
+        return iter(self._rules)
+
+    @property
+    def metadata(self):
+        """An iterator over the metadata of the classifiers in the action set."""
+        return self._rules.values()
 
     @property
     def time_stamp(self):
@@ -240,7 +280,8 @@ class ActionSet:
 
     @property
     def prediction(self):
-        """The predicted payoff for this action set."""
+        """The combined prediction of expected payoff for taking the suggested action given the situation. This
+        is the weighted average of the individual predictions of the classifiers constituting this action set."""
         # If the action set's prediction has not already been computed, do so by taking the weighted
         # average of the individual rules' predictions.
         if self._prediction is None:
@@ -249,61 +290,31 @@ class ActionSet:
 
     @property
     def prediction_weight(self):
+        """The total weight of the combined prediction made by this action set. This is the sum of the weights of
+        the individual predictions made by the classifiers constituting this action set."""
         if self._prediction_weight is None:
             self._compute_prediction()
         return self._prediction_weight
 
     def get_metadata(self, condition):
-        """Return the metadata of the condition appearing in this action set."""
+        """Return the metadata of the classifier having this condition and appearing in this action set."""
         return self._rules[condition]
 
     def remove_condition(self, condition):
-        """Remove the condition from the action set."""
+        """Remove the classifier having this condition from the action set."""
         del self._rules[condition]
-
-
-class ActionSelectionStrategy(metaclass=ABCMeta):
-    """Abstract base class defining the minimal interface for action selection policies. The action selection
-    strategy is responsible for governing the trade-off between exploration (acquiring new experience) and
-    exploitation (utilizing existing experience to maximize reward)."""
-
-    # Defining this allows the object to be used like a function.
-    @abstractmethod
-    def __call__(self, match_set):
-        raise NotImplementedError()
-
-
-class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
-    """The epsilon-greedy action selection strategy. With probability epsilon, an action is chosen uniformly from all
-     possible actions regardless of predicted payoff. The rest of the time, the action with the highest predicted
-     payoff is chosen. The probability of exploration, epsilon, does not change as time passes."""
-
-    def __init__(self, epsilon=.1):
-        assert 0 <= epsilon <= 1
-        self.epsilon = epsilon
-
-    def __call__(self, match_set):
-        assert isinstance(match_set, MatchSet)
-
-        # With probability epsilon, select an action uniformly from all the actions in the match set.
-        if random.random() < self.epsilon:
-            return random.choice(list(match_set))
-
-        # Otherwise, return (one of) the best action(s)
-        best_actions = match_set.best_actions
-        if len(best_actions) == 1:
-            return best_actions[0]
-        else:
-            return random.choice(best_actions)
 
 
 class MatchSet:
     """A collection of coincident action sets. This represents the collection of all rules that matched
     within the same situation, organized into groups according to which action each rule recommends."""
 
-    def __init__(self, population, by_action, situation):
+    def __init__(self, population, situation, by_action):
+        assert isinstance(population, Population)
+        assert isinstance(by_action, dict)
+
         self._action_sets = {
-            action: ActionSet(situation, action, rules, population)
+            action: ActionSet(population, situation, action, rules)
             for action, rules in by_action.items()
         }
         self._best_actions = None
@@ -448,7 +459,7 @@ class Population:
                 else:
                     by_action[action] = {condition: rule_metadata}
 
-        match_set = MatchSet(self, by_action, situation)
+        match_set = MatchSet(self, situation, by_action)
 
         # If an insufficient number of actions are recommended, create some new rules (condition/action pairs)
         # until there are enough actions being recommended.
@@ -468,7 +479,7 @@ class Population:
                 by_action[action] = {}
             by_action[action][condition] = metadata
 
-            match_set = MatchSet(self, by_action, situation)
+            match_set = MatchSet(self, situation, by_action)
 
         # Return a match set which succinctly represents the information we just gathered.
         return match_set
