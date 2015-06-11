@@ -130,12 +130,12 @@ class LCSAlgorithm(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for LCS algorithms. To create a new algorithm that can
     be used to initialize an LCS, inherit from this class. An LCS algorithm is responsible for managing the
     LCS's rule (aka classifier) population, distributing reward to the appropriate rules, and determining the
-    action selection policy that is used."""
+    action selection strategy that is used."""
 
     @property
     @abstractmethod
-    def action_selection_policy(self):
-        """The action selection policy used to govern the trade-off between exploration (acquiring new experience)
+    def action_selection_strategy(self):
+        """The action selection strategy used to govern the trade-off between exploration (acquiring new experience)
         and exploitation (utilizing existing experience to maximize reward)."""
         raise NotImplementedError()
 
@@ -262,9 +262,9 @@ class ActionSet:
         del self._rules[condition]
 
 
-class ActionSelectionPolicy(metaclass=ABCMeta):
+class ActionSelectionStrategy(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for action selection policies. The action selection
-    policy is responsible for governing the trade-off between exploration (acquiring new experience) and
+    strategy is responsible for governing the trade-off between exploration (acquiring new experience) and
     exploitation (utilizing existing experience to maximize reward)."""
 
     # Defining this allows the object to be used like a function.
@@ -273,8 +273,8 @@ class ActionSelectionPolicy(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class EpsilonGreedySelectionPolicy(ActionSelectionPolicy):
-    """The epsilon-greedy action selection policy. With probability epsilon, an action is chosen uniformly from all
+class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
+    """The epsilon-greedy action selection strategy. With probability epsilon, an action is chosen uniformly from all
      possible actions regardless of predicted payoff. The rest of the time, the action with the highest predicted
      payoff is chosen. The probability of exploration, epsilon, does not change as time passes."""
 
@@ -625,7 +625,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
     # If this is None, epsilon-greedy selection with epsilon == exploration_probability is used.
     # Otherwise, exploration_probability is ignored.
-    exploration_policy = None
+    exploration_strategy = None
 
     # This is the ratio that determines how much of the discounted future reward comes from the best prediction
     # versus the actual prediction for the next match set. For canonical XCS, this is not an available parameter
@@ -633,10 +633,10 @@ class XCSAlgorithm(LCSAlgorithm):
     idealization_factor = 0
 
     @property
-    def action_selection_policy(self):
-        """The action selection policy used to govern the trade-off between exploration (acquiring new experience)
+    def action_selection_strategy(self):
+        """The action selection strategy used to govern the trade-off between exploration (acquiring new experience)
         and exploitation (utilizing existing experience to maximize reward)."""
-        return self.exploration_policy or EpsilonGreedySelectionPolicy(self.exploration_probability)
+        return self.exploration_strategy or EpsilonGreedySelectionStrategy(self.exploration_probability)
 
     def get_future_expectation(self, match_set):
         """Return the future reward expectation for the given match set."""
@@ -1020,7 +1020,7 @@ class LCS:
 
             # Select the best action for the current situation (or a random one,
             # if we are on an exploration step).
-            match_set.selected_action = self._algorithm.action_selection_policy(match_set)
+            match_set.selected_action = self._algorithm.action_selection_strategy(match_set)
 
             # Perform the selected action and find out what the received reward was.
             reward = problem.execute(match_set.selected_action)
