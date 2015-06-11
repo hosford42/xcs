@@ -819,7 +819,8 @@ class XCSAlgorithm(LCSAlgorithm):
     do_action_set_subsumption = False                       # doActionSetSubsumption
 
     # If this is None, epsilon-greedy selection with epsilon == exploration_probability is used.
-    # Otherwise, exploration_probability is ignored.
+    # Otherwise, exploration_probability is ignored. For canonical XCS, this is not an available parameter
+    # and should be set to None.
     exploration_strategy = None
 
     # This is the ratio that determines how much of the discounted future reward comes from the best prediction
@@ -877,7 +878,8 @@ class XCSAlgorithm(LCSAlgorithm):
         return condition, action, metadata
 
     def distribute_payoff(self, match_set, payoff):
-        """Update the rule metadata for the rules belonging to this action set, based on the payoff received."""
+        """Update the rule metadata for the rules belonging to the selected action set of this match set, based
+        on the payoff received."""
 
         assert isinstance(match_set, MatchSet)
         assert match_set.population.algorithm is self
@@ -907,8 +909,8 @@ class XCSAlgorithm(LCSAlgorithm):
             self._action_set_subsumption(action_set)
 
     def update(self, match_set):
-        """Update the time stamp. If sufficient time has passed, apply the genetic algorithm's operators to update the
-         population."""
+        """Update the time stamp. If sufficient time has passed on average for each member of the selected action set,
+        apply the genetic algorithm's operators to update the population."""
 
         assert isinstance(match_set, MatchSet)
         assert match_set.population.algorithm is self
@@ -1050,7 +1052,7 @@ class XCSAlgorithm(LCSAlgorithm):
                 else:
                     return []
 
-        return []  # No rule's numerosity dropped to zero.
+        assert False  # We should never reach this point.
 
     def _update_fitness(self, action_set):
         """Update the fitness of the rules belonging to this action set."""
