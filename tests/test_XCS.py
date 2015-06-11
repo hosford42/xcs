@@ -15,7 +15,7 @@ class TestXCS(unittest.TestCase):
         algorithm = xcs.XCSAlgorithm()
         algorithm.exploration_probability = .1
         algorithm.discount_factor = 0
-        algorithm.do_GA_subsumption = True
+        algorithm.do_ga_subsumption = True
         algorithm.do_action_set_subsumption = True
 
         best = None
@@ -45,7 +45,7 @@ class TestXCS(unittest.TestCase):
         algorithm = xcs.XCSAlgorithm()
         algorithm.exploration_probability = .1
         algorithm.discount_factor = 0
-        algorithm.do_GA_subsumption = False
+        algorithm.do_ga_subsumption = False
         algorithm.do_action_set_subsumption = False
         algorithm.wildcard_probability = .99
         algorithm.deletion_threshold = 10

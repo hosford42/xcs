@@ -93,7 +93,9 @@ from . import bitstrings, problems
 class ActionSelectionStrategy(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for action selection policies. The action selection
     strategy is responsible for governing the trade-off between exploration (acquiring new experience) and
-    exploitation (utilizing existing experience to maximize reward)."""
+    exploitation (utilizing existing experience to maximize reward). Specify a new action selection strategy
+    by subclassing this interface, or by defining a function which accepts a MatchSet as its sole argument
+    and returns one of the actions suggested by that match set."""
 
     # Defining this allows the object to be used like a function.
     @abstractmethod
@@ -135,10 +137,12 @@ class RuleMetadata(metaclass=ABCMeta):
     # The number of instances of the rule (classifier) with which this metadata instance is associated.
     numerosity = 1
 
+    # Defining this determines the behavior of str(instance)
     @abstractmethod
     def __str__(self):
         raise NotImplementedError()
 
+    # Defining this determines the behavior of instance1 < instance2
     # This is here strictly for sorting purposes in calls to Population.__str__
     @abstractmethod
     def __lt__(self, other):
@@ -154,10 +158,10 @@ class RuleMetadata(metaclass=ABCMeta):
     @property
     @abstractmethod
     def prediction_weight(self):
-        """The weight of this rule's prediction as compared to others in the same action set. This is used to
-        resolve conflicting predictions made by multiple rules whose conditions match and which suggest the
-        same action. The combined reward prediction for the given action is the weighted average of the
-        predictions made by each rule whose condition matches and which suggests that action."""
+        """The weight of this rule's predictions. This is used to resolve conflicting predictions made by
+        multiple classifiers appearing in the same action set. The combined reward prediction for the
+        entire action set is the weighted average of the predictions made by each classifier appearing in
+        that action set."""
         raise NotImplementedError()
 
 
@@ -241,7 +245,7 @@ class ActionSet:
 
     @property
     def population(self):
-        """The population from which the action set was drawn."""
+        """The population from which the classifiers in the action set were drawn."""
         return self._population
 
     @property
@@ -270,6 +274,9 @@ class ActionSet:
         return self._time_stamp
 
     def _compute_prediction(self):
+        """Compute the combined prediction and prediction weight for this action set. The combined prediction is the
+        weighted average of the individual predictions of the classifiers. The combined prediction weight is the sum
+        of the individual prediction weights of the classifiers."""
         total_weight = 0
         total_prediction = 0
         for metadata in self._rules.values():
@@ -282,8 +289,6 @@ class ActionSet:
     def prediction(self):
         """The combined prediction of expected payoff for taking the suggested action given the situation. This
         is the weighted average of the individual predictions of the classifiers constituting this action set."""
-        # If the action set's prediction has not already been computed, do so by taking the weighted
-        # average of the individual rules' predictions.
         if self._prediction is None:
             self._compute_prediction()
         return self._prediction
@@ -336,22 +341,27 @@ class MatchSet:
     def time_stamp(self):
         return self._time_stamp
 
+    # Defining this determines the behavior of this class with respect to iteration, including the "iter(instance)"
+    # and "for item in instance:" constructs.
     def __iter__(self):
         return iter(self._action_sets)
 
+    # Defining this determines the behavior of len(instance)
     def __len__(self):
         return len(self._action_sets)
 
+    # Defining this determines the behavior of instance[key]
     def __getitem__(self, action):
         return self._action_sets[action]
 
     def get(self, action, default=None):
-        """Return the action set, if any, associated with this action."""
+        """Return the action set, if any, associated with this action. If no action set is associated with this
+        action, return the default. If no default is provided, None is used."""
         return self._action_sets.get(action, default)
 
     @property
     def best_prediction(self):
-        """The highest prediction of the action sets in this match set."""
+        """The highest value from among the predictions made by the action sets in this match set."""
         if self._best_prediction is None and self._action_sets:
             self._best_prediction = max(action_set.prediction for action_set in self._action_sets.values())
         return self._best_prediction
@@ -369,71 +379,82 @@ class MatchSet:
         return self._best_actions
 
     def _get_selected_action(self):
+        """Getter method for the selected_action property."""
         return self._selected_action
 
     def _set_selected_action(self, action):
-        if self._selected_action is not None:
-            raise ValueError("The action(s) have already been selected.")
-
+        """Setter method for the selected_action property."""
         assert action in self._action_sets
 
+        if self._selected_action is not None:
+            raise ValueError("The action(s) have already been selected.")
         self._selected_action = action
 
     selected_action = property(
         _get_selected_action,
         _set_selected_action,
-        doc="The action which was selected and deserves credit for whatever payoff is received."
+        doc="The action which was selected for execution and which deserves credit for whatever payoff is received."
     )
 
     @property
     def prediction(self):
-        """The prediction for the selected action."""
+        """The prediction associated with the selected action."""
         assert self._selected_action is not None
         return self._action_sets[self._selected_action].prediction
 
 
 class Population:
-    """A set of rules (classifiers), together with their associated metadata, which the XCS algorithm
-    attempts to evolve using a genetic algorithm. This population represents the accumulated experience
-    of the XCS algorithm, in the form of a set of accurate rules that map classes of situations
-    (identified by bit conditions) to actions and the expected rewards if those actions are taken
-    within those classes of situations."""
+    """A set of rules (aka classifiers), together with their associated metadata, which the LCS algorithm
+    attempts to optimize using an evolutionary algorithm. This population represents the accumulated experience
+    of the LCS algorithm. Each rule in the population consists of a condition which identifies which situations
+    its suggestions apply to and an action which represents the suggested course of action by that rule. Each
+    rule has its own associated metadata which the algorithm uses to determine how much weight should be given
+    to that rule's suggestions, as well as how the population should be modified to improve future performance."""
 
     def __init__(self, algorithm, possible_actions):
         assert isinstance(algorithm, LCSAlgorithm)
 
+        # The population is stored as a tiered dictionary structure of the form {condition: {action: metadata}}.
+        # Storing it in this form allows the conditions to be iterated over and tested against each situation
+        # exactly once, rather than repeatedly (once for each unique occurrence in a classifier).
         self._population = {}
+
         self._algorithm = algorithm
         self._possible_actions = frozenset(possible_actions)
         self._time_stamp = 0
 
     @property
     def algorithm(self):
-        """The algorithm managing this population."""
+        """The algorithm in charge of managing this population."""
         return self._algorithm
 
     @property
     def possible_actions(self):
-        """The possible actions that can be suggested by rules in this population."""
+        """The possible actions that can potentially be suggested by the rules in this population."""
         return self._possible_actions
 
     @property
     def time_stamp(self):
-        """The number of steps completed since the population was initialized."""
+        """The number of iterations completed since the population was initialized."""
         return self._time_stamp
 
+    # Defining this determines the behavior of instances of this class with respect to iteration
+    # constructs such as "iter(instance)" and "for item in instance:"
     def __iter__(self):
         for condition, by_action in self._population.items():
             for action in by_action:
                 yield condition, action
 
+    # Defining this determines the behavior of len(instance)
     def __len__(self):
         return sum(len(by_action) for by_action in self._population.values())
 
+    # Defining this determines the behavior of "item in instance"
     def __contains__(self, condition_action):
         condition, action = condition_action
         return action in self._population.get(condition, ())
 
+    # Defining this determines the behavior of str(instance)
     def __str__(self):
         return '\n'.join(
             str(condition) + ' => ' + str(action) + '\n    ' +
@@ -442,13 +463,12 @@ class Population:
         )
 
     def get_match_set(self, situation):
-        """Accept a situation, encoded as a bit string. Return the set of matching rules (classifiers) for the given
-        situation."""
+        """Accept a situation (input) and return a MatchSet containing the rules (classifiers) whose conditions
+        match the situation."""
 
         # Find the conditions that match against the current situation, and group them according to which
         # action(s) they recommend.
         by_action = {}
-
         for condition, actions in self._population.items():
             if not condition(situation):
                 continue
@@ -459,33 +479,50 @@ class Population:
                 else:
                     by_action[action] = {condition: rule_metadata}
 
+        # Construct the match set.
         match_set = MatchSet(self, situation, by_action)
 
         # If an insufficient number of actions are recommended, create some new rules (condition/action pairs)
         # until there are enough actions being recommended.
         if self._algorithm.covering_is_required(match_set):
+            # Ask the algorithm to provide a new condition/action pair to add to the population, together with
+            # its associated metadata.
             condition, action, metadata = self._algorithm.cover(match_set)
+
+            # Ensure that the condition provided by the algorithm does indeed match the situation.
             assert condition(situation)
 
+            # Add the new classifier, getting back a list of the rule(s) which had to be removed to make room for it.
             replaced = self.add(condition, action, metadata)
 
+            # Remove the rules that were removed the population from the action set, as well. Note that
+            # they may not appear in the action set, in which case nothing is done.
             for replaced_condition, replaced_action in replaced:
                 if replaced_action in by_action and replaced_condition in by_action[replaced_action]:
                     del by_action[replaced_action][replaced_condition]
                     if not by_action[replaced_action]:
                         del by_action[replaced_action]
 
+            # Add the new classifier to the action set. This is done after the replaced rules are removed,
+            # just in case the algorithm provided us with a rule that was already present and was displaced.
             if action not in by_action:
                 by_action[action] = {}
             by_action[action][condition] = metadata
 
+            # Reconstruct the match set with the modifications we just made.
             match_set = MatchSet(self, situation, by_action)
 
-        # Return a match set which succinctly represents the information we just gathered.
+        # Return the newly created match set.
         return match_set
 
     def add(self, condition, action, metadata=1):
-        """Add a new rule to the population."""
+        """Add a new rule to the population. The metadata argument should either be a non-negative integer or
+        an instance of RuleMetadata. If it is an integer value, the rule must already exist in the population,
+        and the integer value is treated as an increment to its numerosity. If it is a RuleMetadata instance,
+        then behavior depends on whether the rule already exists in the population. When a rule is already
+        present, the metadata's numerosity is added to that of the rule already present in the population.
+        Otherwise, it is assigned as the metadata for the newly added rule. Note that this means that for
+        rules already present in the population, metadata is not overwritten by newly provided values."""
 
         assert isinstance(metadata, RuleMetadata) or (isinstance(metadata, int) and metadata >= 0)
 
@@ -494,24 +531,24 @@ class Population:
 
         # If the rule already exists in the population, then we virtually add the rule
         # by incrementing the existing rule's numerosity. This prevents redundancy in
-        # the rule set.
+        # the rule set. Otherwise we capture the metadata and associate it with the
+        # newly added rule.
         if isinstance(metadata, int):
             if condition not in self._population or action not in self._population[condition]:
                 raise ValueError("Metadata must be supplied for new members of population.")
             self._population[condition][action].numerosity += metadata
-        elif isinstance(metadata, RuleMetadata):
+        else:
+            assert isinstance(metadata, RuleMetadata)
             if action in self._population[condition]:
                 self._population[condition][action].numerosity += metadata.numerosity
             else:
                 self._population[condition][action] = metadata
-        else:
-            raise TypeError(metadata)
 
         # Any time we add a rule, we need to call this to keep the population size under control.
         return self._algorithm.prune(self)
 
     def remove(self, condition, action, count=1):
-        """Remove one or more instances of a rule in the population. Return a Boolean indicating whether the rule's
+        """Remove one or more instances of a rule from the population. Return a Boolean indicating whether the rule's
         numerosity dropped to zero. (If the rule's numerosity was already zero, do nothing and return False.)"""
 
         assert isinstance(count, int) and count >= 0
@@ -526,25 +563,32 @@ class Population:
             del self._population[condition][action]
             if not self._population[condition]:
                 del self._population[condition]
-
             return True
 
         return False
 
     def get_metadata(self, condition, action):
-        """Return the metadata associated with the given rule (classifier). If the rule is not present in the
+        """Return the metadata associated with the given classifier. If the rule is not present in the
         population, return None."""
         if condition not in self._population or action not in self._population[condition]:
             return None
         return self._population[condition][action]
 
     def update_time_stamp(self):
-        """Update the time stamp, indicating another completed cycle of the algorithm."""
+        """Update the time stamp to indicate another completed iteration of the algorithm."""
         self._time_stamp += 1
 
 
 class XCSRuleMetadata(RuleMetadata):
-    """Metadata used by the XCS algorithm to track the rules (classifiers) in a population."""
+    """Metadata used by the XCS algorithm to track the rules (classifiers) in a population. The metadata stored by
+    the XCS algorithm consists of a time stamp indicating the last time the rule participated in a GA population
+    update, an average reward indicating the payoff expected for this rule's suggestions, an error value
+    indicating how inaccurate the reward prediction is on average, a fitness computed through a complex set of
+    equations specific to XCS which is used both as the prediction weight and by the GA to determine probabilities
+    of reproduction and deletion, an experience value which represents the number of times the rule's suggestion
+    has been taken and its parameters have been subsequently updated, and action set size which is the average
+    number of other classifiers appearing in an action set with the rule and thereby competing for the same niche,
+    and a numerosity value which represents the number of (virtual) occurrences of the rule in the population."""
 
     def __init__(self, time_stamp, algorithm):
         assert isinstance(time_stamp, int)
@@ -558,6 +602,7 @@ class XCSRuleMetadata(RuleMetadata):
         self.action_set_size = 1  # The average number of rules sharing the same niche as this rule
         self.numerosity = 1  # The number of instances of this rule in the population, used to eliminate redundancy
 
+    # Defining this sets the behavior for str(instance)
     def __str__(self):
         return '\n'.join(
             key.replace('_', ' ').title() + ': ' + str(getattr(self, key))
@@ -572,6 +617,7 @@ class XCSRuleMetadata(RuleMetadata):
             )
         )
 
+    # Defining this sets the behavior for instance1 < instance2
     # This is here strictly for sorting purposes in calls to Population.__str__
     def __lt__(self, other):
         if not isinstance(other, XCSRuleMetadata):
@@ -608,7 +654,145 @@ class XCSRuleMetadata(RuleMetadata):
 
 
 class XCSAlgorithm(LCSAlgorithm):
-    """The XCS algorithm."""
+    """The XCS algorithm. This class defines how a population is managed by the XCS algorithm to optimize for expected
+    reward and descriptive brevity. There are numerous parameters which can be modified to control the behavior of
+    the algorithm:
+
+        accuracy_coefficient (default: .1, range: (0, 1])
+            Affects the size of the "cliff" between measured accuracies of inaccurate versus accurate
+            classifiers. A smaller value results in a larger "cliff". The default value is good for a
+            wide array of problems; only modify this if you know what you are doing.
+
+        accuracy_power (default: 5, range: (0, +inf))
+            Affects the rate at which measured accuracies of inaccurate classifiers taper off. A larger value
+            results in more rapid decline in accuracy as prediction error rises. The default value is good for
+            a wide array of problems; only modify this if you know what you are doing.
+
+        crossover_probability (default: .75, range: [0, 1])
+            The probability that crossover will be applied to the selected parents in a GA selection step. The
+            default value is good for a wide array of problems.
+
+        deletion_threshold (default: 20, range: [0, +inf))
+            The minimum experience of a classifier before its fitness is considered in its probability
+            of deletion in a GA deletion step. The higher the value, the longer new classifiers are given
+            to optimize their reward predictions before being held accountable.
+
+        discount_factor (default: .71, range: [0, 1))
+            The rate at which future expected reward is discounted before being added to the current
+            reward to produce the payoff value that is used to update classifier parameters such as
+            reward prediction, error, and fitness. Larger values produce more far-sighted behavior;
+            smaller values produce more hedonistic behavior. For problems in which the current action
+            does not affect future rewards beyond the current step, set this to 0. For problems in
+            which actions do affect rewards beyond the immediate iteration, set this to higher values.
+            Do not set this to 1 as it will produce undefined behavior.
+
+        do_action_set_subsumption (default: False, range: {True, False})
+            Subsumption is the replacement of a classifier with another classifier, already existing
+            in the population, which is a generalization of it and is considered accurate. (See notes
+            on the error_threshold parameter.) This parameter determines whether subsumption is
+            applied to action sets after they are selected and receive a payoff.
+
+        do_ga_subsumption (default: False, range: {True, False})
+            Subsumption is the replacement of a classifier with another classifier, already existing
+            in the population, which is a generalization of it and is considered accurate. (See notes
+            on the error_threshold parameter.) This parameter controls whether subsumption is applied
+            to eliminate newly added classifiers in a GA selection step.
+
+        error_threshold (default: .01, range: [0, maximum reward])
+            Determines how much prediction error is tolerated before a classifier is classified as inaccurate.
+            This parameter is typically set to approximately 1% of the expected range of possible rewards
+            received for each action. A range of [0, 1] for reward is assumed, and the default value is
+            calculated as 1% of 1 - 0, or .01. If your problem is going to have a significantly wider or
+            narrower range of potential rewards, you should set this parameter appropriately for that range.
+
+        exploration_probability (default: .5, range: [0, 1])
+            The probability of choosing a suboptimal action from the suggestions made by the match set
+            rather than choosing an optimal one. It is advisable to set this above 0 for all problems
+            to ensure that the reward predictions converge. For problems in which on-line performance
+            is important, set this value closer to 0 to focus on optimizing reward. For problems in
+            which the final expression of the solution in terms of the evolved population of classifiers
+            is of greater significance than optimizing on-line reward, set this to a larger value.
+
+        exploration_strategy (default: None, range: ActionSelectionStrategy instances)
+            If this is set, exploration_probability will be ignored and the action selection strategy
+            provided will be used. (This is not a canonical parameter of the XCS algorithm.)
+
+        fitness_threshold (default: .1, range: [0, 1])
+            The fraction of the mean fitness of the population below which a classifier's fitness is
+            considered in its probability of deletion in a GA deletion step.
+
+        ga_threshold (default: 35, range: [0, +inf))
+            Determines how often the genetic algorithm is applied to an action set. The average time
+            since each classifier in the action set last participated in a GA step is computed and
+            compared against this threshold; if the value is higher than the threshold, the GA is
+            applied. Set this value higher to apply the GA less often, or lower to apply it more
+            often.
+
+        idealization_factor (default: 0, range: [0, 1])
+            When payoff is computed, the expected future reward is multiplied by discount_factor
+            and added to the actual reward before being passed to the action set. This makes XCS
+            a member of the TD (temporal differences) family of reinforcement learning algorithms.
+            There are two major subfamilies of algorithms for TD-based reinforcement learning, called
+            SARSA and Q-learning, which estimate expected future rewards differently. SARSA uses the
+            prediction of the action selected for execution on the next step as its estimate, even on
+            exploration steps, while Q-learning uses the highest prediction of any of the candidate
+            actions in an attempt to eliminate the negative bias introduced by exploration steps in
+            learning the optimal action. Each strategy has is pros and cons. The idealization_factor
+            parameter allows for mixtures of these two approaches, with 0 representing a purely SARSA-
+            like approach and 1 representing a purely Q-learning-like approach. (This is not a
+            canonical parameter of the XCS algorithm.)
+
+        initial_error (default: .00001, range: (0, +inf))
+            The value used to initialize the error parameter in the metadata for new classifiers. It
+            is recommended that this value be a positive number close to zero. The default value is
+            good for a wide variety of problems.
+
+        initial_fitness (default: .00001, range: (0, +inf))
+            The value used to initialize the fitness parameter in the metadata for new classifiers.
+            It is recommended that this value be a positive number close to zero. The default value
+            is good for a wide variety of problems.
+
+        initial_prediction (default: .00001, range: [0, +inf))
+            The value used to initialize the reward prediction in the metadata for new classifiers.
+            It is recommended that this value be a number slightly above the minimum possible reward
+            for the problem. It is assumed that the minimum reward is 0; if your problem's minimum
+            reward is significantly different, this value should be set appropriately.
+
+        learning_rate (default: .15, range: (0, 1))
+            The minimum update rate for time-averaged classifier metadata parameters. A small non-
+            zero value is recommended.
+
+        max_population_size (default: 200, range: [1, +inf))
+            The maximum number of classifiers permitted in the population. A larger population may
+            converge to a better solution and reach a higher level of performance faster, but will
+            take longer to converge to an optimal classifier set.
+
+        minimum_actions (default: None, range: [1, +inf))
+            The minimum number of actions required in a match set, below which covering occurs.
+            (Covering is the random generation of a classifier that matches the current situation.)
+            When this is set to None, the number of possible actions dictated by the problem is used.
+            If this is set to a value greater than that, covering will occur on every step no matter
+            what.
+
+        mutation_probability (default: .03, range: [0, 1])
+            XCS operates on bit-strings as its input values, and uses bit-conditions which act as
+            templates to match against those bit-strings. This parameter represents the probability
+            of a mutation at any location along the condition, converting a wildcard to a non-
+            wildcard or vice versa, in the condition of a new classifier generated by the genetic
+            algorithm. Each position in the bit condition is evaluated for mutation independently
+            of the others.
+
+        subsumption_threshold (default: 20, range: [0, +inf))
+            The minimum experience of a classifier before it can subsume another classifier. This
+            value should be high enough that the accuracy measure has had time to converge.
+
+        wildcard_probability (default: .33, range: [0, 1])
+            The probability of any given bit being a wildcard in the conditions of the randomly
+            generated classifiers produced during covering. If this value is too low, it can
+            cause perpetual churn in the population as classifiers are displaced by new ones
+            with a low probability of matching future situations. If it is too high, it can
+            result in the sustained presence of overly general classifiers in the population.
+    """
 
     # TODO: Verify these before publishing v1.0.0
     # For a detailed explanation of each parameter, please see the original
@@ -619,7 +803,7 @@ class XCSAlgorithm(LCSAlgorithm):
     error_threshold = .01                                   # epsilon_0
     accuracy_power = 5                                      # nu
     discount_factor = .71                                   # gamma
-    GA_threshold = 35                                       # theta_GA
+    ga_threshold = 35                                       # theta_GA
     crossover_probability = .75                             # chi
     mutation_probability = .03                              # mu
     deletion_threshold = 20                                 # theta_del
@@ -631,7 +815,7 @@ class XCSAlgorithm(LCSAlgorithm):
     initial_fitness = .00001                                # F_I
     exploration_probability = .5                            # p_explr
     minimum_actions = None                                  # theta_mna; None indicates total number of possible actions
-    do_GA_subsumption = False                               # doGASubsumption
+    do_ga_subsumption = False                               # doGASubsumption
     do_action_set_subsumption = False                       # doActionSetSubsumption
 
     # If this is None, epsilon-greedy selection with epsilon == exploration_probability is used.
@@ -683,7 +867,7 @@ class XCSAlgorithm(LCSAlgorithm):
         # other rule for this situation.
         action_candidates = frozenset(match_set.population.possible_actions) - frozenset(match_set)
         if not action_candidates:
-            match_set.population.get_possible_actions()
+            action_candidates = match_set.population.possible_actions
         action = random.choice(list(action_candidates))
 
         # Create metadata for the new rule.
@@ -737,7 +921,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # If the average number of iterations since the last update for each rule in the action set
         # is too small, return early instead of applying the GA.
-        if match_set.population.time_stamp - self._get_average_time_stamp(action_set) <= self.GA_threshold:
+        if match_set.population.time_stamp - self._get_average_time_stamp(action_set) <= self.ga_threshold:
             return
 
         # Update the time step for each rule to indicate that they were updated by the GA.
@@ -770,7 +954,7 @@ class XCSAlgorithm(LCSAlgorithm):
         for child in child1, child2:
             # If the parameters specify that GA subsumption should be performed, look for an
             # accurate parent that can subsume the new child.
-            if self.do_GA_subsumption:
+            if self.do_ga_subsumption:
                 subsumed = False
                 for parent, metadata in (parent1, parent1_metadata), (parent2, parent2_metadata):
                     if (metadata.experience > self.subsumption_threshold and
@@ -1082,7 +1266,7 @@ def test(algorithm=None, problem=None):
         algorithm = XCSAlgorithm()
         algorithm.exploration_probability = .1
         algorithm.discount_factor = 0
-        algorithm.do_GA_subsumption = True
+        algorithm.do_ga_subsumption = True
         algorithm.do_action_set_subsumption = True
 
     # Create the population.
