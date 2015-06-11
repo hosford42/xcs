@@ -12,7 +12,7 @@ class TestXCS(unittest.TestCase):
     def test_against_MUX(self):
         problem = MUXProblem(training_cycles=10000, address_size=3)
 
-        algorithm = xcs.XCSAlgorithm(problem.get_possible_actions())
+        algorithm = xcs.XCSAlgorithm()
         algorithm.exploration_probability = .1
         algorithm.discount_factor = 0
         algorithm.do_GA_subsumption = True
@@ -42,7 +42,7 @@ class TestXCS(unittest.TestCase):
     def test_against_haystack(self):
         problem = HaystackProblem(training_cycles=10000, input_size=500)
 
-        algorithm = xcs.XCSAlgorithm(problem.get_possible_actions())
+        algorithm = xcs.XCSAlgorithm()
         algorithm.exploration_probability = .1
         algorithm.discount_factor = 0
         algorithm.do_GA_subsumption = False

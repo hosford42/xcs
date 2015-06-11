@@ -109,12 +109,14 @@ class RuleMetadata(metaclass=ABCMeta):
     def __lt__(self, other):
         raise NotImplementedError()
 
+    @property
     @abstractmethod
     def prediction(self):
         """The reward prediction made by this rule. This value represents the reward expected if the rule's action
         is taken when its condition matches."""
         raise NotImplementedError()
 
+    @property
     @abstractmethod
     def prediction_weight(self):
         """The weight of this rule's prediction as compared to others in the same action set. This is used to
@@ -126,7 +128,7 @@ class RuleMetadata(metaclass=ABCMeta):
 
 class LCSAlgorithm(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for LCS algorithms. To create a new algorithm that can
-    be used to initializer an LCS, inherit from this class. An LCS algorithm is responsible for managing the
+    be used to initialize an LCS, inherit from this class. An LCS algorithm is responsible for managing the
     LCS's rule (aka classifier) population, distributing reward to the appropriate rules, and determining the
     action selection policy that is used."""
 
@@ -139,50 +141,45 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
     @abstractmethod
     def get_future_expectation(self, match_set):
+        """Return a numerical value representing the expected future consequences (in terms of discounted reward) of
+        the previously selected action(s), given only the current match set. The match_set argument is a MatchSet
+        instance representing the current match set."""
         raise NotImplementedError()
 
     @abstractmethod
     def covering_is_required(self, match_set):
-        """Return a Boolean indicating whether covering is required given the current matches. The matches_by_action
-        argument is a nested dictionary of the form {action : {condition : metadata}} which represents the proposed
-        contents of the match set before covering is applied. Note that modifications to the matches_by_action
-        dictionary may be visible to the cover() method."""
+        """Return a Boolean indicating whether covering is required for the current match set. The match_set
+        argument is a MatchSet instance representing the current match set before covering is applied."""
         raise NotImplementedError()
 
     @abstractmethod
     def cover(self, match_set):
-        """Return a tuple (condition, action, metadata) representing a new rule that matches the given situation and
-        attempts to avoid duplication of actions already contained in the current matches. The situation argument is
-        the input against which the new condition is expected to match. The existing_actions argument is a dictionary
-        of the form {action : {condition : metadata}} which represents the proposed contents of the match set before
-        covering is applied, and the time_stamp argument is the current iteration of the algorithm (for use in
-        initializing the metadata, if appropriate)."""
+        """Return a tuple (condition, action, metadata) representing a new rule that can be added to the
+        match set, which matches the situation of the match set and attempts to avoid duplication of the
+        actions already contained therein. The match_set argument is a MatchSet instance representing
+        the match set to which the returned rule will be added."""
         raise NotImplementedError()
 
     @abstractmethod
     def distribute_payoff(self, match_set, payoff):
-        """Accept a payoff in response to a particular action set, and distribute it among the rules in the action
-        set which deserve credit for it. The action_set argument is the ActionSet instance which earned the payoff,
-        and the payoff argument is an int or float value that represents the payoff received."""
+        """Accept a payoff in response to the selected action of the given match set, and distribute it among the
+        rules in the action set which deserve credit for recommending the action. The match_set argument is the
+        MatchSet instance which suggested the selected action which earned the payoff, and the payoff argument
+        is a numerical value that represents the payoff received in response to the selected action."""
         raise NotImplementedError()
 
     @abstractmethod
     def update(self, match_set):
-        """Update the population, e.g. by applying a genetic algorithm. The action_set argument is the ActionSet
-        instance which was last selected, for algorithms which require this information. The total population
-        that is to be updated can be accessed through its population property."""
+        """Update the classifier population from which the match set was drawn, e.g. by applying a genetic algorithm.
+        The match_set argument is the MatchSet instance whose source population should be updated. The source
+        population which is to be updated can be accessed through its population property."""
         raise NotImplementedError()
 
     @abstractmethod
     def prune(self, population):
-        """Reduce the population size, if necessary, by removing lower-quality rules. Return a Boolean indicating
-        whether the numerosity of any rule dropped to zero. The population argument is a Population instance which
-        utilizes this algorithm."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def get_possible_actions(self):
-        """Return the actions this algorithm is capable of generating."""
+        """Reduce the population size, if necessary, by removing lower-quality rules. Return a sequence containing
+        the rules whose numerosities dropped to zero as a result of this call. The population argument is a
+        Population instance which utilizes this algorithm."""
         raise NotImplementedError()
 
 
@@ -391,17 +388,23 @@ class Population:
     (identified by bit conditions) to actions and the expected rewards if those actions are taken
     within those classes of situations."""
 
-    def __init__(self, algorithm):
+    def __init__(self, algorithm, possible_actions):
         assert isinstance(algorithm, LCSAlgorithm)
 
         self._population = {}
         self._algorithm = algorithm
+        self._possible_actions = frozenset(possible_actions)
         self._time_stamp = 0
 
     @property
     def algorithm(self):
         """The algorithm managing this population."""
         return self._algorithm
+
+    @property
+    def possible_actions(self):
+        """The possible actions that can be suggested by rules in this population."""
+        return self._possible_actions
 
     @property
     def time_stamp(self):
@@ -596,6 +599,7 @@ class XCSRuleMetadata(RuleMetadata):
 class XCSAlgorithm(LCSAlgorithm):
     """The XCS algorithm."""
 
+    # TODO: Verify these before publishing v1.0.0
     # For a detailed explanation of each parameter, please see the original
     # paper by Martin Butz and Stewart Wilson.
     max_population_size = 200                               # N
@@ -615,7 +619,7 @@ class XCSAlgorithm(LCSAlgorithm):
     initial_error = .00001                                  # epsilon_I
     initial_fitness = .00001                                # F_I
     exploration_probability = .5                            # p_explr
-    minimum_actions = 2                                     # theta_mna
+    minimum_actions = None                                  # theta_mna; None indicates total number of possible actions
     do_GA_subsumption = False                               # doGASubsumption
     do_action_set_subsumption = False                       # doActionSetSubsumption
 
@@ -628,10 +632,6 @@ class XCSAlgorithm(LCSAlgorithm):
     # and should be set to 0 in that case.
     idealization_factor = 0
 
-    def __init__(self, possible_actions):
-        self.possible_actions = frozenset(possible_actions)
-        self.minimum_actions = len(self.possible_actions)
-
     @property
     def action_selection_policy(self):
         """The action selection policy used to govern the trade-off between exploration (acquiring new experience)
@@ -640,6 +640,9 @@ class XCSAlgorithm(LCSAlgorithm):
 
     def get_future_expectation(self, match_set):
         """Return the future reward expectation for the given match set."""
+
+        assert isinstance(match_set, MatchSet)
+
         return self.discount_factor * (
             self.idealization_factor * match_set.best_prediction +
             (1 - self.idealization_factor) * match_set.prediction
@@ -648,18 +651,28 @@ class XCSAlgorithm(LCSAlgorithm):
     def covering_is_required(self, match_set):
         """Return a Boolean value indicating whether covering is required based on the contents of the current match
         set."""
-        return len(match_set) < self.minimum_actions
+
+        assert isinstance(match_set, MatchSet)
+
+        if self.minimum_actions is None:
+            return len(match_set) < len(match_set.population.possible_actions)
+        else:
+            return len(match_set) < self.minimum_actions
 
     def cover(self, match_set):
         """Create a new rule that matches the given situation and return it. Preferentially choose an action that is
         not present in the existing actions, if possible."""
+
+        assert isinstance(match_set, MatchSet)
 
         # Create a new condition that matches the situation.
         condition = bitstrings.BitCondition.cover(match_set.situation, self.wildcard_probability)
 
         # Pick a random action that (preferably) isn't already suggested by some
         # other rule for this situation.
-        action_candidates = (set(match_set) - self.possible_actions) or self.possible_actions
+        action_candidates = frozenset(match_set.population.possible_actions) - frozenset(match_set)
+        if not action_candidates:
+            match_set.population.get_possible_actions()
         action = random.choice(list(action_candidates))
 
         # Create metadata for the new rule.
@@ -844,10 +857,6 @@ class XCSAlgorithm(LCSAlgorithm):
 
         return []  # No rule's numerosity dropped to zero.
 
-    def get_possible_actions(self):
-        """Return the actions this algorithm is capable of generating."""
-        return self.possible_actions
-
     def _update_fitness(self, action_set):
         """Update the fitness of the rules belonging to this action set."""
         # Compute the accuracy of each rule. Accuracy is inversely proportional to error. Below a certain error
@@ -970,12 +979,12 @@ class LCS:
     """An Learning Classifier System model instance. Create the algorithm and (optionally) a population, passing them
     in to initialize the instance. Then create a problem instance and pass it to learn()."""
 
-    def __init__(self, algorithm, population=None):
+    def __init__(self, algorithm, population):
         assert isinstance(algorithm, LCSAlgorithm)
-        assert population is None or isinstance(population, Population)
+        assert isinstance(population, Population)
 
         self._algorithm = algorithm
-        self._population = population or Population(algorithm)
+        self._population = population
 
     @property
     def algorithm(self):
@@ -1059,14 +1068,17 @@ def test(algorithm=None, problem=None):
 
     if algorithm is None:
         # Define the algorithm.
-        algorithm = XCSAlgorithm(problem.get_possible_actions())
+        algorithm = XCSAlgorithm()
         algorithm.exploration_probability = .1
         algorithm.discount_factor = 0
         algorithm.do_GA_subsumption = True
         algorithm.do_action_set_subsumption = True
 
+    # Create the population.
+    population = Population(algorithm, problem.get_possible_actions())
+
     # Create the classifier system from the algorithm.
-    lcs = LCS(algorithm)
+    lcs = LCS(algorithm, population)
 
     start_time = time.time()
 
