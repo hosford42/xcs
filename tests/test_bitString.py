@@ -54,7 +54,7 @@ class TestBitString(unittest.TestCase):
                 logging.disable(logging.NOTSET)
 
     def test_from_int(self):
-        bitstring = bitstrings.BitString.from_int(149, 8)
+        bitstring = bitstrings.BitString(149, 8)
         self.assertTrue(self.bitstring == bitstring)
 
     def test_from_string(self):
@@ -86,13 +86,13 @@ class TestBitString(unittest.TestCase):
 
     def test_any(self):
         self.assertTrue(self.bitstring.any())
-        self.assertFalse(bitstrings.BitString.from_int(0, len(self.bitstring)).any())
-        self.assertTrue(bitstrings.BitString.from_int(-1, len(self.bitstring)).any())
+        self.assertFalse(bitstrings.BitString(0, len(self.bitstring)).any())
+        self.assertTrue(bitstrings.BitString(-1, len(self.bitstring)).any())
 
     def test_count(self):
         self.assertTrue(self.bitstring.count() == 4)
-        self.assertTrue(bitstrings.BitString.from_int(0, len(self.bitstring)).count() == 0)
-        self.assertTrue(bitstrings.BitString.from_int(-1, len(self.bitstring)).count() == len(self.bitstring))
+        self.assertTrue(bitstrings.BitString(0, len(self.bitstring)).count() == 0)
+        self.assertTrue(bitstrings.BitString(-1, len(self.bitstring)).count() == len(self.bitstring))
 
     def test_and(self):
         self.assertEqual(self.bitstring, self.bitstring & self.bitstring)

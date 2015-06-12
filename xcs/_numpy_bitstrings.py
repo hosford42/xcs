@@ -95,14 +95,35 @@ class BitString(BitStringBase):
         bits.flags.writeable = False
         return cls(bits)
 
-    def __init__(self, bits):
+    def __init__(self, bits, length=None):
         if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
             if bits.flags.writeable:
                 bits = bits.copy()  # If it's writable, we need to make a copy
                 bits.writeable = False  # Make sure our copy isn't writable
             hash_value = None
         elif isinstance(bits, int):
-            bits = numpy.zeros(bits, bool)  # If we're just given a number, treat it as a length and fill with 0s
+            if length is None:
+                length = bits.bit_length()
+            else:
+                assert length >= bits.bit_length()
+
+            if bits < 0:
+                bits &= (1 << length) - 1
+
+            # Progressively chop off low-end bits from the int, adding them to the bits list,
+            # until we have reached the given length (if provided) or no more non-zero bits
+            # remain (if length was not specified).
+            bit_values = []
+            for _ in range(length):
+                bit_values.append(bits % 2)
+                bits >>= 1
+
+            # Reverse the order of the bits, so the high-order bits go on the left and the low-
+            # order bits go on the right, just as a person would expect when looking at the
+            # number written out in binary.
+            bit_values.reverse()
+
+            bits = numpy.array(bit_values, bool)  # If we're just given a number, treat it as a length and fill with 0s
             bits.flags.writeable = False  # Make sure the bit array isn't writable
             hash_value = None
         elif isinstance(bits, BitString):
@@ -128,6 +149,8 @@ class BitString(BitStringBase):
             bits.flags.writeable = False  # Make sure the bit array isn't writable
             hash_value = None
 
+        assert length is None or len(bits) == length
+
         super().__init__(bits, hash_value)
 
     def any(self):
@@ -137,6 +160,22 @@ class BitString(BitStringBase):
     def count(self):
         """Returns the number of bits set to True in the bit string."""
         return int(numpy.count_nonzero(self._bits))
+
+    def __int__(self):
+        # Overloads int(bitstring)
+        value = 0
+        for bit in self._bits:
+            value <<= 1
+            value += int(bit)
+        return value
+
+    def __len__(self):
+        # Overloads len(bitstring)
+        return len(self._bits)
+
+    def __iter__(self):
+        # Overloads iter(bitstring), and also, for bit in bitstring
+        return iter(self._bits)
 
     def __getitem__(self, index):
         # Overloads bitstring[index]
