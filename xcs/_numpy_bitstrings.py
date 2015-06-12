@@ -96,10 +96,14 @@ class BitString(BitStringBase):
         return cls(bits)
 
     def __init__(self, bits, length=None):
-        if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
-            if bits.flags.writeable:
-                bits = bits.copy()  # If it's writable, we need to make a copy
-                bits.writeable = False  # Make sure our copy isn't writable
+        if isinstance(bits, numpy.ndarray):
+            if bits.dtype == numpy.bool:
+                if bits.flags.writeable:
+                    bits = bits.copy()  # If it's writable, we need to make a copy
+                    bits.writeable = False  # Make sure our copy isn't writable
+            else:
+                bits = numpy.array(bits, bool)  # Make a new bit array from the given values
+                bits.flags.writeable = False  # Make sure the bit array isn't writable
             hash_value = None
         elif isinstance(bits, int):
             if length is None:
@@ -201,7 +205,7 @@ class BitString(BitStringBase):
     def __and__(self, other):
         # Overloads &
         if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
+            other = BitString(other, len(self._bits))
         elif not isinstance(other, BitString):
             other = BitString(other)
         bits = numpy.bitwise_and(self._bits, other._bits)
@@ -211,7 +215,7 @@ class BitString(BitStringBase):
     def __or__(self, other):
         # Overloads |
         if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
+            other = BitString(other, len(self._bits))
         elif not isinstance(other, BitString):
             other = BitString(other)
         bits = numpy.bitwise_or(self._bits, other._bits)
@@ -221,7 +225,7 @@ class BitString(BitStringBase):
     def __xor__(self, other):
         # Overloads ^
         if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
+            other = BitString(other, len(self._bits))
         elif not isinstance(other, BitString):
             other = BitString(other)
         bits = numpy.bitwise_xor(self._bits, other._bits)
@@ -237,7 +241,7 @@ class BitString(BitStringBase):
     def __add__(self, other):
         # Overloads +
         if isinstance(other, int):
-            other = BitString.from_int(other, len(self._bits))
+            other = BitString(other, len(self._bits))
         elif not isinstance(other, BitString):
             other = BitString(other)
         bits = numpy.concatenate((self._bits, other._bits))
