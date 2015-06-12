@@ -180,16 +180,10 @@ class _BitStringBase(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-# There are two different implementations of BitString, one in _fast_bitstrings and one in _slow_bitstrings. The fast
-# version is dependent on numpy being installed, whereas the slow one is written in pure Python with no external
-# dependencies. By default, the numpy implementation is used if it is available, and the pure Python implementation is
-# used otherwise.
-# if numpy_is_available():
-#    # noinspection PyProtectedMember
-#    from ._numpy_bitstrings import BitString
-#    _using_numpy = True
-# else:
-# noinspection PyProtectedMember
+# There are two different implementations of BitString, one in _numpy_bitstrings and one in _python_bitstrings. The
+# numpy version is dependent on numpy being installed, whereas the python one is written in pure Python with no external
+# dependencies. By default, the python implementation is used. The user can override this behavior, if appropriate,
+# by calling use_numpy().
 from ._python_bitstrings import BitString
 _using_numpy = False
 
@@ -203,9 +197,7 @@ def use_numpy():
     """Force the package to use the numpy-based BitString implementation. If numpy is not available, this will result
     in an ImportError. IMPORTANT: Bitstrings of different implementations cannot be mixed. Attempting to do so will
     result in undefined behavior."""
-    # noinspection PyGlobalUndefined
     global BitString, _using_numpy
-    # noinspection PyProtectedMember
     from ._numpy_bitstrings import BitString
     _using_numpy = True
 
@@ -214,7 +206,6 @@ def use_pure_python():
     """Force the package to use the pure Python BitString implementation. IMPORTANT: Bitstrings of different
     implementations cannot be mixed. Attempting to do so will result in undefined behavior."""
     global BitString, _using_numpy
-    # noinspection PyProtectedMember
     from ._python_bitstrings import BitString
     _using_numpy = False
 
@@ -341,7 +332,6 @@ class BitCondition:
 
     def __eq__(self, other):
         # Overloads ==
-        # noinspection PyProtectedMember
         if not isinstance(other, BitCondition) or len(self._bits) != len(other._bits):
             return False
         return self._bits == other._bits and self._mask == other._mask
@@ -407,7 +397,6 @@ class BitCondition:
         assert isinstance(other, BitCondition)
         assert len(self) == len(other)
 
-        # noinspection PyUnresolvedReferences
         template = BitString.crossover_template(len(self), points)
         inv_template = ~template
 

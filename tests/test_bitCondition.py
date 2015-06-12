@@ -5,7 +5,6 @@ import unittest
 from xcs.bitstrings import BitString, BitCondition
 
 
-# noinspection PyArgumentList
 class TestBitCondition(unittest.TestCase):
 
     def setUp(self):

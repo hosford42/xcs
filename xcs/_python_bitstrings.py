@@ -30,7 +30,6 @@ __all__ = [
 import random
 
 
-# noinspection PyProtectedMember
 from .bitstrings import _BitStringBase
 
 
@@ -183,7 +182,6 @@ class BitString(_BitStringBase):
 
     def __eq__(self, other):
         # Overloads ==
-        # noinspection PyProtectedMember
         return isinstance(other, BitString) and self._bits == other._bits and self._length == other._length
 
     def __and__(self, other):

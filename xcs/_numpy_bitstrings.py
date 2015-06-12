@@ -39,7 +39,6 @@ except AttributeError:
     raise ImportError('The numpy module failed to uninstall properly.')
 
 
-# noinspection PyProtectedMember
 from .bitstrings import _BitStringBase
 
 
@@ -98,9 +97,7 @@ class BitString(_BitStringBase):
 
     def __init__(self, bits):
         if isinstance(bits, numpy.ndarray) and bits.dtype == numpy.bool:
-            # noinspection PyUnresolvedReferences
             if bits.flags.writeable:
-                # noinspection PyNoneFunctionAssignment
                 bits = bits.copy()  # If it's writable, we need to make a copy
                 bits.writeable = False  # Make sure our copy isn't writable
             hash_value = None
@@ -158,7 +155,6 @@ class BitString(_BitStringBase):
 
     def __eq__(self, other):
         # Overloads ==
-        # noinspection PyProtectedMember
         return isinstance(other, BitString) and numpy.array_equal(self._bits, other._bits)
 
     def __and__(self, other):
@@ -168,7 +164,6 @@ class BitString(_BitStringBase):
         elif not isinstance(other, BitString):
             other = BitString(other)
         bits = numpy.bitwise_and(self._bits, other._bits)
-        # noinspection PyUnresolvedReferences
         bits.flags.writeable = False  # Make sure the bit array isn't writable so it can be used by the constructor
         return type(self)(bits)
 
@@ -179,7 +174,6 @@ class BitString(_BitStringBase):
         elif not isinstance(other, BitString):
             other = BitString(other)
         bits = numpy.bitwise_or(self._bits, other._bits)
-        # noinspection PyUnresolvedReferences
         bits.flags.writeable = False  # Make sure the bit array isn't writable so it can be used by the constructor
         return type(self)(bits)
 
@@ -190,14 +184,12 @@ class BitString(_BitStringBase):
         elif not isinstance(other, BitString):
             other = BitString(other)
         bits = numpy.bitwise_xor(self._bits, other._bits)
-        # noinspection PyUnresolvedReferences
         bits.flags.writeable = False  # Make sure the bit array isn't writable so it can be used by the constructor
         return type(self)(bits)
 
     def __invert__(self):
         # Overloads unary ~
         bits = numpy.bitwise_not(self._bits)
-        # noinspection PyUnresolvedReferences
         bits.flags.writeable = False  # Make sure the bit array isn't writable so it can be used by the constructor
         return type(self)(bits)
 

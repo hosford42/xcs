@@ -75,7 +75,6 @@ from abc import ABCMeta, abstractmethod
 
 # Attempt to import numpy. If unsuccessful, set numpy = None.
 try:
-    # noinspection PyUnresolvedReferences
     import numpy
 except ImportError:
     numpy = None
@@ -994,7 +993,6 @@ class XCSAlgorithm(LCSAlgorithm):
                 metadata.average_reward = average_reward
                 metadata.error = error
                 metadata.fitness = fitness
-                # noinspection PyTypeChecker
                 action_set.population.add(child, action_set.action, metadata)
 
     def prune(self, population):

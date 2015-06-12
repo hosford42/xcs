@@ -46,12 +46,10 @@ Related projects:
 
 # Try to build the readme file, but don't fail out if it doesn't work.
 try:
-    # noinspection PyUnresolvedReferences
     from build_readme import build_readme
 except ImportError:
     traceback.format_exc()
 else:
-    # noinspection PyBroadException
     try:
         build_readme(here)
     except Exception:
@@ -74,7 +72,7 @@ setup(
     author_email='hosford42@gmail.com',
     license='Revised BSD',
 
-    # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
+    # See https://pypi.python.org/pypi?:action=list_classifiers
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',

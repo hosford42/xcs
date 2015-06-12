@@ -8,7 +8,6 @@ import xcs.bitstrings as bitstrings
 import xcs.problems
 
 
-# noinspection PyUnresolvedReferences
 class TestBitString(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
@@ -113,7 +112,8 @@ class TestBitString(unittest.TestCase):
         self.assertEqual(self.bitstring, ~~self.bitstring)
 
     def test_plus(self):
-        self.assertEqual(self.bitstring + ~self.bitstring, bitstrings.BitString(list(self.bitstring) + list(~self.bitstring)))
+        self.assertEqual(self.bitstring + ~self.bitstring,
+                         bitstrings.BitString(list(self.bitstring) + list(~self.bitstring)))
 
     def test_slice(self):
         self.assertEqual(self.bitstring, self.bitstring[:])

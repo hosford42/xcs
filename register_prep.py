@@ -12,7 +12,6 @@ import os
 import zipfile
 
 from xcs import __version__
-# noinspection PyUnresolvedReferences
 import build_readme
 
 os.chdir('.\\doc')
