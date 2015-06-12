@@ -7,7 +7,7 @@ To Do
   * ZCS (Zeroth Level Classifier System)
   * MCS (Minimal Classifier System)
   * MCS (Multiple Classifier System, yes same acronym)
-  * UCS (sUpervized Classifier System, as best as I can tell)
+  * UCS (Supervised Classifier System, as best as I can tell)
   * etc. (Add them to this list as you think of them.)
 * Add proper logging, instead of the silly print statements currently in place
 * Everything could use a code review and more extensive testing

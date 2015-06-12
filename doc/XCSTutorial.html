@@ -653,7 +653,7 @@ INFO:xcs:Total time: 24.01673 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The <code>input_size</code> is saved as a member for later use. Likewise, the value of <code>training_cycles</code> was saved in two places: the <code>remaining_cycles</code> member, which tells the instance how many training cycles remain for the current run, and the <code>intitial_training_cycles</code> member, which the instance will use to reset <code>remaining_cycles</code> to the original value for a new run.</p>
+<p>The <code>input_size</code> is saved as a member for later use. Likewise, the value of <code>training_cycles</code> was saved in two places: the <code>remaining_cycles</code> member, which tells the instance how many training cycles remain for the current run, and the <code>initial_training_cycles</code> member, which the instance will use to reset <code>remaining_cycles</code> to the original value for a new run.</p>
 <p>We also defined the <code>possible_actions</code> member, which we set to <code>(True, False)</code>. This is the value we will return when the algorithm asks for the possible actions. We will expect the algorithm to return <code>True</code> when the needle bit is set, and <code>False</code> when the needle bit is clear, in order to indicate that it has correctly identified the needle's location.</p>
 <p>Now let's define some methods for the class. The <code>OnLineProblem</code> defines several abstract methods:</p>
 <ul>
