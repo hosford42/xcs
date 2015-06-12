@@ -43,18 +43,20 @@ class TestXCS(unittest.TestCase):
         problem = HaystackProblem(training_cycles=10000, input_size=500)
 
         algorithm = xcs.XCSAlgorithm()
+        algorithm.ga_threshold = 1
+        algorithm.crossover_probability = .5
         algorithm.exploration_probability = .1
         algorithm.discount_factor = 0
         algorithm.do_ga_subsumption = False
-        algorithm.do_action_set_subsumption = False
-        algorithm.wildcard_probability = .99
-        algorithm.deletion_threshold = 10
-        algorithm.mutation_probability = .0001
+        algorithm.do_action_set_subsumption = True
+        algorithm.wildcard_probability = 1 - 1 / 500
+        algorithm.deletion_threshold = 1
+        algorithm.mutation_probability = 1 / 500
 
         best = None
         expected = .6
 
-        for _ in range(5):
+        for _ in range(2):
             logging.disable(logging.CRITICAL)
             try:
                 problem.reset()
@@ -64,7 +66,7 @@ class TestXCS(unittest.TestCase):
 
             average_reward = total_reward / steps
             self.assertGreater(average_reward, .48)
-            self.assertLess(time_passed, 20)
+            self.assertLess(time_passed, 100)
             if average_reward >= expected:
                 break
             elif best is None or best < average_reward:
