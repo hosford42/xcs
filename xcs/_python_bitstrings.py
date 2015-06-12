@@ -30,10 +30,10 @@ __all__ = [
 import random
 
 
-from .bitstrings import _BitStringBase
+from .bitstrings import BitStringBase
 
 
-class BitString(_BitStringBase):
+class BitString(BitStringBase):
     """A hashable, immutable sequence of bits (Boolean values). This is the slower, Python-only implementation that
     doesn't depend on numpy.
 
@@ -182,7 +182,9 @@ class BitString(_BitStringBase):
 
     def __eq__(self, other):
         # Overloads ==
-        return isinstance(other, BitString) and self._bits == other._bits and self._length == other._length
+        if not isinstance(other, BitString):
+            return NotImplemented
+        return self._bits == other._bits and self._length == other._length
 
     def __and__(self, other):
         # Overloads &

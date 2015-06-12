@@ -39,10 +39,10 @@ except AttributeError:
     raise ImportError('The numpy module failed to uninstall properly.')
 
 
-from .bitstrings import _BitStringBase
+from .bitstrings import BitStringBase
 
 
-class BitString(_BitStringBase):
+class BitString(BitStringBase):
     """A hashable, immutable sequence of bits (Boolean values).
 
     In addition to operations for indexing and iteration, implements standard bitwise operations, including & (bitwise
@@ -155,7 +155,9 @@ class BitString(_BitStringBase):
 
     def __eq__(self, other):
         # Overloads ==
-        return isinstance(other, BitString) and numpy.array_equal(self._bits, other._bits)
+        if not isinstance(other, BitString):
+            return NotImplemented
+        return numpy.array_equal(self._bits, other._bits)
 
     def __and__(self, other):
         # Overloads &

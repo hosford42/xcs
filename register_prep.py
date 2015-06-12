@@ -14,6 +14,8 @@ import zipfile
 from xcs import __version__
 import build_readme
 
+build_readme.build_readme()
+
 os.chdir('.\\doc')
 try:
     os.system('ipython nbconvert XCSTutorial.ipynb')

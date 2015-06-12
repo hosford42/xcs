@@ -5,7 +5,6 @@
 
 __author__ = 'Aaron Hosford'
 
-import traceback
 from setuptools import setup
 from codecs import open
 from os import path
@@ -42,18 +41,6 @@ Related projects:
     * Ryan J. Urbanowicz's implementations (Python):
       http://gbml.org/2010/03/24/python-lcs-implementations-xcs-ucs-mcs-for-snp-environment/
 """.strip()
-
-
-# Try to build the readme file, but don't fail out if it doesn't work.
-try:
-    from build_readme import build_readme
-except ImportError:
-    traceback.format_exc()
-else:
-    try:
-        build_readme(here)
-    except Exception:
-        traceback.print_exc()
 
 
 # Get the long description from the relevant file. First try README.rst, then fall back on

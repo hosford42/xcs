@@ -39,7 +39,7 @@ def numpy_is_available():
     return xcs.numpy is not None
 
 
-class _BitStringBase(metaclass=ABCMeta):
+class BitStringBase(metaclass=ABCMeta):
     """Abstract base class for hashable, immutable sequences of bits (Boolean values).
 
     In addition to operations for indexing and iteration, provides standard bitwise operations, including & (bitwise
@@ -332,9 +332,9 @@ class BitCondition:
 
     def __eq__(self, other):
         # Overloads ==
-        if not isinstance(other, BitCondition) or len(self._bits) != len(other._bits):
+        if not isinstance(other, BitCondition):
             return False
-        return self._bits == other._bits and self._mask == other._mask
+        return len(self._bits) == len(other._bits) and self._bits == other._bits and self._mask == other._mask
 
     def __ne__(self, other):
         # Overloads !=
