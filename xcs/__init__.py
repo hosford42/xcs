@@ -16,57 +16,89 @@
 # -------------------------------------------------------------------------------
 
 # TODO: Consider renaming problems to scenarios.
+# TODO: Update docstrings in all files. Add argument and return types, and use cases.
+# TODO: Improve test coverage
+# TODO: Clean up all TODOs.
 
 """
 Accuracy-based Classifier Systems for Python 3
 
-The XCS (Accuracy-based Classifier System) algorithm, as described in the 2001 paper, "An Algorithmic Description of
-XCS," by Martin Butz and Stewart Wilson[1], together with a framework for implementing and experimenting with learning
-classifier systems.
+This module implements the XCS (Accuracy-based Classifier System)
+algorithm, as described in the 2001 paper, "An Algorithmic Description of
+XCS," by Martin Butz and Stewart Wilson.[1] The module also a framework
+for implementing and experimenting with learning classifier systems in
+general.
 
 Usage:
-    # Import the classes you'll need.
     from xcs import XCSAlgorithm
     from xcs.problems import MUXProblem, OnLineObserver
 
-    # Create a problem instance, either by instantiating a predefined problem or by creating
-    # your own subclass of the xcs.problems.OnLineProblem base class and instantiating it.
-    problem = MUXProblem(50000)
+    # Create a problem instance, either by instantiating one of the
+    # predefined problems provided in xcs.problems, or by creating your
+    # own subclass of the xcs.problems.OnLineProblem base class and
+    # instantiating it.
+    problem = MUXProblem(training_cycles=50000)
 
-    # Wrap your problem in an OnLineObserver if you want to log the progress of the run.
+    # If you want to log the process of the run as it proceeds, set the
+    # logging level with the built-in logging module, and wrap the problem
+    # with an OnLineObserver.
+    import logging
+    logging.root.setLevel(logging.INFO)
     problem = OnLineObserver(problem)
 
-    # Instantiate the algorithm and set the parameters to values appropriate to the problem.
-    # Use help(XCSAlgorithm) to see a detailed description of each parameter's meaning.
+    # Instantiate the algorithm and set the parameters to values
+    # appropriate to the problem. Calling help(XCSAlgorithm) will give you
+    # a description of each parameter's meaning.
     algorithm = XCSAlgorithm()
     algorithm.exploration_probability = .1
     algorithm.discount_factor = 0
     algorithm.do_ga_subsumption = True
     algorithm.do_action_set_subsumption = True
 
-    # Create a classifier set to store the state of the algorithm.
-    lcs = algorithm.new_lcs(problem)
+    # Create a classifier set from the algorithm, tailored to solve the
+    # problem you have selected.
+    model = algorithm.new_model(problem)
 
-    # Run the classifier set on the problem, optimizing it as the problem unfolds.
-    run(lcs, problem, learn=True)
+    # Run the classifier set on the problem, optimizing it as the
+    # problem unfolds.
+    run(model, problem, learn=True)
+
+    # Use the built-in pickle module to save/reload your model for reuse.
+    import pickle
+    pickle.dump(model, open('model.bin', 'wb'))
+    reloaded_model = pickle.load(open('model.bin', 'rb'))
+
+    # Or print the results out.
+    print(model)
+
+    # Or get a list of the best classifiers discovered.
+    for condition, action in model:
+        metadata = model[condition, action]
+        if metadata.fitness > .5:
+            print(condition, '=>', action, ' [%.5f]' % metadata.fitness
 
 
 A quick explanation of the XCS algorithm:
 
-    The XCS algorithm attempts to solve the reinforcement learning problem, which is to maximize a reward signal by
-    learning the optimal mapping from inputs to outputs, where inputs are represented as sequences of bits and
-    outputs are selected from a finite set of predetermined actions. It does so by using a genetic algorithm to
+    The XCS algorithm attempts to solve the reinforcement learning
+    problem, which is to maximize a reward signal by learning the optimal
+    mapping from inputs to outputs, where inputs are represented as
+    sequences of bits and outputs are selected from a finite set of
+    predetermined actions. It does so by using a genetic algorithm to
     evolve a population of rules of the form
 
         condition => action => prediction
 
-    where the condition is a bit template (a string of 1s, 0s, and wildcards, represented as #s) which matches
-    against one or more inputs, and the prediction is a floating point value that indicates the observed
-    reward level when the condition matches the input and the indicated action is selected. The fitness of
-    each rule in the population is determined not by the size of the prediction, but by its observed accuracy,
-    as well as by the degree to which the rule fills a niche that many other rules do not already fill. The
-    reason for using accuracy rather than reward is that it was found that using reward destabilizes the
-    population.
+    where the condition is a bit template (a string of 1s, 0s, and
+    wildcards, represented as #s) which matches against one or more
+    inputs, and the prediction is a floating point value that indicates
+    the observed reward level when the condition matches the input and the
+    indicated action is selected. The fitness of each rule in the
+    population is determined not by the size of the prediction, but by its
+    observed accuracy, as well as by the degree to which the rule fills a
+    niche that many other rules do not already fill. The reason for using
+    accuracy rather than reward is that it was found that using reward
+    destabilizes the population.
 
 
 More extensive help is available online at https://pythonhosted.org/xcs/
@@ -74,10 +106,11 @@ More extensive help is available online at https://pythonhosted.org/xcs/
 
 References:
 
-[1] Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
-    Stolzmann, W., and Wilson, S., editors, Advances in Learning Classifier Systems:
-    Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in
-    Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
+[1] Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In
+    Lanzi, P., Stolzmann, W., and Wilson, S., editors, Advances in
+    Learning Classifier Systems: Proceedings of the Third International
+    Workshop, volume 1996 of Lecture Notes in Artificial Intelligence,
+    pages 253–272. Springer-Verlag Berlin Heidelberg.
 
 
 
@@ -88,8 +121,8 @@ All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+* Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
   this list of conditions and the following disclaimer in the documentation
@@ -101,19 +134,21 @@ modification, are permitted provided that the following conditions are met:
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 """
 
 
 __author__ = 'Aaron Hosford'
 __version__ = '1.0.0a9'
+
 __all__ = [
     '__author__',
     '__version__',
@@ -124,7 +159,7 @@ __all__ = [
     'LCS',
     'XCSRuleMetadata',
     'XCSAlgorithm',
-    'LCS',
+    'run',
     'test',
     'bitstrings',
     'problems',
@@ -232,7 +267,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
     LCS's rule (aka classifier) population, distributing reward to the appropriate rules, and determining the
     action selection strategy that is used."""
 
-    def new_lcs(self, possible_actions):
+    def new_model(self, possible_actions):
         """Create and return a new population of classifiers initialized for solving the given problem."""
         if isinstance(possible_actions, problems.OnLineProblem):
             possible_actions = possible_actions.get_possible_actions()
@@ -267,7 +302,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def distribute_payoff(self, match_set, payoff):
+    def distribute_payoff(self, match_set):
         """Accept a payoff in response to the selected action of the given match set, and distribute it among the
         rules in the action set which deserve credit for recommending the action. The match_set argument is the
         MatchSet instance which suggested the selected action which earned the payoff, and the payoff argument
@@ -294,12 +329,12 @@ class ActionSet:
     conditions which matched the same situation, together with information as to the conditions under which the
     rules matched together."""
 
-    def __init__(self, population, situation, action, rules):
-        assert isinstance(population, LCS)
+    def __init__(self, model, situation, action, rules):
+        assert isinstance(model, LCS)
         assert isinstance(rules, dict)
         assert all(isinstance(metadata, RuleMetadata) for metadata in rules.values())
 
-        self._population = population
+        self._model = model
         self._situation = situation
         self._action = action
         self._rules = rules  # {condition: metadata}
@@ -307,13 +342,13 @@ class ActionSet:
         self._prediction = None  # We'll calculate this later if it is needed
         self._prediction_weight = None
 
-        # Capture the time stamp of the population at which the action set was created
-        self._time_stamp = population.time_stamp
+        # Capture the time stamp of the model at which the action set was created
+        self._time_stamp = model.time_stamp
 
     @property
-    def population(self):
-        """The population from which the classifiers in the action set were drawn."""
-        return self._population
+    def model(self):
+        """The classifier set from which the classifiers in the action set were drawn."""
+        return self._model
 
     @property
     def situation(self):
@@ -368,11 +403,14 @@ class ActionSet:
             self._compute_prediction()
         return self._prediction_weight
 
-    def get_metadata(self, condition):
+    def __contains__(self, condition):
+        return condition in self._rules
+
+    def __getitem__(self, condition):
         """Return the metadata of the classifier having this condition and appearing in this action set."""
         return self._rules[condition]
 
-    def remove_condition(self, condition):
+    def __delitem__(self, condition):
         """Remove the classifier having this condition from the action set."""
         del self._rules[condition]
 
@@ -381,28 +419,36 @@ class MatchSet:
     """A collection of coincident action sets. This represents the collection of all rules that matched
     within the same situation, organized into groups according to which action each rule recommends."""
 
-    def __init__(self, population, situation, by_action):
-        assert isinstance(population, LCS)
+    def __init__(self, model, situation, by_action):
+        assert isinstance(model, LCS)
         assert isinstance(by_action, dict)
 
+        self._model = model
+        self._situation = situation
+        self._algorithm = model.algorithm
+        self._time_stamp = model.time_stamp
+
         self._action_sets = {
-            action: ActionSet(population, situation, action, rules)
+            action: ActionSet(model, situation, action, rules)
             for action, rules in by_action.items()
         }
         self._best_actions = None
         self._best_prediction = None
-        self._situation = situation
-        self._population = population
-        self._time_stamp = population.time_stamp
         self._selected_action = None
 
+        self._payoff = 0
+
     @property
-    def population(self):
-        return self._population
+    def model(self):
+        return self._model
 
     @property
     def situation(self):
         return self._situation
+
+    @property
+    def algorithm(self):
+        return self._algorithm
 
     @property
     def time_stamp(self):
@@ -445,6 +491,13 @@ class MatchSet:
             )
         return self._best_actions
 
+    def select_action(self):
+        """Select an action according to the action selection strategy of the associated algorithm."""
+        if self._selected_action is not None:
+            raise ValueError("The action(s) have already been selected.")
+        self._selected_action = self._algorithm.action_selection_strategy(self)
+        return self._selected_action
+
     def _get_selected_action(self):
         """Getter method for the selected_action property."""
         return self._selected_action
@@ -468,6 +521,29 @@ class MatchSet:
         """The prediction associated with the selected action."""
         assert self._selected_action is not None
         return self._action_sets[self._selected_action].prediction
+
+    def _get_payoff(self):
+        return self._payoff
+
+    def _set_payoff(self, payoff):
+        self._payoff = float(payoff)
+
+    payoff = property(
+        _get_payoff,
+        _set_payoff,
+        doc="The payoff received for the selected action."
+    )
+
+    def pay(self, predecessor):
+        assert predecessor is None or isinstance(predecessor, MatchSet)
+
+        if predecessor is not None:
+            predecessor.payoff += self._algorithm.get_future_expectation(self)
+
+    def apply_payoff(self):
+        self._algorithm.distribute_payoff(self)
+        self._payoff = 0
+        self._algorithm.update(self)
 
 
 class LCS:
@@ -518,15 +594,32 @@ class LCS:
 
     # Defining this determines the behavior of "item in instance"
     def __contains__(self, condition_action):
+        assert isinstance(condition_action, tuple)
+        assert len(condition_action) == 2
+
         condition, action = condition_action
         return action in self._population.get(condition, ())
+
+    def __getitem__(self, condition_action):
+        if condition_action not in self:
+            raise KeyError(condition_action)
+
+        condition, action = condition_action
+        return self._population[condition][action]
+
+    def __delitem__(self, condition_action):
+        if condition_action not in self:
+            raise KeyError(condition_action)
+
+        condition, action = condition_action
+        self.remove(condition, action)
 
     # Defining this determines the behavior of str(instance)
     def __str__(self):
         return '\n'.join(
             str(condition) + ' => ' + str(action) + '\n    ' +
-            str(self.get_metadata(condition, action)).replace('\n', '\n    ')
-            for condition, action in sorted(self, key=lambda condition_action: self.get_metadata(*condition_action))
+            str(self[condition, action]).replace('\n', '\n    ')
+            for condition, action in sorted(self, key=lambda condition_action: self[condition_action])
         )
 
     def match(self, situation):
@@ -593,9 +686,6 @@ class LCS:
 
         assert isinstance(metadata, RuleMetadata) or (isinstance(metadata, int) and metadata >= 0)
 
-        if condition not in self._population:
-            self._population[condition] = {}
-
         # If the rule already exists in the population, then we virtually add the rule
         # by incrementing the existing rule's numerosity. This prevents redundancy in
         # the rule set. Otherwise we capture the metadata and associate it with the
@@ -606,6 +696,10 @@ class LCS:
             self._population[condition][action].numerosity += metadata
         else:
             assert isinstance(metadata, RuleMetadata)
+
+            if condition not in self._population:
+                self._population[condition] = {}
+
             if action in self._population[condition]:
                 self._population[condition][action].numerosity += metadata.numerosity
             else:
@@ -620,7 +714,7 @@ class LCS:
 
         assert isinstance(count, int) and count >= 0
 
-        metadata = self.get_metadata(condition, action)
+        metadata = self.get((condition, action))
         if metadata is None:
             return False
 
@@ -634,11 +728,16 @@ class LCS:
 
         return False
 
-    def get_metadata(self, condition, action):
+    def get(self, condition_action, default=None):
         """Return the metadata associated with the given classifier. If the rule is not present in the
         population, return None."""
+        assert isinstance(condition_action, tuple)
+        assert len(condition_action) == 2
+
+        condition, action = condition_action
+
         if condition not in self._population or action not in self._population[condition]:
-            return None
+            return default
         return self._population[condition][action]
 
     def update_time_stamp(self):
@@ -894,10 +993,6 @@ class XCSAlgorithm(LCSAlgorithm):
     # and should be set to 0 in that case.
     idealization_factor = 0
 
-    # TODO: Update docstrings in all files. Add argument and return types, and use cases.
-    # TODO: Improve test coverage
-    # TODO: Clean up all TODOs.
-
     @property
     def action_selection_strategy(self):
         """The action selection strategy used to govern the trade-off between exploration (acquiring new experience)
@@ -908,6 +1003,7 @@ class XCSAlgorithm(LCSAlgorithm):
         """Return the future reward expectation for the given match set."""
 
         assert isinstance(match_set, MatchSet)
+        assert match_set.model.algorithm is self
 
         return self.discount_factor * (
             self.idealization_factor * match_set.best_prediction +
@@ -919,9 +1015,10 @@ class XCSAlgorithm(LCSAlgorithm):
         set."""
 
         assert isinstance(match_set, MatchSet)
+        assert match_set.model.algorithm is self
 
         if self.minimum_actions is None:
-            return len(match_set) < len(match_set.population.possible_actions)
+            return len(match_set) < len(match_set.model.possible_actions)
         else:
             return len(match_set) < self.minimum_actions
 
@@ -930,15 +1027,16 @@ class XCSAlgorithm(LCSAlgorithm):
         not present in the existing actions, if possible."""
 
         assert isinstance(match_set, MatchSet)
+        assert match_set.model.algorithm is self
 
         # Create a new condition that matches the situation.
         condition = bitstrings.BitCondition.cover(match_set.situation, self.wildcard_probability)
 
         # Pick a random action that (preferably) isn't already suggested by some
         # other rule for this situation.
-        action_candidates = frozenset(match_set.population.possible_actions) - frozenset(match_set)
+        action_candidates = frozenset(match_set.model.possible_actions) - frozenset(match_set)
         if not action_candidates:
-            action_candidates = match_set.population.possible_actions
+            action_candidates = match_set.model.possible_actions
         action = random.choice(list(action_candidates))
 
         # Create metadata for the new rule.
@@ -947,17 +1045,17 @@ class XCSAlgorithm(LCSAlgorithm):
         # The actual rule is just a condition/action/metadata triple
         return condition, action, metadata
 
-    def distribute_payoff(self, match_set, payoff):
+    def distribute_payoff(self, match_set):
         """Update the rule metadata for the rules belonging to the selected action set of this match set, based
         on the payoff received."""
 
         assert isinstance(match_set, MatchSet)
-        assert match_set.population.algorithm is self
+        assert match_set.model.algorithm is self
         assert match_set.selected_action is not None
 
-        action_set = match_set[match_set.selected_action]
-        payoff = float(payoff)
+        payoff = float(match_set.payoff)
 
+        action_set = match_set[match_set.selected_action]
         action_set_size = sum(metadata.numerosity for metadata in action_set.metadata)
 
         # Update the average reward, error, and action set size of each rule participating in the
@@ -983,17 +1081,17 @@ class XCSAlgorithm(LCSAlgorithm):
         apply the genetic algorithm's operators to update the population."""
 
         assert isinstance(match_set, MatchSet)
-        assert match_set.population.algorithm is self
+        assert match_set.model.algorithm is self
         assert match_set.selected_action is not None
 
         # Increment the iteration counter.
-        match_set.population.update_time_stamp()
+        match_set.model.update_time_stamp()
 
         action_set = match_set[match_set.selected_action]
 
         # If the average number of iterations since the last update for each rule in the action set
         # is too small, return early instead of applying the GA.
-        if match_set.population.time_stamp - self._get_average_time_stamp(action_set) <= self.ga_threshold:
+        if match_set.model.time_stamp - self._get_average_time_stamp(action_set) <= self.ga_threshold:
             return
 
         # Update the time step for each rule to indicate that they were updated by the GA.
@@ -1003,10 +1101,10 @@ class XCSAlgorithm(LCSAlgorithm):
         parent1 = self._select_parent(action_set)
         parent2 = self._select_parent(action_set)
 
-        parent1_metadata = (action_set.population.get_metadata(parent1, action_set.action) or
-                            XCSRuleMetadata(action_set.population.time_stamp, self))
-        parent2_metadata = (action_set.population.get_metadata(parent1, action_set.action) or
-                            XCSRuleMetadata(action_set.population.time_stamp, self))
+        parent1_metadata = (action_set.model.get((parent1, action_set.action)) or
+                            XCSRuleMetadata(action_set.model.time_stamp, self))
+        parent2_metadata = (action_set.model.get((parent1, action_set.action)) or
+                            XCSRuleMetadata(action_set.model.time_stamp, self))
 
         # With the probability specified in the parameters, apply the crossover operator
         # to the parents. Otherwise, just take the parents unchanged.
@@ -1032,12 +1130,12 @@ class XCSAlgorithm(LCSAlgorithm):
                     if (metadata.experience > self.subsumption_threshold and
                             metadata.error < self.error_threshold and
                             parent(child)):
-                        if (parent, action_set.action) in action_set.population:
-                            action_set.population.add(parent, action_set.action)
+                        if (parent, action_set.action) in action_set.model:
+                            action_set.model.add(parent, action_set.action)
                         else:
                             # Sometimes the parent is removed from a previous subsumption
                             metadata.numerosity = 1
-                            action_set.population.add(parent, action_set.action, metadata)
+                            action_set.model.add(parent, action_set.action, metadata)
                         subsumed = True
                         break
                 if subsumed:
@@ -1047,8 +1145,8 @@ class XCSAlgorithm(LCSAlgorithm):
             # population, just increment its numerosity. Otherwise, if the child has
             # neither been subsumed nor does it already exist, remember it so we can
             # add it to the population in just a moment.
-            if (child, action_set.action) in action_set.population:
-                action_set.population.add(child, action_set.action)
+            if (child, action_set.action) in action_set.model:
+                action_set.model.add(child, action_set.action)
             else:
                 new_children.append(child)
 
@@ -1060,23 +1158,23 @@ class XCSAlgorithm(LCSAlgorithm):
             fitness = (parent1_metadata.fitness + parent2_metadata.fitness) / 2 * .1
 
             for child in new_children:
-                metadata = XCSRuleMetadata(action_set.population.time_stamp, self)
+                metadata = XCSRuleMetadata(action_set.model.time_stamp, self)
                 metadata.average_reward = average_reward
                 metadata.error = error
                 metadata.fitness = fitness
-                action_set.population.add(child, action_set.action, metadata)
+                action_set.model.add(child, action_set.action, metadata)
 
-    def prune(self, population):
+    def prune(self, model):
         """Reduce the population size, if necessary, to ensure that it does not exceed the maximum population size set
         out in the parameters."""
 
-        assert isinstance(population, LCS)
-        assert population.algorithm is self
+        assert isinstance(model, LCS)
+        assert model.algorithm is self
 
         # Determine the virtual population size.
         total_numerosity = sum(
-            population.get_metadata(condition, action).numerosity
-            for condition, action in population
+            model[condition, action].numerosity
+            for condition, action in model
         )
 
         # If the virtual population size is already small enough, just return early.
@@ -1085,16 +1183,16 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # Determine the average fitness of the rules in the virtual population.
         total_fitness = sum(
-            population.get_metadata(condition, action).fitness
-            for condition, action in population
+            model[condition, action].fitness
+            for condition, action in model
         )
         average_fitness = total_fitness / total_numerosity
 
         # Determine the probability of deletion, as a function of both accuracy and niche sparsity.
         total_votes = 0
         deletion_votes = {}
-        for condition, action in population:
-            metadata = population.get_metadata(condition, action)
+        for condition, action in model:
+            metadata = model[condition, action]
 
             if not metadata.numerosity:
                 # I am a little concerned because I'm not sure how this is happening.
@@ -1115,8 +1213,8 @@ class XCSAlgorithm(LCSAlgorithm):
         for (condition, action), vote in deletion_votes.items():
             selector -= vote
             if selector <= 0:
-                assert (condition, action) in population
-                if population.remove(condition, action):
+                assert (condition, action) in model
+                if model.remove(condition, action):
                     return [(condition, action)]
                 else:
                     return []
@@ -1130,7 +1228,7 @@ class XCSAlgorithm(LCSAlgorithm):
         total_accuracy = 0
         accuracies = {}
         for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
+            metadata = action_set[condition]
             if metadata.error < self.error_threshold:
                 accuracy = 1
             else:
@@ -1146,7 +1244,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # Use the relative accuracies of the rules to update their fitness
         for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
+            metadata = action_set[condition]
             accuracy = accuracies[condition]
             metadata.fitness += (
                 self.learning_rate *
@@ -1160,7 +1258,7 @@ class XCSAlgorithm(LCSAlgorithm):
         selected_condition = None
         selected_bit_count = None
         for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
+            metadata = action_set[condition]
             if not (metadata.experience > self.subsumption_threshold and
                     metadata.error < self.error_threshold):
                 continue
@@ -1175,20 +1273,20 @@ class XCSAlgorithm(LCSAlgorithm):
         if selected_condition is None:
             return
 
-        selected_metadata = action_set.get_metadata(selected_condition)
+        selected_metadata = action_set[selected_condition]
 
         # Subsume each rule which the selected rule generalizes. When a rule is subsumed, all
         # instances of the subsumed rule are replaced with instances of the more general one
         # in the population.
         to_remove = []
         for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
+            metadata = action_set[condition]
             if selected_condition is not condition and selected_condition(condition):
                 selected_metadata.numerosity += metadata.numerosity
-                action_set.population.remove(condition, action_set.action, metadata.numerosity)
+                action_set.model.remove(condition, action_set.action, metadata.numerosity)
                 to_remove.append(condition)
         for condition in to_remove:
-            action_set.remove_condition(condition)
+            del action_set[condition]
 
     @staticmethod
     def _get_average_time_stamp(action_set):
@@ -1205,7 +1303,7 @@ class XCSAlgorithm(LCSAlgorithm):
         """Set the time stamp of each rule in this action set to the given value."""
         # Indicate that each rule has been updated at the given iteration.
         for metadata in action_set.metadata:
-            metadata.time_stamp = action_set.population.time_stamp
+            metadata.time_stamp = action_set.model.time_stamp
 
     @staticmethod
     def _select_parent(action_set):
@@ -1214,7 +1312,7 @@ class XCSAlgorithm(LCSAlgorithm):
         total_fitness = sum(metadata.fitness for metadata in action_set.metadata)
         selector = random.uniform(0, total_fitness)
         for condition in action_set.conditions:
-            metadata = action_set.get_metadata(condition)
+            metadata = action_set[condition]
             selector -= metadata.fitness
             if selector <= 0:
                 return condition
@@ -1242,7 +1340,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
 
 # TODO: Special case for single-step vs multi-step problems. Specify in the problem itself which type it is.
-def run(lcs, problem, learn=True):
+def run(model, problem, learn=True):
     """Run the algorithm, utilizing the population to choose the most appropriate action for each situation
     produced by the problem. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
     ignore any reward received.
@@ -1252,13 +1350,10 @@ def run(lcs, problem, learn=True):
         OnLineProblem interface.
     """
 
-    assert isinstance(lcs, LCS)
+    assert isinstance(model, LCS)
     assert isinstance(problem, problems.OnLineProblem)
 
-    previous_reward = None
     previous_match_set = None
-
-    algorithm = lcs.algorithm
 
     # Repeat until the problem has run its course.
     while problem.more():
@@ -1266,13 +1361,14 @@ def run(lcs, problem, learn=True):
         situation = problem.sense()
 
         # Determine which rules match the current situation.
-        match_set = lcs.match(situation)
+        match_set = model.match(situation)
 
         # Select the best action for the current situation (or a random one,
         # if we are on an exploration step).
-        match_set.selected_action = algorithm.action_selection_strategy(match_set)
+        match_set.select_action()
 
-        # Perform the selected action and find out what the received reward was.
+        # Perform the selected action
+        # and find out what the received reward was.
         reward = problem.execute(match_set.selected_action)
 
         # Don't immediately apply the reward; instead, wait until the next iteration and
@@ -1282,18 +1378,22 @@ def run(lcs, problem, learn=True):
         # learning algorithms, which acts to stitch together a general picture of the
         # future expected reward without actually waiting the full duration to find out
         # what it will be.
-        if previous_reward is not None and learn:
-            payoff = previous_reward + algorithm.get_future_expectation(match_set)
-            algorithm.distribute_payoff(previous_match_set, payoff)
-            algorithm.update(previous_match_set)
-        previous_reward = reward
+        if learn:
+            # Ensure we are not trying to learn in a non-learning scenario
+            assert reward is not None
+
+            if previous_match_set is not None:
+                match_set.pay(previous_match_set)
+                previous_match_set.apply_payoff()
+            match_set.payoff = reward
+
+        # Remember the current reward and match set for the next iteration.
         previous_match_set = match_set
 
     # This serves to tie off the final stitch. The last action taken gets only the
     # immediate reward; there is no future reward expected.
-    if previous_reward is not None and learn:
-        algorithm.distribute_payoff(previous_match_set, previous_reward)
-        algorithm.update(previous_match_set)
+    if learn and previous_match_set is not None:
+        previous_match_set.apply_payoff()
 
 
 def test(algorithm=None, problem=None):
@@ -1325,7 +1425,7 @@ def test(algorithm=None, problem=None):
         algorithm.do_action_set_subsumption = True
 
     # Create the classifier system from the algorithm.
-    lcs = LCS(algorithm, problem.get_possible_actions())
+    model = LCS(algorithm, problem.get_possible_actions())
 
     start_time = time.time()
 
@@ -1335,12 +1435,12 @@ def test(algorithm=None, problem=None):
     # Since initially the algorithm's model has no experience incorporated
     # into it, performance will be poor, but it will improve over time as
     # the algorithm continues to be exposed to the problem.
-    run(lcs, problem, learn=True)
+    run(model, problem, learn=True)
 
-    logger.info('Population:\n\n%s\n', lcs)
+    logger.info('Population:\n\n%s\n', model)
 
     end_time = time.time()
 
     logger.info("Total time: %.5f seconds", end_time - start_time)
 
-    return problem.steps, problem.total_reward, end_time - start_time, lcs
+    return problem.steps, problem.total_reward, end_time - start_time, model
