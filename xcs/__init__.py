@@ -16,13 +16,6 @@
 # -------------------------------------------------------------------------------
 
 # TODO: Consider renaming problems to scenarios.
-# TODO: Consider renaming LCS.run() to something a little more appropriate, or
-#       splitting it up to multiple methods that call the same underlying
-#       implementation but have more intuitive names.
-# TODO: Consider extracting the contents of the test() function to a new run() function,
-#       and having test() just provide a default algorithm & population to it.
-# TODO: Consider eliminating the LCS class, moving its contents to a run_multistep()
-#       function, and renaming Population to LCS.
 
 """
 Accuracy-based Classifier Systems for Python 3
@@ -33,7 +26,7 @@ classifier systems.
 
 Usage:
     # Import the classes you'll need.
-    from xcs import XCSAlgorithm, Population, LCS
+    from xcs import XCSAlgorithm
     from xcs.problems import MUXProblem, OnLineObserver
 
     # Create a problem instance, either by instantiating a predefined problem or by creating
@@ -51,14 +44,11 @@ Usage:
     algorithm.do_ga_subsumption = True
     algorithm.do_action_set_subsumption = True
 
-    # Create a population to store the state of the algorithm.
-    population = algorithm.new_population(problem.get_possible_actions())
+    # Create a classifier set to store the state of the algorithm.
+    lcs = algorithm.new_lcs(problem)
 
-    # Create an LCS to run the training process.
-    lcs = LCS(population)
-
-    # Ask the LCS to run the problem, learning to optimize its behavior as it goes.
-    lcs.run(problem, learn=True)
+    # Run the classifier set on the problem, optimizing it as the problem unfolds.
+    run(lcs, problem, learn=True)
 
 
 A quick explanation of the XCS algorithm:
@@ -131,7 +121,7 @@ __all__ = [
     'LCSAlgorithm',
     'ActionSet',
     'MatchSet',
-    'Population',
+    'LCS',
     'XCSRuleMetadata',
     'XCSAlgorithm',
     'LCS',
@@ -242,9 +232,11 @@ class LCSAlgorithm(metaclass=ABCMeta):
     LCS's rule (aka classifier) population, distributing reward to the appropriate rules, and determining the
     action selection strategy that is used."""
 
-    def new_population(self, possible_actions):
+    def new_lcs(self, possible_actions):
         """Create and return a new population of classifiers initialized for solving the given problem."""
-        return Population(self, possible_actions)
+        if isinstance(possible_actions, problems.OnLineProblem):
+            possible_actions = possible_actions.get_possible_actions()
+        return LCS(self, possible_actions)
 
     @property
     @abstractmethod
@@ -303,7 +295,7 @@ class ActionSet:
     rules matched together."""
 
     def __init__(self, population, situation, action, rules):
-        assert isinstance(population, Population)
+        assert isinstance(population, LCS)
         assert isinstance(rules, dict)
         assert all(isinstance(metadata, RuleMetadata) for metadata in rules.values())
 
@@ -390,7 +382,7 @@ class MatchSet:
     within the same situation, organized into groups according to which action each rule recommends."""
 
     def __init__(self, population, situation, by_action):
-        assert isinstance(population, Population)
+        assert isinstance(population, LCS)
         assert isinstance(by_action, dict)
 
         self._action_sets = {
@@ -478,7 +470,7 @@ class MatchSet:
         return self._action_sets[self._selected_action].prediction
 
 
-class Population:
+class LCS:
     """A set of rules (aka classifiers), together with their associated metadata, which the LCS algorithm
     attempts to optimize using an evolutionary algorithm. This population represents the accumulated experience
     of the LCS algorithm. Each rule in the population consists of a condition which identifies which situations
@@ -537,7 +529,7 @@ class Population:
             for condition, action in sorted(self, key=lambda condition_action: self.get_metadata(*condition_action))
         )
 
-    def get_match_set(self, situation):
+    def match(self, situation):
         """Accept a situation (input) and return a MatchSet containing the rules (classifiers) whose conditions
         match the situation."""
 
@@ -1078,7 +1070,7 @@ class XCSAlgorithm(LCSAlgorithm):
         """Reduce the population size, if necessary, to ensure that it does not exceed the maximum population size set
         out in the parameters."""
 
-        assert isinstance(population, Population)
+        assert isinstance(population, LCS)
         assert population.algorithm is self
 
         # Determine the virtual population size.
@@ -1249,77 +1241,59 @@ class XCSAlgorithm(LCSAlgorithm):
         return bitstrings.BitCondition(situation, mask)
 
 
-class LCS:
-    """A Learning Classifier System model/instance. Create the algorithm and a population, passing them
-    in to initialize the instance. Then create a problem instance and pass it to learn()."""
+# TODO: Special case for single-step vs multi-step problems. Specify in the problem itself which type it is.
+def run(lcs, problem, learn=True):
+    """Run the algorithm, utilizing the population to choose the most appropriate action for each situation
+    produced by the problem. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
+    ignore any reward received.
 
-    def __init__(self, population):
-        assert isinstance(population, Population)
-        self._population = population
+    Usage:
+        Create a problem instance and pass it in to this method. Problem instances must implement the
+        OnLineProblem interface.
+    """
 
-    @property
-    def algorithm(self):
-        """The algorithm controlling this LCS."""
-        return self._population.algorithm
+    assert isinstance(lcs, LCS)
+    assert isinstance(problem, problems.OnLineProblem)
 
-    @property
-    def population(self):
-        """The population representing the algorithm's state."""
-        return self._population
+    previous_reward = None
+    previous_match_set = None
 
-    def run(self, problem, learn=True):
-        """Run the algorithm, utilizing the population to choose the most appropriate action for each situation
-        produced by the problem. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
-        ignore any reward received.
+    algorithm = lcs.algorithm
 
-        Usage:
-            Create a problem instance and pass it in to this method. Problem instances must implement the
-            OnLineProblem interface.
-        """
+    # Repeat until the problem has run its course.
+    while problem.more():
+        # Gather information about the current state of the environment.
+        situation = problem.sense()
 
-        # TODO: Special case for single-step vs multi-step problems. Specify in the problem itself which type it is.
+        # Determine which rules match the current situation.
+        match_set = lcs.match(situation)
 
-        assert isinstance(problem, problems.OnLineProblem)
+        # Select the best action for the current situation (or a random one,
+        # if we are on an exploration step).
+        match_set.selected_action = algorithm.action_selection_strategy(match_set)
 
-        previous_reward = None
-        previous_match_set = None
+        # Perform the selected action and find out what the received reward was.
+        reward = problem.execute(match_set.selected_action)
 
-        algorithm = self._population.algorithm
-
-        # Repeat until the problem has run its course.
-        while problem.more():
-            # Gather information about the current state of the environment.
-            situation = problem.sense()
-
-            # Determine which rules match the current situation.
-            match_set = self._population.get_match_set(situation)
-
-            # Select the best action for the current situation (or a random one,
-            # if we are on an exploration step).
-            match_set.selected_action = algorithm.action_selection_strategy(match_set)
-
-            # Perform the selected action and find out what the received reward was.
-            reward = problem.execute(match_set.selected_action)
-
-            # Don't immediately apply the reward; instead, wait until the next iteration and
-            # factor in not only the reward that was received on the previous step, but the
-            # (discounted) reward that is expected going forward given the resulting situation
-            # observed after the action was taken. This is a classic feature of reinforcement
-            # learning algorithms, which acts to stitch together a general picture of the
-            # future expected reward without actually waiting the full duration to find out
-            # what it will be.
-            if previous_reward is not None and learn:
-                payoff = previous_reward + algorithm.get_future_expectation(match_set)
-                algorithm.distribute_payoff(previous_match_set, payoff)
-                algorithm.update(previous_match_set)
-            previous_reward = reward
-            previous_match_set = match_set
-
-        # This serves to tie off the final stitch. The last action taken gets only the
-        # immediate reward; there is no future reward expected.
+        # Don't immediately apply the reward; instead, wait until the next iteration and
+        # factor in not only the reward that was received on the previous step, but the
+        # (discounted) reward that is expected going forward given the resulting situation
+        # observed after the action was taken. This is a classic feature of reinforcement
+        # learning algorithms, which acts to stitch together a general picture of the
+        # future expected reward without actually waiting the full duration to find out
+        # what it will be.
         if previous_reward is not None and learn:
-            algorithm.distribute_payoff(previous_match_set, previous_reward)
+            payoff = previous_reward + algorithm.get_future_expectation(match_set)
+            algorithm.distribute_payoff(previous_match_set, payoff)
             algorithm.update(previous_match_set)
+        previous_reward = reward
+        previous_match_set = match_set
+
+    # This serves to tie off the final stitch. The last action taken gets only the
+    # immediate reward; there is no future reward expected.
+    if previous_reward is not None and learn:
+        algorithm.distribute_payoff(previous_match_set, previous_reward)
+        algorithm.update(previous_match_set)
 
 
 def test(algorithm=None, problem=None):
@@ -1350,11 +1324,8 @@ def test(algorithm=None, problem=None):
         algorithm.do_ga_subsumption = True
         algorithm.do_action_set_subsumption = True
 
-    # Create the population.
-    population = Population(algorithm, problem.get_possible_actions())
-
     # Create the classifier system from the algorithm.
-    lcs = LCS(algorithm, population)
+    lcs = LCS(algorithm, problem.get_possible_actions())
 
     start_time = time.time()
 
@@ -1364,12 +1335,12 @@ def test(algorithm=None, problem=None):
     # Since initially the algorithm's model has no experience incorporated
     # into it, performance will be poor, but it will improve over time as
     # the algorithm continues to be exposed to the problem.
-    lcs.run(problem)
+    run(lcs, problem, learn=True)
 
-    logger.info('Population:\n\n%s\n', lcs.population)
+    logger.info('Population:\n\n%s\n', lcs)
 
     end_time = time.time()
 
     logger.info("Total time: %.5f seconds", end_time - start_time)
 
-    return problem.steps, problem.total_reward, end_time - start_time, lcs.population
+    return problem.steps, problem.total_reward, end_time - start_time, lcs
