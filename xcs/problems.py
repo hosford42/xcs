@@ -17,18 +17,18 @@
 
 """
 xcs.problems
-Description: The problem interface and a selection of predefined problem classes and wrappers.
+Description: The scenario interface and a selection of predefined scenarios and wrappers.
 """
 
 __author__ = 'Aaron Hosford'
 
 __all__ = [
-    'OnLineProblem',
+    'Scenario',
     'MUXProblem',
     'HaystackProblem',
     'OnLineObserver',
-    'ClassifiedDataAsOnLineProblem',
-    'PredictionDataAsOnLineProblem',
+    'PreClassifiedData',
+    'UnclassifiedData',
 ]
 
 import logging
@@ -39,7 +39,7 @@ from . import numpy
 from . import bitstrings
 
 
-class OnLineProblem(metaclass=ABCMeta):
+class Scenario(metaclass=ABCMeta):
     """Abstract interface for on-line problems accepted by XCS. To create a new problem to which XCS can be applied,
     subclass OnLineProblem and implement the methods defined here. See MUXProblem for an example."""
 
@@ -70,7 +70,7 @@ class OnLineProblem(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class MUXProblem(OnLineProblem):
+class MUXProblem(Scenario):
     """Classic multiplexer problem. This problem is static; each action affects only the immediate reward and the
     environment is stateless. The address size indicates the number of bits used as an address/index into the remaining
     bits in the situations returned by sense(). The agent is expected to return the value of the indexed bit from the
@@ -119,7 +119,7 @@ class MUXProblem(OnLineProblem):
         return int(self.remaining_cycles > 0)
 
 
-class HaystackProblem(OnLineProblem):
+class HaystackProblem(Scenario):
     """This is the problem that appears in the tutorial in the section, "Defining a new problem type". This problem is
      designed to test the algorithm's ability to find a single important input bit (the "needle") from among a large
      number of irrelevant input bits (the "haystack")."""
@@ -165,13 +165,13 @@ class HaystackProblem(OnLineProblem):
         return self.remaining_cycles > 0
 
 
-class OnLineObserver(OnLineProblem):
+class OnLineObserver(Scenario):
     """Wrapper for other OnLineProblem instances which prints details of the agent/problem interaction as they take
     place, forwarding the actual work on to the wrapped instance."""
 
     def __init__(self, wrapped):
         # Ensure that the wrapped object implements the same interface
-        assert isinstance(wrapped, OnLineProblem)
+        assert isinstance(wrapped, Scenario)
 
         self.logger = logging.getLogger(__name__)
         self.wrapped = wrapped
@@ -246,8 +246,8 @@ class OnLineObserver(OnLineProblem):
         return more
 
 
-class ClassifiedDataAsOnLineProblem(OnLineProblem):
-    """Wrap off-line (non-interactive) training/test data as an on-line (interactive) problem."""
+class PreClassifiedData(Scenario):
+    """Wrap off-line (non-interactive) training/test data as an on-line (interactive) scenario."""
 
     def __init__(self, situations, classifications, reward_function=None):
         if bitstrings.using_numpy() and isinstance(situations, numpy.ndarray):
@@ -299,8 +299,8 @@ class ClassifiedDataAsOnLineProblem(OnLineProblem):
         return self.steps < len(self.situations)
 
 
-class PredictionDataAsOnLineProblem(OnLineProblem):
-    """Wrap off-line (non-interactive) prediction data as an on-line (interactive) problem."""
+class UnclassifiedData(Scenario):
+    """Wrap off-line (non-interactive) prediction data as an on-line (interactive) scenario."""
 
     def __init__(self, situations, possible_actions):
         if bitstrings.using_numpy() and isinstance(situations, numpy.ndarray):

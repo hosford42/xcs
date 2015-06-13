@@ -33,9 +33,9 @@ Usage:
     from xcs import XCSAlgorithm
     from xcs.problems import MUXProblem, OnLineObserver
 
-    # Create a problem instance, either by instantiating one of the
+    # Create a scenario instance, either by instantiating one of the
     # predefined problems provided in xcs.problems, or by creating your
-    # own subclass of the xcs.problems.OnLineProblem base class and
+    # own subclass of the xcs.problems.Scenario base class and
     # instantiating it.
     problem = MUXProblem(training_cycles=50000)
 
@@ -269,7 +269,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
     def new_model(self, possible_actions):
         """Create and return a new population of classifiers initialized for solving the given problem."""
-        if isinstance(possible_actions, problems.OnLineProblem):
+        if isinstance(possible_actions, problems.Scenario):
             possible_actions = possible_actions.get_possible_actions()
         return LCS(self, possible_actions)
 
@@ -1347,11 +1347,11 @@ def run(model, problem, learn=True):
 
     Usage:
         Create a problem instance and pass it in to this method. Problem instances must implement the
-        OnLineProblem interface.
+        Scenario interface.
     """
 
     assert isinstance(model, LCS)
-    assert isinstance(problem, problems.OnLineProblem)
+    assert isinstance(problem, problems.Scenario)
 
     previous_match_set = None
 
@@ -1400,7 +1400,7 @@ def test(algorithm=None, problem=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
 
     assert algorithm is None or isinstance(algorithm, LCSAlgorithm)
-    assert problem is None or isinstance(problem, problems.OnLineProblem)
+    assert problem is None or isinstance(problem, problems.Scenario)
 
     import logging
     import time
