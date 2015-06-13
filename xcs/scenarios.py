@@ -16,7 +16,7 @@
 # -------------------------------------------------------------------------------
 
 """
-xcs.problems
+xcs.scenarios
 Description: The scenario interface and a selection of predefined scenarios and wrappers.
 """
 
@@ -26,7 +26,7 @@ __all__ = [
     'Scenario',
     'MUXProblem',
     'HaystackProblem',
-    'OnLineObserver',
+    'ScenarioObserver',
     'PreClassifiedData',
     'UnclassifiedData',
 ]
@@ -40,8 +40,8 @@ from . import bitstrings
 
 
 class Scenario(metaclass=ABCMeta):
-    """Abstract interface for on-line problems accepted by XCS. To create a new problem to which XCS can be applied,
-    subclass OnLineProblem and implement the methods defined here. See MUXProblem for an example."""
+    """Abstract interface for scenarios accepted by XCS. To create a new scenario to which XCS can be applied,
+    subclass Scenario and implement the methods defined here. See MUXProblem for an example."""
 
     @abstractmethod
     def get_possible_actions(self):
@@ -50,7 +50,7 @@ class Scenario(metaclass=ABCMeta):
 
     @abstractmethod
     def reset(self):
-        """Reset the problem, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -71,7 +71,7 @@ class Scenario(metaclass=ABCMeta):
 
 
 class MUXProblem(Scenario):
-    """Classic multiplexer problem. This problem is static; each action affects only the immediate reward and the
+    """Classic multiplexer problem. This scenario is static; each action affects only the immediate reward and the
     environment is stateless. The address size indicates the number of bits used as an address/index into the remaining
     bits in the situations returned by sense(). The agent is expected to return the value of the indexed bit from the
     situation."""
@@ -92,7 +92,7 @@ class MUXProblem(Scenario):
         return self.possible_actions
 
     def reset(self):
-        """Reset the problem, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run."""
         self.remaining_cycles = self.initial_training_cycles
 
     def sense(self):
@@ -120,7 +120,7 @@ class MUXProblem(Scenario):
 
 
 class HaystackProblem(Scenario):
-    """This is the problem that appears in the tutorial in the section, "Defining a new problem type". This problem is
+    """This is the scenario that appears in the tutorial in the section, "Defining a new scenario". This scenario is
      designed to test the algorithm's ability to find a single important input bit (the "needle") from among a large
      number of irrelevant input bits (the "haystack")."""
 
@@ -141,7 +141,7 @@ class HaystackProblem(Scenario):
         return self.possible_actions
 
     def reset(self):
-        """Reset the problem, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run."""
         self.remaining_cycles = self.initial_training_cycles
         self.needle_index = random.randrange(self.input_size)
 
@@ -165,8 +165,8 @@ class HaystackProblem(Scenario):
         return self.remaining_cycles > 0
 
 
-class OnLineObserver(Scenario):
-    """Wrapper for other OnLineProblem instances which prints details of the agent/problem interaction as they take
+class ScenarioObserver(Scenario):
+    """Wrapper for other Scenario instances which logs details of the agent/scenario interaction as they take
     place, forwarding the actual work on to the wrapped instance."""
 
     def __init__(self, wrapped):
@@ -202,8 +202,8 @@ class OnLineObserver(Scenario):
         return possible_actions
 
     def reset(self):
-        """Reset the problem, starting it over for a new run."""
-        self.logger.info('Resetting problem.')
+        """Reset the scenario, starting it over for a new run."""
+        self.logger.info('Resetting scenario.')
         self.wrapped.reset()
 
     def sense(self):
@@ -278,7 +278,7 @@ class PreClassifiedData(Scenario):
         return self.possible_actions
 
     def reset(self):
-        """Reset the problem, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run."""
         self.steps = 0
         self.total_reward = 0
 
@@ -322,7 +322,7 @@ class UnclassifiedData(Scenario):
         return self.possible_actions
 
     def reset(self):
-        """Reset the problem, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run."""
         self.steps = 0
         self.classifications.clear()
 
@@ -335,14 +335,14 @@ class UnclassifiedData(Scenario):
         reward program."""
         self.classifications.append(action)
         self.steps += 1
-        return None  # This problem is not meant to be used for learning.
+        return None  # This scenario is not meant to be used for learning.
 
     def more(self):
         """Return a Boolean indicating whether additional actions may be executed, per the reward program."""
         return self.steps < len(self.situations)
 
     def get_classifications(self):
-        """Return the classifications made by the algorithm for this problem."""
+        """Return the classifications made by the algorithm for this scenario."""
         if bitstrings.using_numpy():
             return numpy.array(self.classifications)
         else:

@@ -15,8 +15,10 @@
 #
 # -------------------------------------------------------------------------------
 
-# TODO: Consider renaming problems to scenarios.
+# TODO: Have scenarios report their range of reward just as they do for possible actions.
+# TODO: Have scenarios report whether they are single- or multi-step. Move training_cycles to the run() function.
 # TODO: Update docstrings in all files. Add argument and return types, and use cases.
+# TODO: Wrap all docstrings at 75(?) characters to ensure they look nice when using help().
 # TODO: Improve test coverage
 # TODO: Clean up all TODOs.
 
@@ -31,37 +33,37 @@ general.
 
 Usage:
     from xcs import XCSAlgorithm
-    from xcs.problems import MUXProblem, OnLineObserver
+    from xcs.scenarios import MUXProblem, OnLineObserver
 
     # Create a scenario instance, either by instantiating one of the
-    # predefined problems provided in xcs.problems, or by creating your
-    # own subclass of the xcs.problems.Scenario base class and
+    # predefined scenarios provided in xcs.scenarios, or by creating your
+    # own subclass of the xcs.scenarios.Scenario base class and
     # instantiating it.
-    problem = MUXProblem(training_cycles=50000)
+    scenario = MUXProblem(training_cycles=50000)
 
     # If you want to log the process of the run as it proceeds, set the
-    # logging level with the built-in logging module, and wrap the problem
-    # with an OnLineObserver.
+    # logging level with the built-in logging module, and wrap the
+    # scenario with an OnLineObserver.
     import logging
     logging.root.setLevel(logging.INFO)
-    problem = OnLineObserver(problem)
+    scenario = ScenarioObserver(scenario)
 
     # Instantiate the algorithm and set the parameters to values
-    # appropriate to the problem. Calling help(XCSAlgorithm) will give you
-    # a description of each parameter's meaning.
+    # appropriate to the scenario. Calling help(XCSAlgorithm) will give
+    # you a description of each parameter's meaning.
     algorithm = XCSAlgorithm()
     algorithm.exploration_probability = .1
     algorithm.discount_factor = 0
     algorithm.do_ga_subsumption = True
     algorithm.do_action_set_subsumption = True
 
-    # Create a classifier set from the algorithm, tailored to solve the
-    # problem you have selected.
-    model = algorithm.new_model(problem)
+    # Create a classifier set from the algorithm, tailored for the
+    # scenario you have selected.
+    model = algorithm.new_model(scenario)
 
-    # Run the classifier set on the problem, optimizing it as the
-    # problem unfolds.
-    run(model, problem, learn=True)
+    # Run the classifier set in the scenario, optimizing it as the
+    # scenario unfolds.
+    run(model, scenario, learn=True)
 
     # Use the built-in pickle module to save/reload your model for reuse.
     import pickle
@@ -267,10 +269,12 @@ class LCSAlgorithm(metaclass=ABCMeta):
     LCS's rule (aka classifier) population, distributing reward to the appropriate rules, and determining the
     action selection strategy that is used."""
 
-    def new_model(self, possible_actions):
-        """Create and return a new population of classifiers initialized for solving the given problem."""
-        if isinstance(possible_actions, scenarios.Scenario):
-            possible_actions = possible_actions.get_possible_actions()
+    def new_model(self, scenario):
+        """Create and return a new population of classifiers initialized for solving the given scenario."""
+        if isinstance(scenario, scenarios.Scenario):
+            possible_actions = scenario.get_possible_actions()
+        else:
+            possible_actions = scenario
         return LCS(self, possible_actions)
 
     @property
@@ -827,16 +831,16 @@ class XCSAlgorithm(LCSAlgorithm):
         accuracy_coefficient (default: .1, range: (0, 1])
             Affects the size of the "cliff" between measured accuracies of inaccurate versus accurate
             classifiers. A smaller value results in a larger "cliff". The default value is good for a
-            wide array of problems; only modify this if you know what you are doing.
+            wide array of scenarios; only modify this if you know what you are doing.
 
         accuracy_power (default: 5, range: (0, +inf))
             Affects the rate at which measured accuracies of inaccurate classifiers taper off. A larger value
             results in more rapid decline in accuracy as prediction error rises. The default value is good for
-            a wide array of problems; only modify this if you know what you are doing.
+            a wide array of scenarios; only modify this if you know what you are doing.
 
         crossover_probability (default: .75, range: [0, 1])
             The probability that crossover will be applied to the selected parents in a GA selection step. The
-            default value is good for a wide array of problems.
+            default value is good for a wide array of scenarios.
 
         deletion_threshold (default: 20, range: [0, +inf))
             The minimum experience of a classifier before its fitness is considered in its probability
@@ -847,8 +851,8 @@ class XCSAlgorithm(LCSAlgorithm):
             The rate at which future expected reward is discounted before being added to the current
             reward to produce the payoff value that is used to update classifier parameters such as
             reward prediction, error, and fitness. Larger values produce more far-sighted behavior;
-            smaller values produce more hedonistic behavior. For problems in which the current action
-            does not affect future rewards beyond the current step, set this to 0. For problems in
+            smaller values produce more hedonistic behavior. For scenarios in which the current action
+            does not affect future rewards beyond the current step, set this to 0. For scenarios in
             which actions do affect rewards beyond the immediate iteration, set this to higher values.
             Do not set this to 1 as it will produce undefined behavior.
 
@@ -868,14 +872,14 @@ class XCSAlgorithm(LCSAlgorithm):
             Determines how much prediction error is tolerated before a classifier is classified as inaccurate.
             This parameter is typically set to approximately 1% of the expected range of possible rewards
             received for each action. A range of [0, 1] for reward is assumed, and the default value is
-            calculated as 1% of 1 - 0, or .01. If your problem is going to have a significantly wider or
+            calculated as 1% of 1 - 0, or .01. If your scenario is going to have a significantly wider or
             narrower range of potential rewards, you should set this parameter appropriately for that range.
 
         exploration_probability (default: .5, range: [0, 1])
             The probability of choosing a suboptimal action from the suggestions made by the match set
-            rather than choosing an optimal one. It is advisable to set this above 0 for all problems
-            to ensure that the reward predictions converge. For problems in which on-line performance
-            is important, set this value closer to 0 to focus on optimizing reward. For problems in
+            rather than choosing an optimal one. It is advisable to set this above 0 for all scenarios
+            to ensure that the reward predictions converge. For scenarios in which on-line performance
+            is important, set this value closer to 0 to focus on optimizing reward. For scenarios in
             which the final expression of the solution in terms of the evolved population of classifiers
             is of greater significance than optimizing on-line reward, set this to a larger value.
 
@@ -911,17 +915,17 @@ class XCSAlgorithm(LCSAlgorithm):
         initial_error (default: .00001, range: (0, +inf))
             The value used to initialize the error parameter in the metadata for new classifiers. It
             is recommended that this value be a positive number close to zero. The default value is
-            good for a wide variety of problems.
+            good for a wide variety of scenarios.
 
         initial_fitness (default: .00001, range: (0, +inf))
             The value used to initialize the fitness parameter in the metadata for new classifiers.
             It is recommended that this value be a positive number close to zero. The default value
-            is good for a wide variety of problems.
+            is good for a wide variety of scenarios.
 
         initial_prediction (default: .00001, range: [0, +inf))
             The value used to initialize the reward prediction in the metadata for new classifiers.
             It is recommended that this value be a number slightly above the minimum possible reward
-            for the problem. It is assumed that the minimum reward is 0; if your problem's minimum
+            for the scenario. It is assumed that the minimum reward is 0; if your scenario's minimum
             reward is significantly different, this value should be set appropriately.
 
         learning_rate (default: .15, range: (0, 1))
@@ -936,7 +940,7 @@ class XCSAlgorithm(LCSAlgorithm):
         minimum_actions (default: None, range: [1, +inf))
             The minimum number of actions required in a match set, below which covering occurs.
             (Covering is the random generation of a classifier that matches the current situation.)
-            When this is set to None, the number of possible actions dictated by the problem is used.
+            When this is set to None, the number of possible actions dictated by the scenario is used.
             If this is set to a value greater than that, covering will occur on every step no matter
             what.
 
@@ -1339,26 +1343,26 @@ class XCSAlgorithm(LCSAlgorithm):
         return bitstrings.BitCondition(situation, mask)
 
 
-# TODO: Special case for single-step vs multi-step problems. Specify in the problem itself which type it is.
-def run(model, problem, learn=True):
+# TODO: Special case for single-step vs multi-step scenarios. Specify in the scenario itself which type it is.
+def run(model, scenario, learn=True):
     """Run the algorithm, utilizing the population to choose the most appropriate action for each situation
-    produced by the problem. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
+    produced by the scenario. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
     ignore any reward received.
 
     Usage:
-        Create a problem instance and pass it in to this method. Problem instances must implement the
+        Create a scenario and pass it in to this method. Scenarios must implement the
         Scenario interface.
     """
 
     assert isinstance(model, LCS)
-    assert isinstance(problem, scenarios.Scenario)
+    assert isinstance(scenario, scenarios.Scenario)
 
     previous_match_set = None
 
-    # Repeat until the problem has run its course.
-    while problem.more():
+    # Repeat until the scenario has run its course.
+    while scenario.more():
         # Gather information about the current state of the environment.
-        situation = problem.sense()
+        situation = scenario.sense()
 
         # Determine which rules match the current situation.
         match_set = model.match(situation)
@@ -1369,7 +1373,7 @@ def run(model, problem, learn=True):
 
         # Perform the selected action
         # and find out what the received reward was.
-        reward = problem.execute(match_set.selected_action)
+        reward = scenario.execute(match_set.selected_action)
 
         # Don't immediately apply the reward; instead, wait until the next iteration and
         # factor in not only the reward that was received on the previous step, but the
@@ -1396,11 +1400,11 @@ def run(model, problem, learn=True):
         previous_match_set.apply_payoff()
 
 
-def test(algorithm=None, problem=None):
+def test(algorithm=None, scenario=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
 
     assert algorithm is None or isinstance(algorithm, LCSAlgorithm)
-    assert problem is None or isinstance(problem, scenarios.Scenario)
+    assert scenario is None or isinstance(scenario, scenarios.Scenario)
 
     import logging
     import time
@@ -1408,13 +1412,13 @@ def test(algorithm=None, problem=None):
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    if problem is None:
-        # Define the problem.
-        problem = scenarios.MUXProblem(10000)
+    if scenario is None:
+        # Define the scenario.
+        scenario = scenarios.MUXProblem(10000)
 
-    if not isinstance(problem, scenarios.OnLineObserver):
-        # Put the problem into a wrapper that will report things back to us for visibility.
-        problem = scenarios.OnLineObserver(problem)
+    if not isinstance(scenario, scenarios.ScenarioObserver):
+        # Put the scenario into a wrapper that will report things back to us for visibility.
+        scenario = scenarios.ScenarioObserver(scenario)
 
     if algorithm is None:
         # Define the algorithm.
@@ -1425,17 +1429,17 @@ def test(algorithm=None, problem=None):
         algorithm.do_action_set_subsumption = True
 
     # Create the classifier system from the algorithm.
-    model = LCS(algorithm, problem.get_possible_actions())
+    model = LCS(algorithm, scenario.get_possible_actions())
 
     start_time = time.time()
 
-    # Run the algorithm on the problem. This does two things simultaneously:
+    # Run the algorithm on the scenario. This does two things simultaneously:
     #   1. Learns a model of the problem space from experience.
     #   2. Attempts to maximize the reward received.
     # Since initially the algorithm's model has no experience incorporated
     # into it, performance will be poor, but it will improve over time as
-    # the algorithm continues to be exposed to the problem.
-    run(model, problem, learn=True)
+    # the algorithm continues to be exposed to the scenario.
+    run(model, scenario, learn=True)
 
     logger.info('Population:\n\n%s\n', model)
 
@@ -1443,4 +1447,4 @@ def test(algorithm=None, problem=None):
 
     logger.info("Total time: %.5f seconds", end_time - start_time)
 
-    return problem.steps, problem.total_reward, end_time - start_time, model
+    return scenario.steps, scenario.total_reward, end_time - start_time, model
