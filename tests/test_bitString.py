@@ -5,7 +5,7 @@ import unittest
 
 import xcs
 import xcs.bitstrings as bitstrings
-import xcs.problems
+import xcs.scenarios
 
 
 class TestBitString(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestBitString(unittest.TestCase):
             self.assertTrue('numpy' in bitstrings.BitString.__module__)
             logging.disable(logging.CRITICAL)
             try:
-                xcs.test(problem=xcs.problems.MUXProblem(1000))
+                xcs.test(problem=xcs.scenarios.MUXProblem(1000))
             finally:
                 logging.disable(logging.NOTSET)
         else:
@@ -49,7 +49,7 @@ class TestBitString(unittest.TestCase):
             self.assertTrue('python' in bitstrings.BitString.__module__)
             logging.disable(logging.CRITICAL)
             try:
-                xcs.test(problem=xcs.problems.MUXProblem(1000))
+                xcs.test(problem=xcs.scenarios.MUXProblem(1000))
             finally:
                 logging.disable(logging.NOTSET)
 

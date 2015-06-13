@@ -3,7 +3,7 @@ __author__ = 'Aaron Hosford'
 import unittest
 
 from xcs.bitstrings import BitString
-from xcs.problems import MUXProblem
+from xcs.scenarios import MUXProblem
 
 
 class TestMUXProblem(unittest.TestCase):

@@ -3,7 +3,7 @@ __author__ = 'Aaron Hosford'
 import unittest
 
 from xcs.bitstrings import BitString
-from xcs.problems import HaystackProblem
+from xcs.scenarios import HaystackProblem
 
 
 class TestHaystackProblem(unittest.TestCase):

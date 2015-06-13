@@ -4,7 +4,7 @@ import logging
 import unittest
 
 import xcs
-from xcs.problems import MUXProblem, HaystackProblem
+from xcs.scenarios import MUXProblem, HaystackProblem
 
 
 class TestXCS(unittest.TestCase):

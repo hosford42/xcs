@@ -162,7 +162,7 @@ __all__ = [
     'run',
     'test',
     'bitstrings',
-    'problems',
+    'scenarios.py',
 ]
 
 
@@ -183,7 +183,7 @@ else:
         numpy = None
 
 
-from . import bitstrings, problems
+from . import bitstrings, scenarios
 
 
 class ActionSelectionStrategy(metaclass=ABCMeta):
@@ -269,7 +269,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
     def new_model(self, possible_actions):
         """Create and return a new population of classifiers initialized for solving the given problem."""
-        if isinstance(possible_actions, problems.Scenario):
+        if isinstance(possible_actions, scenarios.Scenario):
             possible_actions = possible_actions.get_possible_actions()
         return LCS(self, possible_actions)
 
@@ -1351,7 +1351,7 @@ def run(model, problem, learn=True):
     """
 
     assert isinstance(model, LCS)
-    assert isinstance(problem, problems.Scenario)
+    assert isinstance(problem, scenarios.Scenario)
 
     previous_match_set = None
 
@@ -1400,7 +1400,7 @@ def test(algorithm=None, problem=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in client code."""
 
     assert algorithm is None or isinstance(algorithm, LCSAlgorithm)
-    assert problem is None or isinstance(problem, problems.Scenario)
+    assert problem is None or isinstance(problem, scenarios.Scenario)
 
     import logging
     import time
@@ -1410,11 +1410,11 @@ def test(algorithm=None, problem=None):
 
     if problem is None:
         # Define the problem.
-        problem = problems.MUXProblem(10000)
+        problem = scenarios.MUXProblem(10000)
 
-    if not isinstance(problem, problems.OnLineObserver):
+    if not isinstance(problem, scenarios.OnLineObserver):
         # Put the problem into a wrapper that will report things back to us for visibility.
-        problem = problems.OnLineObserver(problem)
+        problem = scenarios.OnLineObserver(problem)
 
     if algorithm is None:
         # Define the algorithm.
