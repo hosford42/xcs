@@ -16,7 +16,6 @@
 # -------------------------------------------------------------------------------
 
 # TODO: Have scenarios report their range of reward just as they do for possible actions.
-# TODO: Have scenarios report whether they are single- or multi-step. Move training_cycles to the run() function.
 # TODO: Update docstrings in all files. Add argument and return types, and use cases.
 # TODO: Wrap all docstrings at 75(?) characters to ensure they look nice when using help().
 # TODO: Improve test coverage
@@ -271,11 +270,9 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
     def new_model(self, scenario):
         """Create and return a new population of classifiers initialized for solving the given scenario."""
-        if isinstance(scenario, scenarios.Scenario):
-            possible_actions = scenario.get_possible_actions()
-        else:
-            possible_actions = scenario
-        return LCS(self, possible_actions)
+        assert isinstance(scenario, scenarios.Scenario)
+
+        return LCS(self, scenario.get_possible_actions())
 
     @property
     @abstractmethod
@@ -1343,8 +1340,7 @@ class XCSAlgorithm(LCSAlgorithm):
         return bitstrings.BitCondition(situation, mask)
 
 
-# TODO: Special case for single-step vs multi-step scenarios. Specify in the scenario itself which type it is.
-def run(model, scenario, learn=True):
+def run(model, scenario, learn=True, repetitions=1):
     """Run the algorithm, utilizing the population to choose the most appropriate action for each situation
     produced by the scenario. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
     ignore any reward received.
@@ -1357,47 +1353,53 @@ def run(model, scenario, learn=True):
     assert isinstance(model, LCS)
     assert isinstance(scenario, scenarios.Scenario)
 
-    previous_match_set = None
+    for repetition in range(repetitions):
+        previous_match_set = None
 
-    # Repeat until the scenario has run its course.
-    while scenario.more():
-        # Gather information about the current state of the environment.
-        situation = scenario.sense()
+        # Repeat until the scenario has run its course.
+        while scenario.more():
+            # Gather information about the current state of the environment.
+            situation = scenario.sense()
 
-        # Determine which rules match the current situation.
-        match_set = model.match(situation)
+            # Determine which rules match the current situation.
+            match_set = model.match(situation)
 
-        # Select the best action for the current situation (or a random one,
-        # if we are on an exploration step).
-        match_set.select_action()
+            # Select the best action for the current situation (or a random one,
+            # if we are on an exploration step).
+            match_set.select_action()
 
-        # Perform the selected action
-        # and find out what the received reward was.
-        reward = scenario.execute(match_set.selected_action)
+            # Perform the selected action
+            # and find out what the received reward was.
+            reward = scenario.execute(match_set.selected_action)
 
-        # Don't immediately apply the reward; instead, wait until the next iteration and
-        # factor in not only the reward that was received on the previous step, but the
-        # (discounted) reward that is expected going forward given the resulting situation
-        # observed after the action was taken. This is a classic feature of reinforcement
-        # learning algorithms, which acts to stitch together a general picture of the
-        # future expected reward without actually waiting the full duration to find out
-        # what it will be.
-        if learn:
-            # Ensure we are not trying to learn in a non-learning scenario
-            assert reward is not None
+            # If the scenario is dynamic, don't immediately apply the reward; instead, wait until
+            # the next iteration and factor in not only the reward that was received on the previous
+            # step, but the (discounted) reward that is expected going forward given the resulting
+            # situation observed after the action was taken. This is a classic feature of temporal
+            # difference (TD) algorithms, which acts to stitch together a general picture of the future
+            # expected reward without actually waiting the full duration to find out what it will be.
+            if learn:
+                # Ensure we are not trying to learn in a non-learning scenario
+                assert reward is not None
 
-            if previous_match_set is not None:
-                match_set.pay(previous_match_set)
-                previous_match_set.apply_payoff()
-            match_set.payoff = reward
+                if scenario.is_dynamic:
+                    if previous_match_set is not None:
+                        match_set.pay(previous_match_set)
+                        previous_match_set.apply_payoff()
+                    match_set.payoff = reward
+                else:
+                    match_set.payoff = reward
+                    match_set.apply_payoff()
 
-        # Remember the current reward and match set for the next iteration.
-        previous_match_set = match_set
+            # Remember the current reward and match set for the next iteration.
+            previous_match_set = match_set
 
-    # This serves to tie off the final stitch. The last action taken gets only the
-    # immediate reward; there is no future reward expected.
-    if learn and previous_match_set is not None:
-        previous_match_set.apply_payoff()
+        # This serves to tie off the final stitch. The last action taken gets only the
+        # immediate reward; there is no future reward expected.
+        if scenario.is_dynamic and learn and previous_match_set is not None:
+            previous_match_set.apply_payoff()
+
+        scenario.reset()
 
 
 def test(algorithm=None, scenario=None):
@@ -1431,20 +1433,17 @@ def test(algorithm=None, scenario=None):
     # Create the classifier system from the algorithm.
     model = LCS(algorithm, scenario.get_possible_actions())
 
-    start_time = time.time()
-
     # Run the algorithm on the scenario. This does two things simultaneously:
     #   1. Learns a model of the problem space from experience.
     #   2. Attempts to maximize the reward received.
     # Since initially the algorithm's model has no experience incorporated
     # into it, performance will be poor, but it will improve over time as
     # the algorithm continues to be exposed to the scenario.
+    start_time = time.time()
     run(model, scenario, learn=True)
-
-    logger.info('Population:\n\n%s\n', model)
-
     end_time = time.time()
 
+    logger.info('Population:\n\n%s\n', model)
     logger.info("Total time: %.5f seconds", end_time - start_time)
 
     return scenario.steps, scenario.total_reward, end_time - start_time, model

@@ -43,6 +43,13 @@ class Scenario(metaclass=ABCMeta):
     """Abstract interface for scenarios accepted by XCS. To create a new scenario to which XCS can be applied,
     subclass Scenario and implement the methods defined here. See MUXProblem for an example."""
 
+    @property
+    @abstractmethod
+    def is_dynamic(self):
+        """A Boolean value indicating whether earlier actions from the same run can affect the rewards or outcomes
+        of later actions."""
+        raise NotImplementedError()
+
     @abstractmethod
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
@@ -86,6 +93,12 @@ class MUXProblem(Scenario):
         self.possible_actions = (True, False)
         self.initial_training_cycles = training_cycles
         self.remaining_cycles = training_cycles
+
+    @property
+    def is_dynamic(self):
+        """A Boolean value indicating whether earlier actions from the same run can affect the rewards or outcomes
+        of later actions."""
+        return False
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
@@ -136,6 +149,12 @@ class HaystackProblem(Scenario):
         self.needle_index = random.randrange(input_size)
         self.needle_value = None
 
+    @property
+    def is_dynamic(self):
+        """A Boolean value indicating whether earlier actions from the same run can affect the rewards or outcomes
+        of later actions."""
+        return False
+
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
         return self.possible_actions
@@ -177,6 +196,12 @@ class ScenarioObserver(Scenario):
         self.wrapped = wrapped
         self.total_reward = 0
         self.steps = 0
+
+    @property
+    def is_dynamic(self):
+        """A Boolean value indicating whether earlier actions from the same run can affect the rewards or outcomes
+        of later actions."""
+        return self.wrapped.is_dynamic
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
@@ -273,6 +298,12 @@ class PreClassifiedData(Scenario):
         self.steps = 0
         self.total_reward = 0
 
+    @property
+    def is_dynamic(self):
+        """A Boolean value indicating whether earlier actions from the same run can affect the rewards or outcomes
+        of later actions."""
+        return False
+
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
         return self.possible_actions
@@ -316,6 +347,12 @@ class UnclassifiedData(Scenario):
         self.possible_actions = frozenset(possible_actions)
         self.steps = 0
         self.classifications = []
+
+    @property
+    def is_dynamic(self):
+        """A Boolean value indicating whether earlier actions from the same run can affect the rewards or outcomes
+        of later actions."""
+        return False
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be executed within the environment."""
