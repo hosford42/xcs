@@ -1,30 +1,41 @@
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
-# Name:     xcs.bitstrings
-# Purpose:  Implements bit-string and bit-condition data types used by the XCS
-#           algorithm.
+# xcs
+# ---
+# Accuracy-based Classifier Systems for Python 3
 #
-# Author:       Aaron Hosford
+# http://hosford42.github.io/xcs/
 #
-# Created:      5/5/2015
-# Copyright:    (c) Aaron Hosford 2015, all rights reserved
-# Licence:      Revised (3 Clause) BSD License
+# (c) Aaron Hosford 2015, all rights reserved
+# Revised (3 Clause) BSD License
+#
+# Implements the XCS (Accuracy-based Classifier System) algorithm,
+# as described in the 2001 paper, "An Algorithmic Description of XCS,"
+# by Martin Butz and Stewart Wilson.
+#
 # -------------------------------------------------------------------------------
 
 """
-xcs/bitstrings.py
+xcs
+===
+Accuracy-based Classifier Systems for Python 3
 (c) Aaron Hosford 2015, all rights reserved
 Revised BSD License
 
-Provides bit-string and bit-condition data types used by the XCS algorithm.
-
-This file is part of the public API of the xcs package.
+xcs.bitstrings
+--------------
+Bit-string and bit-condition data types used by the XCS algorithm.
 """
 
 __author__ = 'Aaron Hosford'
+
 __all__ = [
     'BitString',
     'BitCondition',
+    'numpy_is_available',
+    'use_numpy',
+    'use_pure_python',
+    'using_numpy',
 ]
 
 from abc import ABCMeta, abstractmethod

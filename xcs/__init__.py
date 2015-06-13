@@ -15,20 +15,50 @@
 #
 # -------------------------------------------------------------------------------
 
+# TODO: Consider renaming problems to scenarios.
+# TODO: Consider renaming LCS.run() to something a little more appropriate, or
+#       splitting it up to multiple methods that call the same underlying
+#       implementation but have more intuitive names.
+# TODO: Consider extracting the contents of the test() function to a new run() function,
+#       and having test() just provide a default algorithm & population to it.
+# TODO: Consider eliminating the LCS class, moving its contents to a run_multistep()
+#       function, and renaming Population to LCS.
 
 """
-xcs/__init__.py
-(c) Aaron Hosford 2015, all rights reserved
-Revised BSD License
+Accuracy-based Classifier Systems for Python 3
 
-Implements the XCS (Accuracy-based Classifier System) algorithm,
-as described in the 2001 paper, "An Algorithmic Description of
-XCS," by Martin Butz and Stewart Wilson.
+The XCS (Accuracy-based Classifier System) algorithm, as described in the 2001 paper, "An Algorithmic Description of
+XCS," by Martin Butz and Stewart Wilson[1], together with a framework for implementing and experimenting with learning
+classifier systems.
 
-    Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
-    Stolzmann, W., and Wilson, S., editors, Advances in Learning Classifier Systems:
-    Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in
-    Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
+Usage:
+    # Import the classes you'll need.
+    from xcs import XCSAlgorithm, Population, LCS
+    from xcs.problems import MUXProblem, OnLineObserver
+
+    # Create a problem instance, either by instantiating a predefined problem or by creating
+    # your own subclass of the xcs.problems.OnLineProblem base class and instantiating it.
+    problem = MUXProblem(50000)
+
+    # Wrap your problem in an OnLineObserver if you want to log the progress of the run.
+    problem = OnLineObserver(problem)
+
+    # Instantiate the algorithm and set the parameters to values appropriate to the problem.
+    # Use help(XCSAlgorithm) to see a detailed description of each parameter's meaning.
+    algorithm = XCSAlgorithm()
+    algorithm.exploration_probability = .1
+    algorithm.discount_factor = 0
+    algorithm.do_ga_subsumption = True
+    algorithm.do_action_set_subsumption = True
+
+    # Create a population to store the state of the algorithm.
+    population = algorithm.new_population(problem.get_possible_actions())
+
+    # Create an LCS to run the training process.
+    lcs = LCS(population)
+
+    # Ask the LCS to run the problem, learning to optimize its behavior as it goes.
+    lcs.run(problem, learn=True)
 
 
 A quick explanation of the XCS algorithm:
@@ -47,6 +77,48 @@ A quick explanation of the XCS algorithm:
     as well as by the degree to which the rule fills a niche that many other rules do not already fill. The
     reason for using accuracy rather than reward is that it was found that using reward destabilizes the
     population.
+
+
+More extensive help is available online at https://pythonhosted.org/xcs/
+
+
+References:
+
+[1] Butz, M. and Wilson, S. (2001). An algorithmic description of XCS. In Lanzi, P.,
+    Stolzmann, W., and Wilson, S., editors, Advances in Learning Classifier Systems:
+    Proceedings of the Third International Workshop, volume 1996 of Lecture Notes in
+    Artificial Intelligence, pages 253–272. Springer-Verlag Berlin Heidelberg.
+
+
+
+
+Copyright (c) 2015, Aaron Hosford
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of xcs nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 
@@ -169,6 +241,10 @@ class LCSAlgorithm(metaclass=ABCMeta):
     be used to initialize an LCS, inherit from this class. An LCS algorithm is responsible for managing the
     LCS's rule (aka classifier) population, distributing reward to the appropriate rules, and determining the
     action selection strategy that is used."""
+
+    def new_population(self, possible_actions):
+        """Create and return a new population of classifiers initialized for solving the given problem."""
+        return Population(self, possible_actions)
 
     @property
     @abstractmethod
@@ -793,9 +869,8 @@ class XCSAlgorithm(LCSAlgorithm):
             result in the sustained presence of overly general classifiers in the population.
     """
 
-    # TODO: Verify these before publishing v1.0.0
     # For a detailed explanation of each parameter, please see the original
-    # paper by Martin Butz and Stewart Wilson.
+    # paper, "An Algorithmic Description of XCS", by Martin Butz and Stewart Wilson.
     max_population_size = 200                               # N
     learning_rate = .15                                     # beta
     accuracy_coefficient = .1                               # alpha
@@ -812,7 +887,7 @@ class XCSAlgorithm(LCSAlgorithm):
     initial_prediction = .00001                             # p_I
     initial_error = .00001                                  # epsilon_I
     initial_fitness = .00001                                # F_I
-    exploration_probability = .5                            # p_explr
+    exploration_probability = .5                            # p_exp
     minimum_actions = None                                  # theta_mna; None indicates total number of possible actions
     do_ga_subsumption = False                               # doGASubsumption
     do_action_set_subsumption = False                       # doActionSetSubsumption
@@ -826,6 +901,10 @@ class XCSAlgorithm(LCSAlgorithm):
     # versus the actual prediction for the next match set. For canonical XCS, this is not an available parameter
     # and should be set to 0 in that case.
     idealization_factor = 0
+
+    # TODO: Update docstrings in all files. Add argument and return types, and use cases.
+    # TODO: Improve test coverage
+    # TODO: Clean up all TODOs.
 
     @property
     def action_selection_strategy(self):
@@ -908,7 +987,7 @@ class XCSAlgorithm(LCSAlgorithm):
             self._action_set_subsumption(action_set)
 
     def update(self, match_set):
-        """Update the time stamp. If sufficient time has passed on average for each member of the selected action set,
+        """Update the time stamp. If sufficient time has passed on average for the members of the selected action set,
         apply the genetic algorithm's operators to update the population."""
 
         assert isinstance(match_set, MatchSet)
@@ -1053,7 +1132,7 @@ class XCSAlgorithm(LCSAlgorithm):
         assert False  # We should never reach this point.
 
     def _update_fitness(self, action_set):
-        """Update the fitness of the rules belonging to this action set."""
+        """Update the fitness values of the rules belonging to this action set."""
         # Compute the accuracy of each rule. Accuracy is inversely proportional to error. Below a certain error
         # threshold, accuracy becomes constant. Accuracy values range over (0, 1].
         total_accuracy = 0
@@ -1171,39 +1250,41 @@ class XCSAlgorithm(LCSAlgorithm):
 
 
 class LCS:
-    """An Learning Classifier System model instance. Create the algorithm and (optionally) a population, passing them
+    """A Learning Classifier System model/instance. Create the algorithm and a population, passing them
     in to initialize the instance. Then create a problem instance and pass it to learn()."""
 
-    def __init__(self, algorithm, population):
-        assert isinstance(algorithm, LCSAlgorithm)
+    def __init__(self, population):
         assert isinstance(population, Population)
-
-        self._algorithm = algorithm
         self._population = population
 
     @property
     def algorithm(self):
-        """The parameter settings used by this instance of the algorithm."""
-        return self._algorithm
+        """The algorithm controlling this LCS."""
+        return self._population.algorithm
 
     @property
     def population(self):
-        """The population used by this instance of the algorithm."""
+        """The population representing the algorithm's state."""
         return self._population
 
     def run(self, problem, learn=True):
-        """Run the algorithm, utilizing the population to choose the most appropriate action for each situation produced
-        by the problem. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
+        """Run the algorithm, utilizing the population to choose the most appropriate action for each situation
+        produced by the problem. If learn is True, improve the situation/action mapping to maximize reward. Otherwise,
         ignore any reward received.
 
         Usage:
-        Create a problem instance and pass it in to this method. Problem instances must implement the OnLineProblem
-        interface.
+            Create a problem instance and pass it in to this method. Problem instances must implement the
+            OnLineProblem interface.
         """
+
+        # TODO: Special case for single-step vs multi-step problems. Specify in the problem itself which type it is.
+
         assert isinstance(problem, problems.OnLineProblem)
 
         previous_reward = None
         previous_match_set = None
+
+        algorithm = self._population.algorithm
 
         # Repeat until the problem has run its course.
         while problem.more():
@@ -1215,7 +1296,7 @@ class LCS:
 
             # Select the best action for the current situation (or a random one,
             # if we are on an exploration step).
-            match_set.selected_action = self._algorithm.action_selection_strategy(match_set)
+            match_set.selected_action = algorithm.action_selection_strategy(match_set)
 
             # Perform the selected action and find out what the received reward was.
             reward = problem.execute(match_set.selected_action)
@@ -1228,17 +1309,17 @@ class LCS:
             # future expected reward without actually waiting the full duration to find out
             # what it will be.
             if previous_reward is not None and learn:
-                payoff = previous_reward + self._algorithm.get_future_expectation(match_set)
-                self._algorithm.distribute_payoff(previous_match_set, payoff)
-                self._algorithm.update(previous_match_set)
+                payoff = previous_reward + algorithm.get_future_expectation(match_set)
+                algorithm.distribute_payoff(previous_match_set, payoff)
+                algorithm.update(previous_match_set)
             previous_reward = reward
             previous_match_set = match_set
 
         # This serves to tie off the final stitch. The last action taken gets only the
         # immediate reward; there is no future reward expected.
         if previous_reward is not None and learn:
-            self._algorithm.distribute_payoff(previous_match_set, previous_reward)
-            self._algorithm.update(previous_match_set)
+            algorithm.distribute_payoff(previous_match_set, previous_reward)
+            algorithm.update(previous_match_set)
 
 
 def test(algorithm=None, problem=None):

@@ -1,26 +1,34 @@
 # -*- coding: utf-8 -*-
 # -------------------------------------------------------------------------------
-# Name:     xcs._fast_bitstrings
-# Purpose:  Fast bit-string, implemented on top of numpy bool arrays.
+# xcs
+# ---
+# Accuracy-based Classifier Systems for Python 3
 #
-# Author:       Aaron Hosford
+# http://hosford42.github.io/xcs/
 #
-# Created:      5/9/2015
-# Copyright:    (c) Aaron Hosford 2015, all rights reserved
-# Licence:      Revised (3 Clause) BSD License
+# (c) Aaron Hosford 2015, all rights reserved
+# Revised (3 Clause) BSD License
+#
+# Implements the XCS (Accuracy-based Classifier System) algorithm,
+# as described in the 2001 paper, "An Algorithmic Description of XCS,"
+# by Martin Butz and Stewart Wilson.
+#
 # -------------------------------------------------------------------------------
 
 """
-xcs/_numpy_bitstrings.py
+xcs
+===
+Accuracy-based Classifier Systems for Python 3
 (c) Aaron Hosford 2015, all rights reserved
 Revised BSD License
 
-Fast bit-string and bit-condition classes, implemented on top of numpy bool arrays.
-
-This file is part of the xcs package.
+xcs._numpy_bitstrings
+---------------------
+Bit-strings, implemented on top of numpy bool arrays.
 """
 
 __author__ = 'Aaron Hosford'
+
 __all__ = [
     'BitString',
 ]
