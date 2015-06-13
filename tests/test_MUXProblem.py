@@ -9,21 +9,21 @@ from xcs.scenarios import MUXProblem
 class TestMUXProblem(unittest.TestCase):
 
     def setUp(self):
-        self.problem = MUXProblem(10)
+        self.scenario = MUXProblem(10)
 
     def test_get_possible_actions(self):
-        actions = self.problem.get_possible_actions()
+        actions = self.scenario.get_possible_actions()
         self.assertTrue(len(actions) == 2)
         self.assertTrue(True in actions)
         self.assertTrue(False in actions)
 
     def test_sense(self):
-        situation_size = self.problem.address_size + (1 << self.problem.address_size)
-        previous = self.problem.sense()
+        situation_size = self.scenario.address_size + (1 << self.scenario.address_size)
+        previous = self.scenario.sense()
         self.assertIsInstance(previous, BitString)
         self.assertTrue(len(previous) == situation_size)
-        while self.problem.more():
-            current = self.problem.sense()
+        while self.scenario.more():
+            current = self.scenario.sense()
             self.assertIsInstance(current, BitString)
             self.assertTrue(len(current) == situation_size)
             if current != previous:
@@ -32,19 +32,19 @@ class TestMUXProblem(unittest.TestCase):
             self.fail("All situations are the same.")
 
     def test_execute(self):
-        situation = self.problem.sense()
-        index = int(situation[:self.problem.address_size])
-        value = situation[self.problem.address_size + index]
-        self.assertEqual(1, self.problem.execute(value))
-        self.assertEqual(0, self.problem.execute(not value))
+        situation = self.scenario.sense()
+        index = int(situation[:self.scenario.address_size])
+        value = situation[self.scenario.address_size + index]
+        self.assertEqual(1, self.scenario.execute(value))
+        self.assertEqual(0, self.scenario.execute(not value))
 
     def test_more(self):
-        self.problem.reset()
-        for _ in range(self.problem.initial_training_cycles):
-            self.problem.sense()
-            self.assertTrue(self.problem.more())
-            self.problem.execute(False)
-        self.assertFalse(self.problem.more())
+        self.scenario.reset()
+        for _ in range(self.scenario.initial_training_cycles):
+            self.scenario.sense()
+            self.assertTrue(self.scenario.more())
+            self.scenario.execute(False)
+        self.assertFalse(self.scenario.more())
 
 
 def main():

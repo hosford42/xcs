@@ -10,7 +10,7 @@ from xcs.scenarios import MUXProblem, HaystackProblem
 class TestXCS(unittest.TestCase):
 
     def test_against_MUX(self):
-        problem = MUXProblem(training_cycles=10000, address_size=3)
+        scenario = MUXProblem(training_cycles=10000, address_size=3)
 
         algorithm = xcs.XCSAlgorithm()
         algorithm.exploration_probability = .1
@@ -24,8 +24,8 @@ class TestXCS(unittest.TestCase):
         for _ in range(2):
             logging.disable(logging.CRITICAL)
             try:
-                problem.reset()
-                steps, total_reward, time_passed, population = xcs.test(algorithm, problem)
+                scenario.reset()
+                steps, total_reward, time_passed, population = xcs.test(algorithm, scenario)
             finally:
                 logging.disable(logging.NOTSET)
 
@@ -40,7 +40,7 @@ class TestXCS(unittest.TestCase):
             self.fail("Failed to achieve expected average reward level. (Missed by %f.)" % (expected - best))
 
     def test_against_haystack(self):
-        problem = HaystackProblem(training_cycles=10000, input_size=500)
+        scenario = HaystackProblem(training_cycles=10000, input_size=500)
 
         algorithm = xcs.XCSAlgorithm()
         algorithm.ga_threshold = 1
@@ -59,8 +59,8 @@ class TestXCS(unittest.TestCase):
         for _ in range(2):
             logging.disable(logging.CRITICAL)
             try:
-                problem.reset()
-                steps, total_reward, time_passed, population = xcs.test(algorithm, problem)
+                scenario.reset()
+                steps, total_reward, time_passed, population = xcs.test(algorithm, scenario)
             finally:
                 logging.disable(logging.NOTSET)
 
