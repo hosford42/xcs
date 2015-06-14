@@ -165,12 +165,12 @@ __version__ = '1.0.0a9'
 __all__ = [
     '__author__',
     '__version__',
-    'RuleMetadata',
+    'ClassifierRule',
     'LCSAlgorithm',
     'ActionSet',
     'MatchSet',
     'ClassifierSet',
-    'XCSRuleMetadata',
+    'XCSClassifierRule',
     'XCSAlgorithm',
     'run',
     'test',
@@ -243,7 +243,7 @@ class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
             return random.choice(best_actions)
 
 
-class RuleMetadata(metaclass=ABCMeta):
+class ClassifierRule(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for metadata used
     by LCS algorithms to track the rules, aka classifiers, in a classifier
     set. A classifier consists of a condition and an action taken as a
@@ -267,6 +267,24 @@ class RuleMetadata(metaclass=ABCMeta):
         """Defining this determines the behavior of instance1 < instance2.
         This is here strictly for sorting purposes in calls to
         ClassifierSet.__str__."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def algorithm(self):
+        """The algorithm associated with this classifier rule."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def condition(self):
+        """The match condition for this classifier rule."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def action(self):
+        """The action suggested by this classifier rule."""
         raise NotImplementedError()
 
     @property
@@ -374,14 +392,14 @@ class ActionSet:
         assert isinstance(model, ClassifierSet)
         assert isinstance(rules, dict)
         assert all(
-            isinstance(metadata, RuleMetadata)
-            for metadata in rules.values()
+            isinstance(rule, ClassifierRule)
+            for rule in rules.values()
         )
 
         self._model = model
         self._situation = situation
         self._action = action
-        self._rules = rules  # {condition: metadata}
+        self._rules = rules  # {condition: rule}
 
         self._prediction = None  # We'll calculate this later as needed
         self._prediction_weight = None
@@ -415,12 +433,6 @@ class ActionSet:
         return iter(self._rules)
 
     @property
-    def metadata(self):
-        """An iterator over the metadata of the classifiers in the action
-        set."""
-        return self._rules.values()
-
-    @property
     def time_stamp(self):
         """The classifier set's time stamp at which this action set was
         generated."""
@@ -434,10 +446,10 @@ class ActionSet:
         classifiers."""
         total_weight = 0
         total_prediction = 0
-        for metadata in self._rules.values():
-            total_weight += metadata.prediction_weight
-            total_prediction += (metadata.prediction *
-                                 metadata.prediction_weight)
+        for rule in self._rules.values():
+            total_weight += rule.prediction_weight
+            total_prediction += (rule.prediction *
+                                 rule.prediction_weight)
         self._prediction = total_prediction / (total_weight or 1)
         self._prediction_weight = total_weight
 
@@ -460,19 +472,27 @@ class ActionSet:
             self._compute_prediction()
         return self._prediction_weight
 
-    def __contains__(self, condition):
+    def __contains__(self, rule):
         """Defining this determines the behavior of "item in instance"."""
-        return condition in self._rules
+        assert isinstance(rule, ClassifierRule)
+        return (
+            rule.action == self._action and
+            rule.condition in self._rules
+        )
 
-    def __getitem__(self, condition):
+    def __iter__(self):
+        """Defining this determines the behavior of iter(instance)."""
+        return iter(self._rules.values())
+
+    def __getitem__(self, rule):
         """Return the metadata of the classifier having this condition and
         appearing in this action set."""
-        return self._rules[condition]
+        return self._rules[rule.condition]
 
-    def __delitem__(self, condition):
-        """Remove the classifier having this condition from the action
-        set."""
-        del self._rules[condition]
+    def remove(self, rule):
+        """Remove this classifier rule from the action set. (Does not
+        affect numerosity."""
+        del self._rules[rule.condition]
 
 
 class MatchSet:
@@ -680,9 +700,9 @@ class ClassifierSet:
         """Defining this determines the behavior of instances of this class
         with respect to iteration constructs such as "iter(instance)" and
         "for item in instance:"."""
-        for condition, by_action in self._population.items():
-            for action in by_action:
-                yield condition, action
+        for by_action in self._population.values():
+            for rule in by_action.values():
+                yield rule
 
     def __len__(self):
         """Defining this determines the behavior of len(instance)."""
@@ -691,41 +711,32 @@ class ClassifierSet:
             for by_action in self._population.values()
         )
 
-    def __contains__(self, condition_action):
+    def __contains__(self, rule):
         """Defining this determines the behavior of "item in instance"."""
-        assert isinstance(condition_action, tuple)
-        assert len(condition_action) == 2
+        assert isinstance(rule, ClassifierRule)
+        assert rule.algorithm is self.algorithm
 
-        condition, action = condition_action
-        return action in self._population.get(condition, ())
+        return rule.action in self._population.get(rule.condition, ())
 
-    def __getitem__(self, condition_action):
+    def __getitem__(self, rule):
         """Defining this determines the behavior of
         "value = instance[item]" constructs."""
-        if condition_action not in self:
-            raise KeyError(condition_action)
+        if rule not in self:
+            raise KeyError(rule)
+        return self._population[rule.condition][rule.action]
 
-        condition, action = condition_action
-        return self._population[condition][action]
-
-    def __delitem__(self, condition_action):
+    def __delitem__(self, rule):
         """Defining this determines the behavior of
         "del instance[item]"."""
-        if condition_action not in self:
-            raise KeyError(condition_action)
-
-        condition, action = condition_action
-        self.discard(condition, action)
+        if rule not in self:
+            raise KeyError(rule)
+        self.discard(rule)
 
     def __str__(self):
         """Defining this determines the behavior of str(instance)."""
         return '\n'.join(
-            str(condition) + ' => ' + str(action) + '\n    ' +
-            str(self[condition, action]).replace('\n', '\n    ')
-            for condition, action in sorted(
-                self,
-                key=lambda condition_action: self[condition_action]
-            )
+            str(rule)
+            for rule in sorted(self)
         )
 
     def match(self, situation):
@@ -741,11 +752,11 @@ class ClassifierSet:
             if not condition(situation):
                 continue
 
-            for action, rule_metadata in actions.items():
+            for action, rule in actions.items():
                 if action in by_action:
-                    by_action[action][condition] = rule_metadata
+                    by_action[action][condition] = rule
                 else:
-                    by_action[action] = {condition: rule_metadata}
+                    by_action[action] = {condition: rule}
 
         # Construct the match set.
         match_set = MatchSet(self, situation, by_action)
@@ -756,33 +767,35 @@ class ClassifierSet:
         if self._algorithm.covering_is_required(match_set):
             # Ask the algorithm to provide a new classifier to add to the
             # population, together with its associated metadata.
-            condition, action, metadata = self._algorithm.cover(match_set)
+            rule = self._algorithm.cover(match_set)
 
             # Ensure that the condition provided by the algorithm does
             # indeed match the situation.
-            assert condition(situation)
+            assert rule.condition(situation)
 
             # Add the new classifier, getting back a list of the rule(s)
             # which had to be removed to make room for it.
-            replaced = self.add(condition, action, metadata)
+            replaced = self.add(rule)
 
             # Remove the rules that were removed the population from the
             # action set, as well. Note that they may not appear in the
             # action set, in which case nothing is done.
-            for replaced_condition, replaced_action in replaced:
-                if (replaced_action in by_action and
-                        replaced_condition in by_action[replaced_action]):
-                    del by_action[replaced_action][replaced_condition]
-                    if not by_action[replaced_action]:
-                        del by_action[replaced_action]
+            for replaced_rule in replaced:
+                action = replaced_rule.action
+                condition = replaced_rule.condition
+                if (action in by_action and
+                        condition in by_action[action]):
+                    del by_action[action][condition]
+                    if not by_action[action]:
+                        del by_action[action]
 
             # Add the new classifier to the action set. This is done after
             # the replaced rules are removed, just in case the algorithm
             # provided us with a rule that was already present and was
             # displaced.
-            if action not in by_action:
-                by_action[action] = {}
-            by_action[action][condition] = metadata
+            if rule.action not in by_action:
+                by_action[rule.action] = {}
+            by_action[rule.action][rule.condition] = rule
 
             # Reconstruct the match set with the modifications we just
             # made.
@@ -791,7 +804,7 @@ class ClassifierSet:
         # Return the newly created match set.
         return match_set
 
-    def add(self, condition, action, metadata=1):
+    def add(self, rule):
         """Add a new rule to the classifier set. The metadata argument
         should either be a non-negative integer or an instance of
         RuleMetadata. If it is an integer value, the rule must already
@@ -805,69 +818,60 @@ class ClassifierSet:
         the classifier set, metadata is not overwritten by newly provided
         values."""
 
-        assert (isinstance(metadata, RuleMetadata) or
-                (isinstance(metadata, int) and metadata >= 0))
+        assert isinstance(rule, ClassifierRule)
+
+        condition = rule.condition
+        action = rule.action
 
         # If the rule already exists in the population, then we virtually
         # add the rule by incrementing the existing rule's numerosity. This
         # prevents redundancy in the rule set. Otherwise we capture the
         # metadata and associate it with the newly added rule.
-        if isinstance(metadata, int):
-            if (condition not in self._population or
-                    action not in self._population[condition]):
-                raise ValueError("Metadata must be supplied for new "
-                                 "members of the classifier set.")
-            self._population[condition][action].numerosity += metadata
+        if condition not in self._population:
+            self._population[condition] = {}
+
+        if action in self._population[condition]:
+            existing_rule = self._population[condition][action]
+            existing_rule.numerosity += rule.numerosity
         else:
-            assert isinstance(metadata, RuleMetadata)
-
-            if condition not in self._population:
-                self._population[condition] = {}
-
-            if action in self._population[condition]:
-                existing_metadata = self._population[condition][action]
-                existing_metadata.numerosity += metadata.numerosity
-            else:
-                self._population[condition][action] = metadata
+            self._population[condition][action] = rule
 
         # Any time we add a rule, we need to call this to keep the
         # population size under control.
         return self._algorithm.prune(self)
 
-    def discard(self, condition, action, count=1):
+    def discard(self, rule, count=1):
         """Remove one or more instances of a rule from the classifier set.
         Return a Boolean indicating whether the rule's numerosity dropped
         to zero. (If the rule's numerosity was already zero, do nothing and
         return False.)"""
+        assert isinstance(rule, ClassifierRule)
         assert isinstance(count, int) and count >= 0
 
-        metadata = self.get((condition, action))
-        if metadata is None:
+        rule = self.get(rule)
+        if rule is None:
             return False
 
         # Only actually remove the rule if its numerosity drops below 1.
-        metadata.numerosity -= count
-        if metadata.numerosity <= 0:
-            del self._population[condition][action]
-            if not self._population[condition]:
-                del self._population[condition]
+        rule.numerosity -= count
+        if rule.numerosity <= 0:
+            del self._population[rule.condition][rule.action]
+            if not self._population[rule.condition]:
+                del self._population[rule.condition]
             return True
 
         return False
 
-    def get(self, condition_action, default=None):
+    def get(self, rule, default=None):
         """Return the metadata associated with the given classifier. If the
         rule is not present in the classifier set, return the default. If
         no default was given, use None."""
-        assert isinstance(condition_action, tuple)
-        assert len(condition_action) == 2
+        assert isinstance(rule, ClassifierRule)
 
-        condition, action = condition_action
-
-        if (condition not in self._population or
-                action not in self._population[condition]):
+        if (rule.condition not in self._population or
+                rule.action not in self._population[rule.condition]):
             return default
-        return self._population[condition][action]
+        return self._population[rule.condition][rule.action]
 
     def update_time_stamp(self):
         """Update the time stamp to indicate another completed training
@@ -875,7 +879,7 @@ class ClassifierSet:
         self._time_stamp += 1
 
 
-class XCSRuleMetadata(RuleMetadata):
+class XCSClassifierRule(ClassifierRule):
     """Metadata used by the XCS algorithm to track the rules (classifiers)
     in a classifier set. The metadata stored by the XCS algorithm consists
     of a time stamp indicating the last time the rule participated in a GA
@@ -892,9 +896,13 @@ class XCSRuleMetadata(RuleMetadata):
     represents the number of (virtual) occurrences of the rule in the
     classifier set."""
 
-    def __init__(self, time_stamp, algorithm):
-        assert isinstance(time_stamp, int)
+    def __init__(self, condition, action, algorithm, time_stamp):
         assert isinstance(algorithm, XCSAlgorithm)
+        assert isinstance(time_stamp, int)
+
+        self._algorithm = algorithm
+        self._condition = condition
+        self._action = action
 
         # The iteration of the algorithm at which this rule was last
         # updated
@@ -921,16 +929,20 @@ class XCSRuleMetadata(RuleMetadata):
 
     def __str__(self):
         """Defining this sets the behavior for str(instance)."""
-        return '\n'.join(
-            key.replace('_', ' ').title() + ': ' + str(getattr(self, key))
-            for key in (
-                'time_stamp',
-                'average_reward',
-                'error',
-                'fitness',
-                'experience',
-                'action_set_size',
-                'numerosity'
+        return (
+            str(self.action) + ' => ' + str(self.condition) + '\n    ' +
+            '\n    '.join(
+                key.replace('_', ' ').title() + ': ' +
+                str(getattr(self, key))
+                for key in (
+                    'time_stamp',
+                    'average_reward',
+                    'error',
+                    'fitness',
+                    'experience',
+                    'action_set_size',
+                    'numerosity'
+                )
             )
         )
 
@@ -938,7 +950,7 @@ class XCSRuleMetadata(RuleMetadata):
         """Defining this sets the behavior for instance1 < instance2. This
         is here strictly for sorting purposes in calls to
         ClassifierSet.__str__."""
-        if not isinstance(other, XCSRuleMetadata):
+        if not isinstance(other, XCSClassifierRule):
             return NotImplemented
         attribute_order = (
             'numerosity',
@@ -957,6 +969,21 @@ class XCSRuleMetadata(RuleMetadata):
             if my_key > other_key:
                 return attribute == 'error'
         return False
+
+    @property
+    def algorithm(self):
+        """The algorithm associated with this classifier rule."""
+        return self._algorithm
+
+    @property
+    def condition(self):
+        """The match condition for this classifier rule."""
+        return self._condition
+
+    @property
+    def action(self):
+        """The action suggested by this classifier rule."""
+        return self._action
 
     @property
     def prediction(self):
@@ -1204,7 +1231,7 @@ class XCSAlgorithm(LCSAlgorithm):
     def get_future_expectation(self, match_set):
         """Return the future reward expectation for the given match set."""
         assert isinstance(match_set, MatchSet)
-        assert match_set.model.algorithm is self
+        assert match_set.algorithm is self
 
         return self.discount_factor * (
             self.idealization_factor * match_set.best_prediction +
@@ -1215,7 +1242,7 @@ class XCSAlgorithm(LCSAlgorithm):
         """Return a Boolean value indicating whether covering is required
         based on the contents of the current match set."""
         assert isinstance(match_set, MatchSet)
-        assert match_set.model.algorithm is self
+        assert match_set.algorithm is self
 
         if self.minimum_actions is None:
             return len(match_set) < len(match_set.model.possible_actions)
@@ -1246,47 +1273,47 @@ class XCSAlgorithm(LCSAlgorithm):
             action_candidates = match_set.model.possible_actions
         action = random.choice(list(action_candidates))
 
-        # Create metadata for the new rule.
-        metadata = XCSRuleMetadata(match_set.time_stamp, self)
-
-        # The actual rule is just a condition/action/metadata triple
-        return condition, action, metadata
+        # Create the new rule.
+        return XCSClassifierRule(
+            condition,
+            action,
+            self,
+            match_set.time_stamp
+        )
 
     def distribute_payoff(self, match_set):
-        """Update the rule metadata for the rules belonging to the selected
-        action set of this match set, based on the payoff received."""
+        """Update the rules belonging to the selected action set of this
+        match set, based on the payoff received."""
 
         assert isinstance(match_set, MatchSet)
-        assert match_set.model.algorithm is self
+        assert match_set.algorithm is self
         assert match_set.selected_action is not None
 
         payoff = float(match_set.payoff)
 
         action_set = match_set[match_set.selected_action]
-        action_set_size = sum(
-            metadata.numerosity
-            for metadata in action_set.metadata
-        )
+        action_set_size = sum(rule.numerosity for rule in action_set)
 
         # Update the average reward, error, and action set size of each
         # rule participating in the action set.
-        for metadata in action_set.metadata:
-            metadata.experience += 1
+        for rule in action_set:
+            rule.experience += 1
 
-            update_rate = max(self.learning_rate, 1 / metadata.experience)
+            update_rate = max(self.learning_rate, 1 / rule.experience)
 
-            metadata.average_reward += (
-                (payoff - metadata.average_reward) *
+            rule.average_reward += (
+                (payoff - rule.average_reward) *
                 update_rate
             )
 
-            metadata.error += (
-                (abs(payoff - metadata.average_reward) - metadata.error) *
+            rule.error += (
+                (abs(payoff - rule.average_reward) - rule.error) *
                 update_rate
 
             )
-            metadata.action_set_size += (
-                (action_set_size - metadata.action_set_size) *
+
+            rule.action_set_size += (
+                (action_set_size - rule.action_set_size) *
                 update_rate
             )
 
@@ -1330,59 +1357,48 @@ class XCSAlgorithm(LCSAlgorithm):
         parent1 = self._select_parent(action_set)
         parent2 = self._select_parent(action_set)
 
-        parent1_metadata = (
-            action_set.model.get((parent1, action_set.action)) or
-            XCSRuleMetadata(action_set.model.time_stamp, self)
-        )
-        parent2_metadata = (
-            action_set.model.get((parent1, action_set.action)) or
-            XCSRuleMetadata(action_set.model.time_stamp, self)
-        )
-
         # With the probability specified in the parameters, apply the
         # crossover operator to the parents. Otherwise, just take the
         # parents unchanged.
         if random.random() < self.crossover_probability:
-            child1, child2 = parent1.crossover_with(parent2)
+            condition1, condition2 = parent1.condition.crossover_with(
+                parent2.condition
+            )
         else:
-            child1, child2 = parent1, parent2
+            condition1, condition2 = parent1.condition, parent2.condition
 
         # Apply the mutation operator to each child, randomly flipping
         # their mask bits with a small probability.
-        child1 = self._mutate(child1, action_set.situation)
-        child2 = self._mutate(child2, action_set.situation)
+        condition1 = self._mutate(condition1, action_set.situation)
+        condition2 = self._mutate(condition2, action_set.situation)
 
         # If the newly generated children are already present in the
         # population (or if they should be subsumed due to GA subsumption)
         # then simply increment the numerosities of the existing rules in
         # the population.
         new_children = []
-        for child in child1, child2:
+        for condition in condition1, condition2:
             # If the parameters specify that GA subsumption should be
             # performed, look for an accurate parent that can subsume the
             # new child.
             if self.do_ga_subsumption:
                 subsumed = False
-                for parent, metadata in ((parent1, parent1_metadata),
-                                         (parent2, parent2_metadata)):
+                for parent in parent1, parent2:
                     should_subsume = (
-                        (metadata.experience >
+                        (parent.experience >
                          self.subsumption_threshold) and
-                        metadata.error < self.error_threshold and
-                        parent(child)
+                        parent.error < self.error_threshold and
+                        parent.condition(condition)
                     )
                     if should_subsume:
-                        if (parent, action_set.action) in action_set.model:
-                            action_set.model.add(parent, action_set.action)
+                        if parent in action_set.model:
+                            parent.numerosity += 1
+                            self.prune(action_set.model)
                         else:
                             # Sometimes the parent is removed from a
                             # previous subsumption
-                            metadata.numerosity = 1
-                            action_set.model.add(
-                                parent,
-                                action_set.action,
-                                metadata
-                            )
+                            parent.numerosity = 1
+                            action_set.model.add(parent)
                         subsumed = True
                         break
                 if subsumed:
@@ -1393,8 +1409,14 @@ class XCSAlgorithm(LCSAlgorithm):
             # Otherwise, if the child has neither been subsumed nor does it
             # already exist, remember it so we can add it to the classifier
             # set in just a moment.
-            if (child, action_set.action) in action_set.model:
-                action_set.model.add(child, action_set.action)
+            child = XCSClassifierRule(
+                condition,
+                action_set.action,
+                self,
+                action_set.model.time_stamp
+            )
+            if child in action_set.model:
+                action_set.model.add(child)
             else:
                 new_children.append(child)
 
@@ -1402,27 +1424,23 @@ class XCSAlgorithm(LCSAlgorithm):
         # already present in the classifier set, add them.
         if new_children:
             average_reward = .5 * (
-                parent1_metadata.average_reward +
-                parent2_metadata.average_reward
+                parent1.average_reward +
+                parent2.average_reward
             )
 
-            error = .5 * (parent1_metadata.error + parent2_metadata.error)
+            error = .5 * (parent1.error + parent2.error)
 
             # .1 * (average fitness of parents)
             fitness = .05 * (
-                parent1_metadata.fitness +
-                parent2_metadata.fitness
+                parent1.fitness +
+                parent2.fitness
             )
 
             for child in new_children:
-                metadata = XCSRuleMetadata(
-                    action_set.model.time_stamp,
-                    self
-                )
-                metadata.average_reward = average_reward
-                metadata.error = error
-                metadata.fitness = fitness
-                action_set.model.add(child, action_set.action, metadata)
+                child.average_reward = average_reward
+                child.error = error
+                child.fitness = fitness
+                action_set.model.add(child)
 
     def prune(self, model):
         """Reduce the population size, if necessary, to ensure that it does
@@ -1433,52 +1451,45 @@ class XCSAlgorithm(LCSAlgorithm):
         assert model.algorithm is self
 
         # Determine the (virtual) population size.
-        total_numerosity = sum(
-            model[condition, action].numerosity
-            for condition, action in model
-        )
+        total_numerosity = sum(rule.numerosity for rule in model)
 
         # If the population size is already small enough, just return early
         if total_numerosity <= self.max_population_size:
             return []  # No rule's numerosity dropped to zero.
 
         # Determine the average fitness of the rules in the population.
-        total_fitness = sum(
-            model[condition, action].fitness
-            for condition, action in model
-        )
+        total_fitness = sum(rule.fitness for rule in model)
         average_fitness = total_fitness / total_numerosity
 
         # Determine the probability of deletion, as a function of both
         # accuracy and niche sparsity.
         total_votes = 0
         deletion_votes = {}
-        for condition, action in model:
-            metadata = model[condition, action]
+        for rule in model:
+            vote = rule.action_set_size * rule.numerosity
 
-            vote = metadata.action_set_size * metadata.numerosity
             sufficient_experience = (
-                metadata.experience > self.deletion_threshold
+                rule.experience > self.deletion_threshold
             )
             low_fitness = (
-                metadata.fitness / metadata.numerosity <
+                rule.fitness / rule.numerosity <
                 self.fitness_threshold * average_fitness
             )
             if sufficient_experience and low_fitness:
-                vote *= average_fitness / (metadata.fitness /
-                                           metadata.numerosity)
+                vote *= average_fitness / (rule.fitness /
+                                           rule.numerosity)
 
-            deletion_votes[condition, action] = vote
+            deletion_votes[rule] = vote
             total_votes += vote
 
         # Choose a rule to delete based on the probabilities just computed.
         selector = random.uniform(0, total_votes)
-        for (condition, action), vote in deletion_votes.items():
+        for rule, vote in deletion_votes.items():
             selector -= vote
             if selector <= 0:
-                assert (condition, action) in model
-                if model.discard(condition, action):
-                    return [(condition, action)]
+                assert rule in model
+                if model.discard(rule):
+                    return [rule]
                 else:
                     return []
 
@@ -1492,76 +1503,66 @@ class XCSAlgorithm(LCSAlgorithm):
         # becomes constant. Accuracy values range over (0, 1].
         total_accuracy = 0
         accuracies = {}
-        for condition in action_set.conditions:
-            metadata = action_set[condition]
-            if metadata.error < self.error_threshold:
+        for rule in action_set:
+            if rule.error < self.error_threshold:
                 accuracy = 1
             else:
                 accuracy = (
                     self.accuracy_coefficient *
-                    (metadata.error / self.error_threshold) **
+                    (rule.error / self.error_threshold) **
                     -self.accuracy_power
                 )
-            accuracies[condition] = accuracy
-            total_accuracy += accuracy * metadata.numerosity
+            accuracies[rule] = accuracy
+            total_accuracy += accuracy * rule.numerosity
 
         # On rare occasions we have zero total accuracy. This avoids a div
         # by zero
         total_accuracy = total_accuracy or 1
 
         # Use the relative accuracies of the rules to update their fitness
-        for condition in action_set.conditions:
-            metadata = action_set[condition]
-            accuracy = accuracies[condition]
-            metadata.fitness += (
+        for rule in action_set:
+            accuracy = accuracies[rule]
+            rule.fitness += (
                 self.learning_rate *
-                (accuracy * metadata.numerosity / total_accuracy -
-                 metadata.fitness)
+                (accuracy * rule.numerosity / total_accuracy -
+                 rule.fitness)
             )
 
     def _action_set_subsumption(self, action_set):
         """Perform action set subsumption."""
         # Select a condition with maximum bit count among those having
         # sufficient experience and sufficiently low error.
-        selected_condition = None
+        selected_rule = None
         selected_bit_count = None
-        for condition in action_set.conditions:
-            metadata = action_set[condition]
-            if not (metadata.experience > self.subsumption_threshold and
-                    metadata.error < self.error_threshold):
+        for rule in action_set:
+            if not (rule.experience > self.subsumption_threshold and
+                    rule.error < self.error_threshold):
                 continue
-            bit_count = condition.count()
-            if (selected_condition is None or
+            bit_count = rule.condition.count()
+            if (selected_rule is None or
                     bit_count > selected_bit_count or
                     (bit_count == selected_bit_count and
                      random.randrange(2))):
-                selected_condition = condition
+                selected_rule = rule
                 selected_bit_count = bit_count
 
-        # If no condition was found satisfying the requirements, return
+        # If no rule was found satisfying the requirements, return
         # early.
-        if selected_condition is None:
+        if selected_rule is None:
             return
-
-        selected_metadata = action_set[selected_condition]
 
         # Subsume each rule which the selected rule generalizes. When a
         # rule is subsumed, all instances of the subsumed rule are replaced
         # with instances of the more general one in the population.
         to_remove = []
-        for condition in action_set.conditions:
-            metadata = action_set[condition]
-            if (selected_condition is not condition and
-                    selected_condition(condition)):
-                selected_metadata.numerosity += metadata.numerosity
-                action_set.model.discard(
-                    condition,
-                    action_set.action,
-                    metadata.numerosity
-                )
-                to_remove.append(condition)
-        for condition in to_remove:
-            del action_set[condition]
+        for rule in action_set:
+            if (selected_rule is not rule and
+                    selected_rule.condition(rule.condition)):
+                selected_rule.numerosity += rule.numerosity
+                action_set.model.discard(rule, rule.numerosity)
+                to_remove.append(rule)
+        for rule in to_remove:
+            action_set.remove(rule)
 
     @staticmethod
     def _get_average_time_stamp(action_set):
@@ -1569,14 +1570,9 @@ class XCSAlgorithm(LCSAlgorithm):
         set."""
         # This is the average value of the iteration counter upon the most
         # recent update of each rule in this action set.
-        total_time_stamps = sum(
-            metadata.time_stamp * metadata.numerosity
-            for metadata in action_set.metadata
-        )
-        total_numerosity = sum(
-            metadata.numerosity
-            for metadata in action_set.metadata
-        )
+        total_time_stamps = sum(rule.time_stamp * rule.numerosity
+                                for rule in action_set)
+        total_numerosity = sum(rule.numerosity for rule in action_set)
         return total_time_stamps / (total_numerosity or 1)
 
     @staticmethod
@@ -1584,27 +1580,23 @@ class XCSAlgorithm(LCSAlgorithm):
         """Set the time stamp of each rule in this action set to the given
         value."""
         # Indicate that each rule has been updated at the given iteration.
-        for metadata in action_set.metadata:
-            metadata.time_stamp = action_set.model.time_stamp
+        for rule in action_set:
+            rule.time_stamp = action_set.model.time_stamp
 
     @staticmethod
     def _select_parent(action_set):
         """Select a rule from this action set, with probability
         proportionate to its fitness, to act as a parent for a new rule in
         the classifier set. Return its bit condition."""
-        total_fitness = sum(
-            metadata.fitness
-            for metadata in action_set.metadata
-        )
+        total_fitness = sum(rule.fitness for rule in action_set)
         selector = random.uniform(0, total_fitness)
-        for condition in action_set.conditions:
-            metadata = action_set[condition]
-            selector -= metadata.fitness
+        for rule in action_set:
+            selector -= rule.fitness
             if selector <= 0:
-                return condition
+                return rule
         # If for some reason a case slips through the above loop, perhaps
         # due to floating point error, we fall back on uniform selection.
-        return random.choice(list(action_set.conditions))
+        return random.choice(list(action_set))
 
     def _mutate(self, condition, situation):
         """Create a new condition from the given one by probabilistically
