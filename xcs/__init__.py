@@ -20,11 +20,6 @@
 #       default, but it should be possible to use arbitrary input and
 #       condition types, provided they implement a sufficiently similar
 #       interface.
-# TODO: Add classifier and action to the metadata. Then take advantage of
-#       this to simplify the interfaces. As an alternative, create a Rule
-#       or Classifier class and supply the condition, action, and metadata
-#       to it. As a third alternative, rename RuleMetadata to Rule or
-#       Classifier.
 # TODO: Have scenarios report their range of reward just as they do for
 #       possible actions. (What about infinite ranges?)
 # TODO: Update docstrings in all files. Add argument and return types, and
@@ -85,10 +80,10 @@ Usage:
     print(model)
 
     # Or get a list of the best classifiers discovered.
-    for condition, action in model:
-        metadata = model[condition, action]
-        if metadata.fitness > .5:
-            print(condition, '=>', action, ' [%.5f]' % metadata.fitness
+    for rule in model:
+        if rule.fitness <= .5:
+            continue
+        print(rule.condition, '=>', rule.action, ' [%.5f]' % rule.fitness)
 
 
 A quick explanation of the XCS algorithm:
@@ -244,17 +239,16 @@ class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
 
 
 class ClassifierRule(metaclass=ABCMeta):
-    """Abstract base class defining the minimal interface for metadata used
-    by LCS algorithms to track the rules, aka classifiers, in a classifier
-    set. A classifier consists of a condition and an action taken as a
-    pair. Each unique classifier in the classifier set has an associated
-    metadata instance. If there are multiple instances of a single
-    classifier, this is indicated by incrementing the numerosity attribute
-    of the associated metadata instance, rather than adding another copy of
-    that classifier."""
+    """Abstract base class defining the minimal interface for classifier
+    rules appearing in classifier sets. A classifier rule consists of a
+    condition and an action taken as a pair, together with associated
+    metadata appropriate for its associated algorithm. If there are
+    multiple instances of a single classifier rule in a classifier set,
+    this is indicated by incrementing the numerosity attribute of
+    classifier rule, rather than adding another copy of it."""
 
-    # The number of instances of the rule (classifier) with which this
-    # metadata instance is associated.
+    # The number of instances of the rule (classifier) in its classifier
+    # set.
     numerosity = 1
 
     @abstractmethod
@@ -344,12 +338,12 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
     @abstractmethod
     def cover(self, match_set):
-        """Return a tuple (condition, action, metadata) representing a new
-        rule that can be added to the match set, which matches the
-        situation of the match set and attempts to avoid duplication of the
-        actions already contained therein. The match_set argument is a
-        MatchSet instance representing the match set to which the returned
-        rule will be added."""
+        """Return a new classifier rule that can be added to the match set,
+        with a condition that matches the situation of the match set and an
+        action selected to avoid duplication of the actions already
+        contained therein. The match_set argument is a MatchSet instance
+        representing the match set to which the returned rule will be
+        added."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -485,8 +479,10 @@ class ActionSet:
         return iter(self._rules.values())
 
     def __getitem__(self, rule):
-        """Return the metadata of the classifier having this condition and
-        appearing in this action set."""
+        """Return the existing version of the classifier rule having the
+        same condition and action and appearing in this action set. This
+        is useful for looking up a rule to avoid duplication."""
+        assert rule.action is self._action
         return self._rules[rule.condition]
 
     def remove(self, rule):
@@ -653,26 +649,25 @@ class MatchSet:
 
 
 class ClassifierSet:
-    """A set of rules (aka classifiers), together with their associated
-    metadata, which the LCS algorithm attempts to optimize using an
-    evolutionary algorithm. This classifier set represents the accumulated
-    experience of the LCS algorithm with respect to a particular scenario
-    or type of scenario. Each rule in the classifier set consists of a
-    condition which identifies which situations its suggestions apply to
-    and an action which represents the suggested course of action by that
-    rule. Each rule has its own associated metadata which the algorithm
-    uses to determine how much weight should be given to that rule's
-    suggestions, as well as how the population should be modified to
-    improve future performance."""
+    """A set of classifier rules which work together to collectively
+    classify inputs provided to the classifier set. This classifier set
+    represents the accumulated experience of the LCS algorithm with respect
+    to a particular scenario or type of scenario. Each rule in the
+    classifier set consists of a condition which identifies which
+    situations its suggestions apply to and an action which represents the
+    suggested course of action by that rule. Each rule has its own
+    associated metadata which the algorithm uses to determine how much
+    weight should be given to that rule's suggestions, as well as how the
+    population should evolve to improve future performance."""
 
     def __init__(self, algorithm, possible_actions):
         assert isinstance(algorithm, LCSAlgorithm)
 
         # The population is stored as a tiered dictionary structure of the
-        # form {condition: {action: metadata}}. Storing it in this form
+        # form {condition: {action: rule}}. Storing it in this form
         # allows the conditions to be iterated over and tested against each
         # situation exactly once, rather than repeatedly (once for each
-        # unique occurrence in a classifier).
+        # unique occurrence in a classifier rule).
         self._population = {}
 
         self._algorithm = algorithm
@@ -765,8 +760,8 @@ class ClassifierSet:
         # new rules (condition/action pairs) until there are enough actions
         # being recommended.
         if self._algorithm.covering_is_required(match_set):
-            # Ask the algorithm to provide a new classifier to add to the
-            # population, together with its associated metadata.
+            # Ask the algorithm to provide a new classifier rule to add to
+            # the population.
             rule = self._algorithm.cover(match_set)
 
             # Ensure that the condition provided by the algorithm does
@@ -805,18 +800,15 @@ class ClassifierSet:
         return match_set
 
     def add(self, rule):
-        """Add a new rule to the classifier set. The metadata argument
-        should either be a non-negative integer or an instance of
-        RuleMetadata. If it is an integer value, the rule must already
-        exist in the population, and the integer value is treated as an
-        increment to its numerosity. If it is a RuleMetadata instance, then
-        behavior depends on whether the rule already exists in the
-        classifier set. When a rule is already present, the metadata's
-        numerosity is added to that of the rule already present in the
-        population. Otherwise, it is assigned as the metadata for the newly
-        added rule. Note that this means that for rules already present in
-        the classifier set, metadata is not overwritten by newly provided
-        values."""
+        """Add a new classifier rule to the classifier set. The rule
+        argument shoule be a ClassifierRule instance. The behavior of this
+        method depends on whether the rule already exists in the
+        classifier set. When a rule is already present, the rule's
+        numerosity is added to that of the version of the rule already
+        present in the population. Otherwise, the new rule is captured.
+        Note that this means that for rules already present in the
+        classifier set, the metadata of the existing rule is not
+        overwritten by that of the one passed in as an argument."""
 
         assert isinstance(rule, ClassifierRule)
 
@@ -826,7 +818,7 @@ class ClassifierSet:
         # If the rule already exists in the population, then we virtually
         # add the rule by incrementing the existing rule's numerosity. This
         # prevents redundancy in the rule set. Otherwise we capture the
-        # metadata and associate it with the newly added rule.
+        # new rule.
         if condition not in self._population:
             self._population[condition] = {}
 
@@ -863,9 +855,9 @@ class ClassifierSet:
         return False
 
     def get(self, rule, default=None):
-        """Return the metadata associated with the given classifier. If the
-        rule is not present in the classifier set, return the default. If
-        no default was given, use None."""
+        """Return the existing version of the given rule. If the rule is
+        not present in the classifier set, return the default. If no
+        default was given, use None."""
         assert isinstance(rule, ClassifierRule)
 
         if (rule.condition not in self._population or
@@ -880,8 +872,8 @@ class ClassifierSet:
 
 
 class XCSClassifierRule(ClassifierRule):
-    """Metadata used by the XCS algorithm to track the rules (classifiers)
-    in a classifier set. The metadata stored by the XCS algorithm consists
+    """This classifier rule subtype is used by the XCS algorithm. The
+    metadata stored by the XCS algorithm for each classifier rule consists
     of a time stamp indicating the last time the rule participated in a GA
     population update, an average reward indicating the payoff expected for
     this rule's suggestions, an error value indicating how inaccurate the
@@ -1120,26 +1112,26 @@ class XCSAlgorithm(LCSAlgorithm):
 
         initial_error (default: .00001, range: (0, +inf))
             The value used to initialize the error parameter in the
-            metadata for new classifiers. It is recommended that this value
-            be a positive number close to zero. The default value is good
-            for a wide variety of scenarios.
+            metadata for new classifier rules. It is recommended that this
+            value be a positive number close to zero. The default value is
+            good for a wide variety of scenarios.
 
         initial_fitness (default: .00001, range: (0, +inf))
             The value used to initialize the fitness parameter in the
-            metadata for new classifiers. It is recommended that this value
-            be a positive number close to zero. The default value is good
-            for a wide variety of scenarios.
+            metadata for new classifier rules. It is recommended that this
+            value be a positive number close to zero. The default value is
+            good for a wide variety of scenarios.
 
         initial_prediction (default: .00001, range: [0, +inf))
             The value used to initialize the reward prediction in the
-            metadata for new classifiers. It is recommended that this value
-            be a number slightly above the minimum possible reward for the
-            scenario. It is assumed that the minimum reward is 0; if your
-            scenario's minimum reward is significantly different, this
-            value should be set appropriately.
+            metadata for new classifier rules. It is recommended that this
+            value be a number slightly above the minimum possible reward
+            for the scenario. It is assumed that the minimum reward is 0;
+            if your scenario's minimum reward is significantly different,
+            this value should be set appropriately.
 
         learning_rate (default: .15, range: (0, 1))
-            The minimum update rate for time-averaged classifier metadata
+            The minimum update rate for time-averaged classifier rule
             parameters. A small non-zero value is recommended.
 
         max_population_size (default: 200, range: [1, +inf))
