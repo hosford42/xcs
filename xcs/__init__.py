@@ -15,19 +15,6 @@
 #
 # -------------------------------------------------------------------------
 
-# TODO: Move code that explicitly depends on bit-strings and bit-conditions
-#       out of the classes in this file; bit-strings should be used by
-#       default, but it should be possible to use arbitrary input and
-#       condition types, provided they implement a sufficiently similar
-#       interface.
-# TODO: Have scenarios report their range of reward just as they do for
-#       possible actions. (What about infinite ranges?)
-# TODO: Update docstrings in all files. Add argument and return types, and
-#       use cases.
-# TODO: Improve test coverage
-# TODO: Clean up all TODOs.
-# TODO: Ensure all external documentation uses final interface.
-
 """
 Accuracy-based Classifier Systems for Python 3
 
