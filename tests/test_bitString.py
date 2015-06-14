@@ -58,13 +58,18 @@ class TestBitString(unittest.TestCase):
         self.assertTrue(self.bitstring == bitstring)
 
     def test_from_string(self):
-        self.assertTrue(bitstrings.BitString(str(self.bitstring)) == self.bitstring)
+        self.assertTrue(
+            bitstrings.BitString(str(self.bitstring)) == self.bitstring
+        )
 
     def test_random(self):
         previous = bitstrings.BitString.random(len(self.bitstring), .5)
         self.assertEqual(len(previous), len(self.bitstring))
         for i in range(10):
-            current = bitstrings.BitString.random(len(self.bitstring), 1 / (i + 2))
+            current = bitstrings.BitString.random(
+                len(self.bitstring),
+                1 / (i + 2)
+            )
             self.assertEqual(len(current), len(self.bitstring))
             if previous != current:
                 break
@@ -73,10 +78,16 @@ class TestBitString(unittest.TestCase):
             self.fail("Failed to produce distinct random bitstrings.")
 
     def test_crossover_template(self):
-        previous = bitstrings.BitString.crossover_template(len(self.bitstring), 2)
+        previous = bitstrings.BitString.crossover_template(
+            len(self.bitstring),
+            2
+        )
         self.assertEqual(len(previous), len(self.bitstring))
         for i in range(10):
-            current = bitstrings.BitString.crossover_template(len(self.bitstring), i + 1)
+            current = bitstrings.BitString.crossover_template(
+                len(self.bitstring),
+                i + 1
+            )
             self.assertEqual(len(current), len(self.bitstring))
             if previous != current:
                 break
@@ -86,25 +97,43 @@ class TestBitString(unittest.TestCase):
 
     def test_any(self):
         self.assertTrue(self.bitstring.any())
-        self.assertFalse(bitstrings.BitString(0, len(self.bitstring)).any())
-        self.assertTrue(bitstrings.BitString(-1, len(self.bitstring)).any())
+        self.assertFalse(
+            bitstrings.BitString(0, len(self.bitstring)).any()
+        )
+        self.assertTrue(
+            bitstrings.BitString(-1, len(self.bitstring)).any()
+        )
 
     def test_count(self):
         self.assertTrue(self.bitstring.count() == 4)
-        self.assertTrue(bitstrings.BitString(0, len(self.bitstring)).count() == 0)
-        self.assertTrue(bitstrings.BitString(-1, len(self.bitstring)).count() == len(self.bitstring))
+        self.assertTrue(
+            bitstrings.BitString(0, len(self.bitstring)).count() == 0
+        )
+        self.assertTrue(
+            bitstrings.BitString(-1, len(self.bitstring)).count() ==
+            len(self.bitstring)
+        )
 
     def test_and(self):
         self.assertEqual(self.bitstring, self.bitstring & self.bitstring)
-        self.assertEqual(self.bitstring & ~self.bitstring, bitstrings.BitString([0] * len(self.bitstring)))
+        self.assertEqual(
+            self.bitstring & ~self.bitstring,
+            bitstrings.BitString([0] * len(self.bitstring))
+        )
 
     def test_or(self):
         self.assertEqual(self.bitstring, self.bitstring | self.bitstring)
-        self.assertEqual(self.bitstring | ~self.bitstring, bitstrings.BitString([1] * len(self.bitstring)))
+        self.assertEqual(
+            self.bitstring | ~self.bitstring,
+            bitstrings.BitString([1] * len(self.bitstring))
+        )
 
     def test_xor(self):
         mask = bitstrings.BitString.random(len(self.bitstring))
-        self.assertEqual(mask ^ mask, bitstrings.BitString([0] * len(self.bitstring)))
+        self.assertEqual(
+            mask ^ mask,
+            bitstrings.BitString([0] * len(self.bitstring))
+        )
         self.assertEqual(self.bitstring, (self.bitstring ^ mask) ^ mask)
 
     def test_invert(self):
@@ -112,19 +141,35 @@ class TestBitString(unittest.TestCase):
         self.assertEqual(self.bitstring, ~~self.bitstring)
 
     def test_plus(self):
-        self.assertEqual(self.bitstring + ~self.bitstring,
-                         bitstrings.BitString(list(self.bitstring) + list(~self.bitstring)))
+        self.assertEqual(
+            self.bitstring + ~self.bitstring,
+            bitstrings.BitString(list(self.bitstring) +
+                                 list(~self.bitstring))
+        )
 
     def test_slice(self):
         self.assertEqual(self.bitstring, self.bitstring[:])
-        self.assertEqual(self.bitstring, self.bitstring[:2] + self.bitstring[2:])
-        self.assertEqual(self.bitstring, self.bitstring[-len(self.bitstring):])
-        self.assertEqual(self.bitstring, self.bitstring[:len(self.bitstring)])
-        self.assertEqual(self.bitstring, self.bitstring[0:3] + self.bitstring[3:len(self.bitstring)])
+        self.assertEqual(self.bitstring,
+                         self.bitstring[:2] + self.bitstring[2:])
+        self.assertEqual(self.bitstring,
+                         self.bitstring[-len(self.bitstring):])
+        self.assertEqual(self.bitstring,
+                         self.bitstring[:len(self.bitstring)])
+        self.assertEqual(
+            self.bitstring,
+            self.bitstring[0:3] + self.bitstring[3:len(self.bitstring)]
+        )
 
     def test_index(self):
-        self.assertEqual(list(self.bitstring), [self.bitstring[index] for index in range(len(self.bitstring))])
-        self.assertEqual(list(self.bitstring), [self.bitstring[index] for index in range(-len(self.bitstring), 0)])
+        self.assertEqual(
+            list(self.bitstring),
+            [self.bitstring[index] for index in range(len(self.bitstring))]
+        )
+        self.assertEqual(
+            list(self.bitstring),
+            [self.bitstring[index]
+             for index in range(-len(self.bitstring), 0)]
+        )
 
 
 def main():

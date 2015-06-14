@@ -643,6 +643,8 @@ class MatchSet:
             predecessor.payoff += expectation
 
     def apply_payoff(self):
+        """Apply the payoff that has been accumulated from immediate
+        reward and/or payments from successor match sets."""
         self._algorithm.distribute_payoff(self)
         self._payoff = 0
         self._algorithm.update(self)
@@ -801,7 +803,7 @@ class ClassifierSet:
 
     def add(self, rule):
         """Add a new classifier rule to the classifier set. The rule
-        argument shoule be a ClassifierRule instance. The behavior of this
+        argument should be a ClassifierRule instance. The behavior of this
         method depends on whether the rule already exists in the
         classifier set. When a rule is already present, the rule's
         numerosity is added to that of the version of the rule already

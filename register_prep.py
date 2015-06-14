@@ -28,7 +28,9 @@ finally:
 os.system('python setup.py sdist bdist_wheel')
 
 with open('xcs.egg-info/PKG-INFO', encoding='utf-8', mode='rU') as infile:
-    with open('xcs.egg-info/PKG-INFO-FIXED', encoding='utf-8', mode='w') as outfile:
+    with open('xcs.egg-info/PKG-INFO-FIXED',
+              encoding='utf-8',
+              mode='w') as outfile:
         prev_skipped = False
         for line in infile:
             if line.strip() or prev_skipped:
@@ -41,7 +43,9 @@ os.rename('xcs.egg-info/PKG-INFO-FIXED', 'xcs.egg-info/PKG-INFO')
 
 dist = glob.glob('dist/*' + __version__ + '*.whl')[-1]
 print(dist)
-os.system('pip install ' + os.path.join('dist', os.path.basename(dist)) + ' --upgrade')
+os.system('pip install ' +
+          os.path.join('dist', os.path.basename(dist)) +
+          ' --upgrade')
 
 
 zip_path = os.path.join('dist/pythonhosted.zip')
@@ -53,3 +57,4 @@ with zipfile.ZipFile(zip_path, mode="w") as zf:
     zf.write(tutorial_path, 'index.html')
 
 # TODO: Run all tests.
+# TODO: Check results of each os.system call.

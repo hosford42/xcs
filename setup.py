@@ -16,37 +16,32 @@ here = path.abspath(path.dirname(__file__))
 
 # Default long description
 long_description = """
-xcs
+
+XCS
 ===
 
-* Project Home: https://github.com/hosford42/xcs
-* Download: https://pypi.python.org/pypi/xcs
-* Tutorial: https://github.com/hosford42/xcs/blob/master/doc/Tutorial.ipynb
-* Wiki: https://github.com/hosford42/xcs/wiki
-* FAQ: https://github.com/hosford42/xcs/wiki/FAQ
+*Accuracy-based Learning Classifier Systems for Python 3*
 
-A Python implementation of the Accuracy-based Learning Classifier Systems (XCS),
-roughly as described in the 2001 paper "An algorithmic description of XCS" by
-Martin Butz and Stewart Wilson.
+Links
+-----
 
-Butz, M. and Wilson, S. (2001). An algorithmic description of XCS.
-    In Lanzi, P., Stolzmann, W., and Wilson, S., editors, Advances in Learning
-    Classifier Systems: Proceedings of the Third International Workshop, volume
-    1996 of Lecture Notes in Artificial Intelligence, pages 253–272. Springer-Verlag
-    Berlin Heidelberg.
+-  `Project Home <http://hosford42.github.io/xcs/>`__
+-  `Tutorial <https://pythonhosted.org/xcs/>`__
+-  `Source <https://github.com/hosford42/xcs>`__
+-  `Distribution <https://pypi.python.org/pypi/xcs>`__
 
+The package is available for download under the permissive `Revised BSD
+License <https://github.com/hosford42/xcs/blob/master/LICENSE>`__.
 
-Related projects:
-    * Pier Luca Lanzi's xcslib (C++): http://xcslib.sourceforge.net/
-    * Ryan J. Urbanowicz's implementations (Python):
-      http://gbml.org/2010/03/24/python-lcs-implementations-xcs-ucs-mcs-for-snp-environment/
 """.strip()
 
 
-# Get the long description from the relevant file. First try README.rst, then fall back on
-# the default string defined here in this file.
+# Get the long description from the relevant file. First try README.rst,
+# then fall back on the default string defined here in this file.
 if path.isfile(path.join(here, 'README.rst')):
-    with open(path.join(here, 'README.rst'), encoding='utf-8', mode='rU') as description_file:
+    with open(path.join(here, 'README.rst'),
+              encoding='utf-8',
+              mode='rU') as description_file:
         long_description = description_file.read()
 
 setup(
@@ -67,8 +62,9 @@ setup(
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'License :: OSI Approved :: BSD License',
 
-        # Specify the Python versions you support here. In particular, ensure
-        # that you indicate whether you support Python 2, Python 3 or both.
+        # Specify the Python versions you support here. In particular,
+        # ensure that you indicate whether you support Python 2, Python 3
+        # or both.
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.3',

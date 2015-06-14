@@ -18,7 +18,8 @@ class TestMUXProblem(unittest.TestCase):
         self.assertTrue(False in actions)
 
     def test_sense(self):
-        situation_size = self.scenario.address_size + (1 << self.scenario.address_size)
+        situation_size = (self.scenario.address_size +
+                          (1 << self.scenario.address_size))
         previous = self.scenario.sense()
         self.assertIsInstance(previous, BitString)
         self.assertTrue(len(previous) == situation_size)

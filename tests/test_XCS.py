@@ -25,7 +25,10 @@ class TestXCS(unittest.TestCase):
             logging.disable(logging.CRITICAL)
             try:
                 scenario.reset()
-                steps, total_reward, time_passed, population = xcs.test(algorithm, scenario)
+                steps, total_reward, time_passed, population = xcs.test(
+                    algorithm,
+                    scenario
+                )
             finally:
                 logging.disable(logging.NOTSET)
 
@@ -37,7 +40,8 @@ class TestXCS(unittest.TestCase):
             elif best is None or best < average_reward:
                 best = average_reward
         else:
-            self.fail("Failed to achieve expected average reward level. (Missed by %f.)" % (expected - best))
+            self.fail("Failed to achieve expected average reward level. "
+                      "(Missed by %f.)" % (expected - best))
 
     def test_against_haystack(self):
         scenario = HaystackProblem(training_cycles=10000, input_size=500)
@@ -60,7 +64,10 @@ class TestXCS(unittest.TestCase):
             logging.disable(logging.CRITICAL)
             try:
                 scenario.reset()
-                steps, total_reward, time_passed, population = xcs.test(algorithm, scenario)
+                steps, total_reward, time_passed, population = xcs.test(
+                    algorithm,
+                    scenario
+                )
             finally:
                 logging.disable(logging.NOTSET)
 
@@ -72,7 +79,8 @@ class TestXCS(unittest.TestCase):
             elif best is None or best < average_reward:
                 best = average_reward
         else:
-            self.fail("Failed to achieve expected average reward level. (Missed by %f.)" % (expected - best))
+            self.fail("Failed to achieve expected average reward level. "
+                      "(Missed by %f.)" % (expected - best))
 
 
 def main():

@@ -64,7 +64,9 @@ class TestBitCondition(unittest.TestCase):
 
         parent2 = BitCondition(self.bitstring4, self.bitstring3)
         child1, child2 = parent1.crossover_with(parent2)
-        self.assertTrue(child1.mask == child2.mask == parent1.mask == parent2.mask)
+        self.assertTrue(
+            child1.mask == child2.mask == parent1.mask == parent2.mask
+        )
         self.assertFalse(child1.bits != ~child2.bits & child1.mask)
 
 
