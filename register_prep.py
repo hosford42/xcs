@@ -4,6 +4,7 @@
 # Prepares for registration.
 
 # TODO: Clean this hacked together script up!
+# TODO: Check results of each os.system call.
 
 __author__ = 'Aaron Hosford'
 
@@ -56,5 +57,14 @@ if os.path.isfile(zip_path):
 with zipfile.ZipFile(zip_path, mode="w") as zf:
     zf.write(tutorial_path, 'index.html')
 
-# TODO: Run all tests.
-# TODO: Check results of each os.system call.
+print("Running unit tests.")
+import unittest
+suite = unittest.defaultTestLoader.discover('.')
+result = unittest.TestResult()
+result.failfast = True
+suite.run(result)
+if result.wasSuccessful():
+    print("Unit testing was successful.")
+else:
+    print("One or more unit tests failed.")
+
