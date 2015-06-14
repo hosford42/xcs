@@ -375,6 +375,22 @@ class LCSAlgorithm(metaclass=ABCMeta):
         algorithm."""
         raise NotImplementedError()
 
+    def run(self, scenario):
+        """Run the algorithm, utilizing a classifier set to choose the
+        most appropriate action for each situation produced by the
+        scenario. Improve the situation/action mapping on each reward
+        cycle to maximize reward. Return the classifier set that was
+        created.
+
+        Usage:
+            Create a scenario and pass it in to this method. Scenarios must
+            implement the Scenario interface.
+        """
+        assert isinstance(scenario, scenarios.Scenario)
+        model = self.new_model(scenario)
+        model.run(scenario, learn=True)
+        return model
+
 
 class ActionSet:
     """A set of rules (classifiers) drawn from the same classifier set, all
@@ -872,6 +888,71 @@ class ClassifierSet:
         cycle."""
         self._time_stamp += 1
 
+    def run(self, scenario, learn=True):
+        """Run the algorithm, utilizing the classifier set to choose the
+        most appropriate action for each situation produced by the
+        scenario. If learn is True, improve the situation/action mapping to
+        maximize reward. Otherwise, ignore any reward received.
+
+        Usage:
+            Create a scenario and pass it in to this method. Scenarios must
+            implement the Scenario interface.
+        """
+
+        assert isinstance(scenario, scenarios.Scenario)
+
+        previous_match_set = None
+
+        # Repeat until the scenario has run its course.
+        while scenario.more():
+            # Gather information about the current state of the
+            # environment.
+            situation = scenario.sense()
+
+            # Determine which rules match the current situation.
+            match_set = self.match(situation)
+
+            # Select the best action for the current situation (or a random
+            # one, if we are on an exploration step).
+            match_set.select_action()
+
+            # Perform the selected action
+            # and find out what the received reward was.
+            reward = scenario.execute(match_set.selected_action)
+
+            # If the scenario is dynamic, don't immediately apply the
+            # reward; instead, wait until the next iteration and factor in
+            # not only the reward that was received on the previous step,
+            # but the (discounted) reward that is expected going forward
+            # given the resulting situation observed after the action was
+            # taken. This is a classic feature of temporal difference (TD)
+            # algorithms, which acts to stitch together a general picture
+            # of the future expected reward without actually waiting the
+            # full duration to find out what it will be.
+            if learn:
+                # Ensure we are not trying to learn in a non-learning
+                # scenario.
+                assert reward is not None
+
+                if scenario.is_dynamic:
+                    if previous_match_set is not None:
+                        match_set.pay(previous_match_set)
+                        previous_match_set.apply_payoff()
+                    match_set.payoff = reward
+
+                    # Remember the current reward and match set for the
+                    # next iteration.
+                    previous_match_set = match_set
+                else:
+                    match_set.payoff = reward
+                    match_set.apply_payoff()
+
+        # This serves to tie off the final stitch. The last action taken
+        # gets only the immediate reward; there is no future reward
+        # expected.
+        if learn and previous_match_set is not None:
+            previous_match_set.apply_payoff()
+
 
 class XCSClassifierRule(ClassifierRule):
     """This classifier rule subtype is used by the XCS algorithm. The
@@ -924,7 +1005,7 @@ class XCSClassifierRule(ClassifierRule):
     def __str__(self):
         """Defining this sets the behavior for str(instance)."""
         return (
-            str(self.action) + ' => ' + str(self.condition) + '\n    ' +
+            str(self.condition) + ' => ' + str(self.action) + '\n    ' +
             '\n    '.join(
                 key.replace('_', ' ').title() + ': ' +
                 str(getattr(self, key))
@@ -1617,70 +1698,6 @@ class XCSAlgorithm(LCSAlgorithm):
         return bitstrings.BitCondition(situation, mask)
 
 
-def run(model, scenario, learn=True):
-    """Run the algorithm, utilizing the classifier set to choose the most
-    appropriate action for each situation produced by the scenario. If
-    learn is True, improve the situation/action mapping to maximize reward.
-    Otherwise, ignore any reward received.
-
-    Usage:
-        Create a scenario and pass it in to this method. Scenarios must
-        implement the Scenario interface.
-    """
-
-    assert isinstance(model, ClassifierSet)
-    assert isinstance(scenario, scenarios.Scenario)
-
-    previous_match_set = None
-
-    # Repeat until the scenario has run its course.
-    while scenario.more():
-        # Gather information about the current state of the environment.
-        situation = scenario.sense()
-
-        # Determine which rules match the current situation.
-        match_set = model.match(situation)
-
-        # Select the best action for the current situation (or a random
-        # one, if we are on an exploration step).
-        match_set.select_action()
-
-        # Perform the selected action
-        # and find out what the received reward was.
-        reward = scenario.execute(match_set.selected_action)
-
-        # If the scenario is dynamic, don't immediately apply the reward;
-        # instead, wait until the next iteration and factor in not only the
-        # reward that was received on the previous step, but the
-        # (discounted) reward that is expected going forward given the
-        # resulting situation observed after the action was taken. This is
-        # a classic feature of temporal difference (TD) algorithms, which
-        # acts to stitch together a general picture of the future expected
-        # reward without actually waiting the full duration to find out
-        # what it will be.
-        if learn:
-            # Ensure we are not trying to learn in a non-learning scenario
-            assert reward is not None
-
-            if scenario.is_dynamic:
-                if previous_match_set is not None:
-                    match_set.pay(previous_match_set)
-                    previous_match_set.apply_payoff()
-                match_set.payoff = reward
-
-                # Remember the current reward and match set for the next
-                # iteration.
-                previous_match_set = match_set
-            else:
-                match_set.payoff = reward
-                match_set.apply_payoff()
-
-    # This serves to tie off the final stitch. The last action taken gets
-    # only the immediate reward; there is no future reward expected.
-    if learn and previous_match_set is not None:
-        previous_match_set.apply_payoff()
-
-
 def test(algorithm=None, scenario=None):
     """A quick test of the XCS algorithm, demonstrating how to use it in
     client code."""
@@ -1707,7 +1724,6 @@ def test(algorithm=None, scenario=None):
         # Define the algorithm.
         algorithm = XCSAlgorithm()
         algorithm.exploration_probability = .1
-        algorithm.discount_factor = 0
         algorithm.do_ga_subsumption = True
         algorithm.do_action_set_subsumption = True
 
@@ -1725,7 +1741,7 @@ def test(algorithm=None, scenario=None):
     # into it, performance will be poor, but it will improve over time as
     # the algorithm continues to be exposed to the scenario.
     start_time = time.time()
-    run(model, scenario, learn=True)
+    model.run(scenario, learn=True)
     end_time = time.time()
 
     logger.info('Classifiers:\n\n%s\n', model)
