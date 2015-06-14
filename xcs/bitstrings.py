@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# -------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # xcs
 # ---
 # Accuracy-based Classifier Systems for Python 3
@@ -13,18 +13,45 @@
 # as described in the 2001 paper, "An Algorithmic Description of XCS,"
 # by Martin Butz and Stewart Wilson.
 #
-# -------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
 """
-xcs
-===
 Accuracy-based Classifier Systems for Python 3
-(c) Aaron Hosford 2015, all rights reserved
-Revised BSD License
 
-xcs.bitstrings
---------------
-Bit-string and bit-condition data types used by the XCS algorithm.
+This xcs submodule provides bit-string and bit-condition data types used by
+the XCS algorithm.
+
+
+
+
+Copyright (c) 2015, Aaron Hosford
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of xcs nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 """
 
 __author__ = 'Aaron Hosford'
@@ -41,7 +68,6 @@ __all__ = [
 from abc import ABCMeta, abstractmethod
 import random
 
-
 import xcs
 
 
@@ -51,11 +77,13 @@ def numpy_is_available():
 
 
 class BitStringBase(metaclass=ABCMeta):
-    """Abstract base class for hashable, immutable sequences of bits (Boolean values).
+    """Abstract base class for hashable, immutable sequences of bits
+    (Boolean values).
 
-    In addition to operations for indexing and iteration, provides standard bitwise operations, including & (bitwise
-    and), | (bitwise or), ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator, which acts like string
-    concatenation.
+    In addition to operations for indexing and iteration, provides standard
+    bitwise operations, including & (bitwise and), | (bitwise or),
+    ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator,
+    which acts like string concatenation.
 
     A bit string can also be cast as an integer or an ordinary string.
     """
@@ -63,15 +91,16 @@ class BitStringBase(metaclass=ABCMeta):
     @classmethod
     @abstractmethod
     def random(cls, length, bit_prob=.5):
-        """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
-         defaults to .5."""
+        """Create a bit string of the given length, with the probability of
+        each bit being set equal to bit_prob, which defaults to .5."""
         raise NotImplementedError()
 
     @classmethod
     @abstractmethod
     def crossover_template(cls, length, points=2):
-        """Create a crossover template with the given number of points. The crossover template can be used as a mask
-        to crossover two bitstrings of the same length:
+        """Create a crossover template with the given number of points. The
+        crossover template can be used as a mask to crossover two
+        bitstrings of the same length:
 
             assert len(parent1) == len(parent2)
             template = BitString.crossover_template(len(parent1))
@@ -98,23 +127,26 @@ class BitStringBase(metaclass=ABCMeta):
         raise NotImplementedError()
 
     def __str__(self):
-        # Overloads str(bitstring)
+        """Overloads str(bitstring)"""
         return ''.join('1' if bit else '0' for bit in self)
 
     def __repr__(self):
-        # Overloads repr(bitstring)
+        """Overloads repr(bitstring)"""
         return type(self).__name__ + '(' + str(self) + ')'
 
     @abstractmethod
     def __int__(self):
+        """Overloads int(instance)"""
         raise NotImplementedError()
 
     @abstractmethod
     def __len__(self):
+        """Overloads len(instance)"""
         raise NotImplementedError()
 
     @abstractmethod
     def __iter__(self):
+        """Overloads iter(instance)"""
         raise NotImplementedError()
 
     @abstractmethod
@@ -123,98 +155,124 @@ class BitStringBase(metaclass=ABCMeta):
 
     @abstractmethod
     def __hash__(self):
+        """Overloads hash(instance)"""
         raise NotImplementedError()
 
     @abstractmethod
     def __eq__(self, other):
+        """Overloads instance1 == instance2"""
         raise NotImplementedError()
 
     def __ne__(self, other):
-        # Overloads !=
+        """Overloads !="""
         return not self == other
 
     @abstractmethod
     def __and__(self, other):
+        """Overloads instance1 & instance2"""
         raise NotImplementedError()
 
     @abstractmethod
     def __or__(self, other):
+        """Overloads instance1 | instance2"""
         raise NotImplementedError()
 
     @abstractmethod
     def __xor__(self, other):
+        """Overloads instance1 ^ instance2"""
         raise NotImplementedError()
 
     @abstractmethod
     def __invert__(self):
+        """Overloads ~instance"""
         raise NotImplementedError()
 
     @abstractmethod
     def __add__(self, other):
+        """Overloads instance1 + instance2"""
         raise NotImplementedError()
 
 
-# There are two different implementations of BitString, one in _numpy_bitstrings and one in _python_bitstrings. The
-# numpy version is dependent on numpy being installed, whereas the python one is written in pure Python with no external
-# dependencies. By default, the python implementation is used. The user can override this behavior, if appropriate,
+# There are two different implementations of BitString, one in
+# _numpy_bitstrings and one in _python_bitstrings. The numpy version is
+# dependent on numpy being installed, whereas the python one is written in
+# pure Python with no external dependencies. By default, the python
+# implementation is used, since it is of comparable speed and has no
+# external dependencies. The user can override this behavior, if desired,
 # by calling use_numpy().
 from ._python_bitstrings import BitString
 _using_numpy = False
 
 
 def using_numpy():
-    """Return a Boolean indicating whether the numpy implementation is currently in use."""
+    """Return a Boolean indicating whether the numpy implementation is
+    currently in use."""
     return _using_numpy
 
 
 def use_numpy():
-    """Force the package to use the numpy-based BitString implementation. If numpy is not available, this will result
-    in an ImportError. IMPORTANT: Bitstrings of different implementations cannot be mixed. Attempting to do so will
-    result in undefined behavior."""
+    """Force the package to use the numpy-based BitString implementation.
+    If numpy is not available, this will result in an ImportError.
+    IMPORTANT: Bitstrings of different implementations cannot be mixed.
+    Attempting to do so will result in undefined behavior."""
     global BitString, _using_numpy
     from ._numpy_bitstrings import BitString
     _using_numpy = True
 
 
 def use_pure_python():
-    """Force the package to use the pure Python BitString implementation. IMPORTANT: Bitstrings of different
-    implementations cannot be mixed. Attempting to do so will result in undefined behavior."""
+    """Force the package to use the pure Python BitString implementation.
+    IMPORTANT: Bitstrings of different implementations cannot be mixed.
+    Attempting to do so will result in undefined behavior."""
     global BitString, _using_numpy
     from ._python_bitstrings import BitString
     _using_numpy = False
 
 
 class BitCondition:
-    """A pair of bit strings, one indicating the bit values, and the other indicating the bit mask, which together act
-    as a matching template for bit strings. Like bit strings, bit conditions are hashable and immutable. Think of
-    BitConditions as patterns which can match against BitStrings of the same length. At each index, we can have a 1,
-    a 0, or a #. If the value is 1 or 0, the BitString must have the same value at that index. If the value is #, the
-    BitString can have any value at that index.
+    """A pair of bit strings, one indicating the bit values, and the other
+    indicating the bit mask, which together act as a matching template for
+    bit strings. Like bit strings, bit conditions are hashable and
+    immutable. Think of BitConditions as patterns which can match against
+    BitStrings of the same length. At each index, we can have a 1, a 0, or
+    a #. If the value is 1 or 0, the BitString must have the same value at
+    that index. If the value is #, the BitString can have any value at that
+    index.
 
     BitConditions are matched against BitStrings in one of two ways:
         Method 1:
             result = condition // bitstring
-            # result now contains a new BitString which contains a 1 for each position that violated the pattern, and
-            # a 0 for each position that did not. This tells us exactly where the condition and the bitstring disagree
+            # result now contains a new BitString which contains a 1 for
+            # each position that violated the pattern, and a 0 for each
+            # position that did not. This tells us exactly where the
+            # condition and the bitstring disagree
         Method 2:
             result = condition(bitstring)
-            # result now contains a single Boolean value which is True if the bitstring fully satisfies the pattern
-            # specified by the condition, or False if the bitstring disagrees with the condition at at least one index
+            # result now contains a single Boolean value which is True if
+            # the bitstring fully satisfies the pattern specified by the
+            # condition, or False if the bitstring disagrees with the
+            # condition at at least one index
 
-    BitConditions can also match against other BitConditions in the same way that they are matched against BitStrings,
-    with the sole exception that if the condition being used as the pattern specifies a 1 or 0 at a particular index,
-    and the condition being used as the substrate contains an # at that point, the match fails.
+    BitConditions can also match against other BitConditions in the same
+    way that they are matched against BitStrings, with the sole exception
+    that if the condition being used as the pattern specifies a 1 or 0 at a
+    particular index, and the condition being used as the substrate
+    contains an # at that point, the match fails.
     """
 
     @classmethod
     def cover(cls, bits, wildcard_probability):
-        """Create a new bit condition that matches the provided bit string, with the indicated per-index wildcard
-         probability."""
+        """Create a new bit condition that matches the provided bit string,
+        with the indicated per-index wildcard probability."""
 
         if not isinstance(bits, BitString):
             bits = BitString(bits)
 
-        mask = BitString([random.random() > wildcard_probability for _ in range(len(bits))])
+        mask = BitString([
+            random.random() > wildcard_probability
+            for _ in range(len(bits))
+        ])
+
         return cls(bits, mask)
 
     def __init__(self, bits, mask=None):
@@ -233,7 +291,8 @@ class BitCondition:
                         bit_list.append(False)
                         mask.append(False)
                     else:
-                        raise ValueError("Invalid character: " + repr(char))
+                        raise ValueError("Invalid character: " +
+                                         repr(char))
                 bits = BitString(bit_list)
                 mask = BitString(mask)
                 hash_value = None
@@ -259,92 +318,114 @@ class BitCondition:
 
     @property
     def bits(self):
-        """The bit string indicating the bit values of this bit condition. Indices that are wildcarded will have a
-        value of False."""
+        """The bit string indicating the bit values of this bit condition.
+        Indices that are wildcarded will have a value of False."""
         return self._bits
 
     @property
     def mask(self):
-        """The bit string indicating the bit mask. A value of True for a bit indicates it must match the value bit
-        string. A value of False indicates it is masked/wildcarded."""
+        """The bit string indicating the bit mask. A value of True for a
+        bit indicates it must match the value bit string. A value of False
+        indicates it is masked/wildcarded."""
         return self._mask
 
     def count(self):
+        """Return the number of bits that are not wildcards."""
         return self._mask.count()
 
     def __str__(self):
-        # Overloads str(condition)
-        return ''.join('1' if bit else ('#' if bit is None else '0') for bit in self)
+        """Overloads str(condition)"""
+        return ''.join(
+            '1' if bit else ('#' if bit is None else '0')
+            for bit in self
+        )
 
     def __repr__(self):
-        # Overloads repr(condition)
+        """Overloads repr(condition)"""
         return type(self).__name__ + repr((self._bits, self._mask))
 
     def __len__(self):
-        # Overloads len(condition)
+        """Overloads len(condition)"""
         return len(self._bits)
 
     def __iter__(self):
-        # Overloads iter(condition), and also, for bit in condition
-        # The values yielded by the iterator are True (1), False (0), or None (#)
+        """Overloads iter(condition), and also, for bit in condition. The
+        values yielded by the iterator are True (1), False (0), or
+        None (#)."""
         for bit, mask in zip(self._bits, self._mask):
             yield bit if mask else None
 
     def __getitem__(self, index):
-        # Overloads condition[index]
-        # The values yielded by the index operator are True (1), False (0), or None (#)
+        """Overloads condition[index]. The values yielded by the index
+        operator are True (1), False (0), or None (#)."""
         if isinstance(index, slice):
             return BitCondition(self._bits[index], self._mask[index])
         return self._bits[index] if self._mask[index] else None
 
     def __hash__(self):
-        # Overloads hash(condition)
+        """Overloads hash(condition)."""
         # If we haven't already calculated the hash value, do so now.
         if self._hash is None:
             self._hash = hash(tuple(self))
         return self._hash
 
     def __eq__(self, other):
-        # Overloads ==
+        """Overloads =="""
         if not isinstance(other, BitCondition):
             return False
-        return len(self._bits) == len(other._bits) and self._bits == other._bits and self._mask == other._mask
+        return (
+            len(self._bits) == len(other._bits) and
+            self._bits == other._bits and
+            self._mask == other._mask
+        )
 
     def __ne__(self, other):
-        # Overloads !=
+        """Overloads !="""
         return not self == other
 
     def __and__(self, other):
-        # Overloads &
+        """Overloads &"""
         if not isinstance(other, BitCondition):
             return NotImplemented
-        return type(self)((self._bits | ~self._mask) & (other._bits | ~other._mask), self._mask | other._mask)
+        return type(self)(
+            (self._bits | ~self._mask) & (other._bits | ~other._mask),
+            self._mask | other._mask
+        )
 
     def __or__(self, other):
-        # Overloads |
+        """Overloads |"""
         if not isinstance(other, BitCondition):
             return NotImplemented
-        return type(self)(self._bits | other._bits, self._mask & other._mask)
+        return type(self)(
+            self._bits | other._bits,
+            self._mask & other._mask
+        )
 
     def __xor__(self, other):
-        # Overloads ^
+        """Overloads ^"""
         if not isinstance(other, BitCondition):
             return NotImplemented
-        return type(self)(self._bits ^ other._bits, self._mask & other._mask)
+        return type(self)(
+            self._bits ^ other._bits,
+            self._mask & other._mask
+        )
 
     def __invert__(self):
-        # Overloads unary ~
+        """Overloads unary ~"""
         return type(self)(~self._bits, self._mask)
 
     def __add__(self, other):
-        # Overloads +
+        """Overloads +"""
         if not isinstance(other, BitCondition):
             return NotImplemented
-        return type(self)(self._bits + other._bits, self._mask + other._mask)
+        return type(self)(
+            self._bits + other._bits,
+            self._mask + other._mask
+        )
 
     def __floordiv__(self, other):
-        # Overloads the // operator, which we use to find the indices in the other value that do/can disagree
-        # with this condition.
+        """Overloads the // operator, which we use to find the indices in
+        the other value that do/can disagree with this condition."""
         if isinstance(other, BitCondition):
             return ((self._bits ^ other._bits) | ~other._mask) & self._mask
 
@@ -356,8 +437,8 @@ class BitCondition:
         return (self._bits ^ other) & self._mask
 
     def __call__(self, other):
-        # Overloads condition(bitstring)
-        # Returns a Boolean value that indicates whether the other value satisfies this condition.
+        """Overloads condition(bitstring). Returns a Boolean value that
+        indicates whether the other value satisfies this condition."""
 
         assert isinstance(other, (BitString, BitCondition))
 
@@ -365,8 +446,8 @@ class BitCondition:
         return not mismatches.any()
 
     def crossover_with(self, other, points=2):
-        """Perform 2-point crossover on this bit condition and another of the same length, returning the two resulting
-        children."""
+        """Perform 2-point crossover on this bit condition and another of
+        the same length, returning the two resulting children."""
 
         assert isinstance(other, BitCondition)
         assert len(self) == len(other)
