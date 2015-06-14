@@ -186,11 +186,11 @@ div#notebook {
 <h2 id="Terminology">Terminology<a class="anchor-link" href="#Terminology">&#182;</a></h2><p>Being both a reinforcement learning algorithm and an evolutionary algorithm, XCS requires an understanding of terms pertaining to both.</p>
 <h4 id="Situation">Situation<a class="anchor-link" href="#Situation">&#182;</a></h4><p>A situation is just another term for an input received by the classifier.</p>
 <h4 id="Action">Action<a class="anchor-link" href="#Action">&#182;</a></h4><p>An action is an output produced by the classifier.</p>
-<h4 id="Rule">Rule<a class="anchor-link" href="#Rule">&#182;</a></h4><p>A rule is a pairing between a condition, describing which situations can be matched, and a suggested action. Each rule has an associated prediction indicating the expected reward if the suggested action is taken when the condition matches the situation, a fitness indicating its suitability for reproduction and continued use in the population, and a numerosity value which indicates the number of (virtual) instances of the rule in the population. (There are other parameters associated with each rule, as well, but these are visibly important ones.)</p>
-<h4 id="Population">Population<a class="anchor-link" href="#Population">&#182;</a></h4><p>This is the collection of all rules currently used and tracked by the classifier. The genetic algorithm operates on this set of rules over time to optimize them for accuracy and generality in their descriptiveness of the problem space. Note that the population is virtual, meaning that if the same rule has multiple copies in the population, it is represented only once, with an associated numerosity value to indicate the number of virtual instances of the rule in the population.</p>
+<h4 id="Classifier-Rule">Classifier Rule<a class="anchor-link" href="#Classifier-Rule">&#182;</a></h4><p>A classifier rule, sometimes referred to as just a <em>rule</em> or a <em>classifier</em>, is a pairing between a condition, describing which situations can be matched, and a suggested action. Each classifier rule has an associated prediction indicating the expected reward if the suggested action is taken when the condition matches the situation, a fitness indicating its suitability for reproduction and continued use in the population, and a numerosity value which indicates the number of (virtual) instances of the rule in the population. (There are other parameters associated with each rule, as well, but these are visibly important ones.)</p>
+<h4 id="Classifier-Set">Classifier Set<a class="anchor-link" href="#Classifier-Set">&#182;</a></h4><p>Also referred to as the <em>population</em>, this is the collection of all rules currently used and tracked by the classifier. The genetic algorithm operates on this set of rules over time to optimize them for accuracy and generality in their descriptiveness of the problem space. Note that the population is virtual, meaning that if the same rule has multiple copies in the population, it is represented only once, with an associated numerosity value to indicate the number of virtual instances of the rule in the population.</p>
 <h4 id="Match-Set">Match Set<a class="anchor-link" href="#Match-Set">&#182;</a></h4><p>The match set is the set of rules which match against the current situation.</p>
 <h4 id="Action-Set">Action Set<a class="anchor-link" href="#Action-Set">&#182;</a></h4><p>The action set is the set of rules which match against the current situation and recommend the selected action. Thus the action set is a subset of the match set. In fact, the match set can be seen as a collection of mutually exclusive and competing action sets, from which only one is to be selected.</p>
-<h4 id="Reward">Reward<a class="anchor-link" href="#Reward">&#182;</a></h4><p>The reward is the signal the algorithm attempts to maximize. It takes the form of a floating point value passed to the action set via the <code>accept_payoff()</code> method.</p>
+<h4 id="Reward">Reward<a class="anchor-link" href="#Reward">&#182;</a></h4><p>The reward is the signal the algorithm attempts to maximize. It takes the form of a floating point value stored in the <code>payoff</code> property of the match set. (Note that the term <em>payoff</em> is actually used to refer to the combined sum of the immediate reward received in response to a single action, plus an additional term denoting the expected future reward for later actions as an indirect consequence of the current action. The term <em>reward</em> is generally used to mean the immediate reward.)</p>
 <h4 id="Prediction">Prediction<a class="anchor-link" href="#Prediction">&#182;</a></h4><p>A prediction is an estimate by a rule or an action set as to the reward expected to be received by taking the suggested action in the given situation. The prediction of an action set is formed by taking the fitness-weighted average of the predictions made by the individual rules within it.</p>
 <h4 id="Fitness">Fitness<a class="anchor-link" href="#Fitness">&#182;</a></h4><p>Fitness is another floating point value similar in function to the reward, except that in this case it is an internal signal defined by the algorithm itself, which is then used as a guide for selection of which rules are to act as parents to the next generation. Each rule in the population has its own associated fitness value. In XCS, as opposed to strength-based LCS variants such as ZCS, the fitness is actually based on the accuracy of each rule's reward prediction, as opposed to its size. Thus a rule with a very low expected reward can have a high fitness provided it is accurate in its prediction of low reward, whereas a rule with very high expected reward may have low fitness because the reward it receives varies widely from one reward cycle to the next. Using reward prediction accuracy instead of reward prediction size helps XCS find rules that describe the problem in a stable, predictable way.</p>
 <h2 id="Installation">Installation<a class="anchor-link" href="#Installation">&#182;</a></h2><p>To install <code>xcs</code>, you will of course need a Python 3 interpreter. The latest version of the standard CPython distribution is <a href="https://www.python.org/downloads/">available for download</a> from the Python Software Foundation, or if you prefer a download that comes with a long list of top-notch machine learning and scientific computing packages already built for you, I recommend <a href="http://continuum.io/downloads#py34">Anaconda</a> from Continuum Analytics.</p>
@@ -204,10 +204,6 @@ div#notebook {
 
 <pre><code>python setup.py install</code></pre>
 <p>You should see a message indicating that the package was successfully installed.</p>
-<p>It is recommended that you also install <code>numpy</code> if you are using a Python distribution that does not come with it already installed. The <code>xcs</code> package will still work without <code>numpy</code>, but you should expect slower execution speeds. To install <code>numpy</code> with <code>pip</code>:</p>
-
-<pre><code>pip install numpy</code></pre>
-<p>For instructions on how to manually install numpy, visit the <a href="http://docs.scipy.org/doc/numpy/user/install.html">numpy installation instructions page</a> at SciPy.org.</p>
 <h2 id="Testing-the-Newly-Installed-Package">Testing the Newly Installed Package<a class="anchor-link" href="#Testing-the-Newly-Installed-Package">&#182;</a></h2><p>Let's start things off with a quick test, to verify that everything has been installed properly. First, fire up the Python interpreter. We'll set up Python's built-in logging system so we can see the test's progress.</p>
 
 </div>
@@ -257,39 +253,39 @@ div#notebook {
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 
-<pre><code>INFO:xcs.problems:Possible actions:
-INFO:xcs.problems:    False
-INFO:xcs.problems:    True
-INFO:xcs.problems:Steps completed: 0
-INFO:xcs.problems:Average reward per step: 0.00000
-INFO:xcs.problems:Steps completed: 100
-INFO:xcs.problems:Average reward per step: 0.62000
-INFO:xcs.problems:Steps completed: 200
-INFO:xcs.problems:Average reward per step: 0.62500
+<pre><code>INFO:xcs.scenarios:Possible actions:
+INFO:xcs.scenarios:    False
+INFO:xcs.scenarios:    True
+INFO:xcs.scenarios:Steps completed: 0
+INFO:xcs.scenarios:Average reward per step: 0.00000
+INFO:xcs.scenarios:Steps completed: 100
+INFO:xcs.scenarios:Average reward per step: 0.57000
+INFO:xcs.scenarios:Steps completed: 200
+INFO:xcs.scenarios:Average reward per step: 0.58500
 
 .
 .
 .
 
-#01#1###1## =&gt; True
-    Time Stamp: 9952
+001#0###### =&gt; False
+    Time Stamp: 9980
     Average Reward: 1.0
     Error: 0.0
-    Fitness: 0.9259361719162902
-    Experience: 266
-    Action Set Size: 26.640143476682006
-    Numerosity: 10
-0#01#1##### =&gt; True
-    Time Stamp: 9955
+    Fitness: 0.8161150828153352
+    Experience: 236
+    Action Set Size: 25.03847865419106
+    Numerosity: 9
+11#######11 =&gt; True
+    Time Stamp: 9994
     Average Reward: 1.0
     Error: 0.0
-    Fitness: 0.9376108993245664
-    Experience: 91
-    Action Set Size: 29.44608766322506
-    Numerosity: 16
+    Fitness: 0.9749473121531844
+    Experience: 428
+    Action Set Size: 20.685392494947063
+    Numerosity: 11
 
-INFO:xcs:Total time: 12.20588 seconds</code></pre>
-<p>Note that your results may vary somewhat from what is shown here. XCS relies on randomization to discover new rules, so unless you set the random seed with <code>random.seed()</code>, each run will be different.</p>
+INFO:xcs:Total time: 15.05068 seconds</code></pre>
+<p>Your results may vary somewhat from what is shown here. XCS relies on randomization to discover new rules, so unless you set the random seed with <code>random.seed()</code>, each run will be different.</p>
 
 </div>
 </div>
@@ -310,8 +306,8 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs</span> <span class="k">import</span> <span class="n">XCSAlgorithm</span><span class="p">,</span> <span class="n">Population</span><span class="p">,</span> <span class="n">LCS</span>
-<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">MUXProblem</span><span class="p">,</span> <span class="n">OnLineObserver</span>
+<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs</span> <span class="k">import</span> <span class="n">XCSAlgorithm</span>
+<span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">MUXProblem</span><span class="p">,</span> <span class="n">ScenarioObserver</span>
 </pre></div>
 
 </div>
@@ -324,7 +320,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The <code>XCSAlgorithm</code> class contains the actual XCS algorithm implementation. The <code>Population</code> class is used to represent the algorithm's state. The <code>LCS</code> class combines the selected algorithm with its state to form a learning classifier system. <code>MUXProblem</code> is the classic <a href="http://en.wikipedia.org/wiki/Multiplexer">multiplexer</a> problem, which defaults to 3 address bits (11 bits total). <code>OnLineObserver</code> is a wrapper for problems which logs the inputs, actions, and rewards as the algorithm attempts to solve the problem.</p>
+<p>The <code>XCSAlgorithm</code> class contains the actual XCS algorithm implementation. The <code>ClassifierSet</code> class is used to represent the algorithm's state, in the form of a set of classifier rules. <code>MUXProblem</code> is the classic <a href="http://en.wikipedia.org/wiki/Multiplexer">multiplexer</a> problem, which defaults to 3 address bits (11 bits total). <code>ScenarioObserver</code> is a wrapper for scenarios which logs the inputs, actions, and rewards as the algorithm attempts to solve the problem.</p>
 <p>Now that we've imported the necessary tools, we can define the actual problem, telling it to give the algorithm 10,000 reward cycles to attempt to learn the appropriate input/output mapping, and wrapping it with an observer so we can see the algorithm's progress.</p>
 
 </div>
@@ -335,7 +331,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[2]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="n">problem</span> <span class="o">=</span> <span class="n">OnLineObserver</span><span class="p">(</span><span class="n">MUXProblem</span><span class="p">(</span><span class="mi">50000</span><span class="p">))</span>
+<div class=" highlight hl-ipython3"><pre><span class="n">scenario</span> <span class="o">=</span> <span class="n">ScenarioObserver</span><span class="p">(</span><span class="n">MUXProblem</span><span class="p">(</span><span class="mi">50000</span><span class="p">))</span>
 </pre></div>
 
 </div>
@@ -348,7 +344,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Next, we'll create the algorithm which will be used to manage the classifier population and learn the mapping defined by the problem we have selected:</p>
+<p>Next, we'll create the algorithm which will be used to manage the classifier set and learn the mapping defined by the problem we have selected:</p>
 
 </div>
 </div>
@@ -397,8 +393,8 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Here we have selected an exploration probability of .1, which will sacrifice most (9 out of 10) learning opportunities in favor of taking advantage of what has already been learned so far. This makes sense in real-time learning environment; a lower value is more appropriate in cases where the classifier is being trained in advance or is being used simply to learn a minimal rule set. The discount factor is set to 0, since future rewards are not affected at all by the currently selected action. We have also elected to turn on GA and action set subsumption, which help the system to converge to the minimal effective rule set more quickly in some types of problems.</p>
-<p>Next, we create the population:</p>
+<p>Here we have selected an exploration probability of .1, which will sacrifice most (9 out of 10) learning opportunities in favor of taking advantage of what has already been learned so far. This makes sense in real-time learning environment; a lower value is more appropriate in cases where the classifier is being trained in advance or is being used simply to learn a minimal rule set. The discount factor is set to 0, since future rewards are not affected at all by the currently selected action. (This is not strictly necessary, since the scenario will inform the algorithm that reward chaining should not be used, but it is useful to highlight this fact.) We have also elected to turn on GA and action set subsumption, which help the system to converge to the minimal effective rule set more quickly in some types of scenarios.</p>
+<p>Next, we create the classifier set:</p>
 
 </div>
 </div>
@@ -408,7 +404,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[5]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="n">population</span> <span class="o">=</span> <span class="n">Population</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">problem</span><span class="o">.</span><span class="n">get_possible_actions</span><span class="p">())</span>
+<div class=" highlight hl-ipython3"><pre><span class="n">model</span> <span class="o">=</span> <span class="n">algorithm</span><span class="o">.</span><span class="n">new_model</span><span class="p">(</span><span class="n">scenario</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -421,8 +417,8 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>When initializing the population, we pass in the algorithm and the possible actions from the problem. These are necessary so the population is able to perform covering operations when the algorithm deems that the classifiers in the population provide insufficient coverage for a particular situation. (Covering is the addition to the population of a randomly generated classifier whose condition matches the current situation.)</p>
-<p>Now we create the classifier itself:</p>
+<p>The algorithm does the work for us, initializing the classifier set as it deems appropriate for the scenario we have provided. It provides the classifier set with the possible actions that can be taken in the given scenario; these are necessary for the classifier set to perform covering operations when the algorithm determines that the classifiers in the population provide insufficient coverage for a particular situation. (Covering is the addition to the population of a randomly generated classifier rule whose condition matches the current situation.)</p>
+<p>And finally, this is where all the magic happens:</p>
 
 </div>
 </div>
@@ -432,7 +428,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[6]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="n">classifier</span> <span class="o">=</span> <span class="n">LCS</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">population</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span class="n">model</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">scenario</span><span class="p">,</span> <span class="n">learn</span><span class="o">=</span><span class="k">True</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -445,30 +441,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>And finally, this is where all the magic happens:</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[7]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="n">classifier</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">problem</span><span class="p">,</span> <span class="n">learn</span><span class="o">=</span><span class="k">True</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>We pass the problem to the classifier and ask it to run to learn the appropriate input/output mapping. It executes training cycles until the problem dictates that training should stop. Note that if you wish to see the progress as the algorithm learns the problem, you will need to set the logging level to <code>INFO</code>, as described in the previous section, before calling the <code>learn()</code> method.</p>
+<p>We pass the scenario to the classifier set and ask it to run to learn the appropriate input/output mapping. It executes training cycles until the scenario dictates that training should stop. Note that if you wish to see the progress as the algorithm interacts with the scenario, you will need to set the logging level to <code>INFO</code>, as described in the previous section, before calling the <code>run()</code> method.</p>
 <p>Now we can observe the fruits of our labors.</p>
 
 </div>
@@ -479,7 +452,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="nb">print</span><span class="p">(</span><span class="n">classifier</span><span class="o">.</span><span class="n">population</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -493,16 +466,16 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 
-<pre><code>000#1111010 =&gt; False
-    Time Stamp: 48661
+<pre><code>10001#10100 =&gt; True
+    Time Stamp: 41601
     Average Reward: 1e-05
     Error: 1e-05
     Fitness: 1e-05
     Experience: 0
     Action Set Size: 1
     Numerosity: 1
-##01110#011 =&gt; False
-    Time Stamp: 48696
+00#00100#00 =&gt; True
+    Time Stamp: 48589
     Average Reward: 1e-05
     Error: 1e-05
     Fitness: 1e-05
@@ -514,22 +487,22 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 .
 .
 
-0#00#0##### =&gt; False
-    Time Stamp: 49918
+1111######1 =&gt; True
+    Time Stamp: 49968
     Average Reward: 1.0
     Error: 0.0
-    Fitness: 0.9783908009006504
-    Experience: 1632
-    Action Set Size: 19.22625387959487
-    Numerosity: 12
-001#0###### =&gt; False
-    Time Stamp: 49994
+    Fitness: 0.9654542879926405
+    Experience: 131
+    Action Set Size: 27.598176294274904
+    Numerosity: 10
+010##1##### =&gt; True
+    Time Stamp: 49962
     Average Reward: 1.0
     Error: 0.0
-    Fitness: 0.9850464243654314
-    Experience: 1926
-    Action Set Size: 16.221103942259862
-    Numerosity: 15</code></pre>
+    Fitness: 0.8516265524887351
+    Experience: 1257
+    Action Set Size: 27.21325456027306
+    Numerosity: 13</code></pre>
 
 </div>
 </div>
@@ -539,17 +512,46 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>This gives us a printout of each rule, in the form <em>condition =&gt; action</em>, followed by various stats about the rule pertaining to the algorithm we selected. The population can also be accessed as an iterable container:</p>
+<p>This gives us a printout of each classifier rule, in the form <em>condition =&gt; action</em>, followed by various stats about the rule pertaining to the algorithm we selected. The classifier set can also be accessed as an iterable container:</p>
 
 </div>
 </div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[8]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="p">))</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area"><div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>87
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[9]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">classifier</span><span class="o">.</span><span class="n">population</span><span class="p">))</span>
+<div class=" highlight hl-ipython3"><pre><span class="k">for</span> <span class="n">rule</span> <span class="ow">in</span> <span class="n">model</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">rule</span><span class="o">.</span><span class="n">fitness</span> <span class="o">&gt;</span> <span class="o">.</span><span class="mi">5</span> <span class="ow">and</span> <span class="n">rule</span><span class="o">.</span><span class="n">experience</span> <span class="o">&gt;=</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">rule</span><span class="o">.</span><span class="n">condition</span><span class="p">,</span> <span class="s">&#39;=&gt;&#39;</span><span class="p">,</span> <span class="n">rule</span><span class="o">.</span><span class="n">action</span><span class="p">,</span> <span class="s">&#39; [%.5f]&#39;</span> <span class="o">%</span> <span class="n">rule</span><span class="o">.</span><span class="n">fitness</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -562,45 +564,14 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 
 <div class="output_area"><div class="prompt"></div>
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>112
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[10]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="k">for</span> <span class="n">condition</span><span class="p">,</span> <span class="n">action</span> <span class="ow">in</span> <span class="n">classifier</span><span class="o">.</span><span class="n">population</span><span class="p">:</span>
-    <span class="n">metadata</span> <span class="o">=</span> <span class="n">classifier</span><span class="o">.</span><span class="n">population</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">(</span><span class="n">condition</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">metadata</span><span class="o">.</span><span class="n">fitness</span> <span class="o">&gt;</span> <span class="o">.</span><span class="mi">5</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">condition</span><span class="p">,</span> <span class="s">&#39;=&gt;&#39;</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="s">&#39; [%.5f]&#39;</span> <span class="o">%</span> <span class="n">metadata</span><span class="o">.</span><span class="n">fitness</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>0001####### =&gt; True  [0.58586]
-10#####00## =&gt; False  [0.79458]
-1#1#####0#0 =&gt; False  [0.68009]
-110######1# =&gt; True  [0.91627]
-101#####1## =&gt; True  [0.71698]
-001#0###### =&gt; False  [0.98505]
-#10##0###0# =&gt; False  [0.79751]
-#11###0###0 =&gt; False  [0.78005]
-0#00#0##### =&gt; False  [0.97839]
+<pre>0001####### =&gt; True  [0.83226]
+10#####00## =&gt; False  [0.80711]
+110######1# =&gt; True  [0.83886]
+010##1##### =&gt; True  [0.85163]
+##00#0##### =&gt; False  [0.65383]
+1111######1 =&gt; True  [0.96545]
+100####1### =&gt; True  [0.81688]
+#0111###1## =&gt; True  [0.94060]
 </pre>
 </div>
 </div>
@@ -614,7 +585,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Defining-New-Problem-Types">Defining New Problem Types<a class="anchor-link" href="#Defining-New-Problem-Types">&#182;</a></h2><p>To define a new problem type, inherit from the <code>OnLineProblem</code> abstract class defined in the <code>xcs.problems</code> submodule. Suppose, as an example, that we wish to test the algorithm's ability to find a single important input bit from among a large number of irrelevant input bits.</p>
+<h2 id="Defining-New-Scenario-Types">Defining New Scenario Types<a class="anchor-link" href="#Defining-New-Scenario-Types">&#182;</a></h2><p>To define a new scenario type, inherit from the <code>Scenario</code> abstract class defined in the <code>xcs.scenarios</code> submodule. Suppose, as an example, that we wish to test the algorithm's ability to find a single important input bit from among a large number of irrelevant input bits.</p>
 
 </div>
 </div>
@@ -624,9 +595,9 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">Scenario</span>
 
-<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">Scenario</span><span class="p">):</span>
     <span class="k">pass</span>
 </pre></div>
 
@@ -640,7 +611,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>We defined a new class, <code>HaystackProblem</code>, to represent this test case, which inherits from <code>OnLineProblem</code> to ensure that we cannot instantiate the problem until the appropriate methods have been implemented.</p>
+<p>We defined a new class, <code>HaystackProblem</code>, to represent this test case, which inherits from <code>Scenario</code> to ensure that we cannot instantiate the problem until the appropriate methods have been implemented.</p>
 <p>Now let's define an <code>__init__</code> method for this class. We'll need a parameter, <code>training_cycles</code>, to determine how many reward cycles the algorithm has to identify the "needle", and another parameter, <code>input_size</code>, to determine how big the "haystack" is.</p>
 
 </div>
@@ -651,9 +622,9 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[2]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">Scenario</span>
 
-<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">Scenario</span><span class="p">):</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
@@ -674,15 +645,16 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="text_cell_render border-box-sizing rendered_html">
 <p>The <code>input_size</code> is saved as a member for later use. Likewise, the value of <code>training_cycles</code> was saved in two places: the <code>remaining_cycles</code> member, which tells the instance how many training cycles remain for the current run, and the <code>initial_training_cycles</code> member, which the instance will use to reset <code>remaining_cycles</code> to the original value for a new run.</p>
 <p>We also defined the <code>possible_actions</code> member, which we set to <code>(True, False)</code>. This is the value we will return when the algorithm asks for the possible actions. We will expect the algorithm to return <code>True</code> when the needle bit is set, and <code>False</code> when the needle bit is clear, in order to indicate that it has correctly identified the needle's location.</p>
-<p>Now let's define some methods for the class. The <code>OnLineProblem</code> defines several abstract methods:</p>
+<p>Now let's define some methods for the class. The <code>Scenario</code> base class defines several abstract methods, and one abstract property:</p>
 <ul>
-<li><code>get_possible_actions()</code> should return the actions the algorithm can take.</li>
+<li><code>is_dynamic</code> is a property with a Boolean value that indicates whether the actions from one reward cycle can affect the rewards or situations of later reward cycles.</li>
+<li><code>get_possible_actions()</code> is a method that should return the actions the algorithm can take.</li>
 <li><code>reset()</code> should restart the problem for a new run.</li>
 <li><code>sense()</code> should return a new input (the "situation").</li>
-<li><code>execute(action)</code> should accept an action from among those returned by <code>get_possible_actions()</code>, in response to the last situation that was returned by <code>sense()</code>. It should then return a reward value indicating how well the algorithm is doing at solving the problem.</li>
-<li><code>more()</code> should return a Boolean value to indicate whether the algorithm has remaining reward cycles in which to solve the problem.</li>
+<li><code>execute(action)</code> should accept an action from among those returned by <code>get_possible_actions()</code>, in response to the last situation that was returned by <code>sense()</code>. It should then return a reward value indicating how well the algorithm is doing at responding correctly to each situation.</li>
+<li><code>more()</code> should return a Boolean value to indicate whether the algorithm has remaining reward cycles in which to learn.</li>
 </ul>
-<p>Each of these abstract methods must be defined, or we will get a TypeError when we attempt to instantiate the class:</p>
+<p>The abstract methods and the property must each be defined, or we will get a TypeError when we attempt to instantiate the class:</p>
 
 </div>
 </div>
@@ -711,7 +683,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <span class="ansigreen">&lt;ipython-input-3-3ba8a9996059&gt;</span> in <span class="ansicyan">&lt;module&gt;</span><span class="ansiblue">()</span>
 <span class="ansigreen">----&gt; 1</span><span class="ansiyellow"> </span>problem <span class="ansiyellow">=</span> HaystackProblem<span class="ansiyellow">(</span><span class="ansiyellow">)</span><span class="ansiyellow"></span>
 
-<span class="ansired">TypeError</span>: Can&apos;t instantiate abstract class HaystackProblem with abstract methods execute, get_possible_actions, more, reset, sense</pre>
+<span class="ansired">TypeError</span>: Can&apos;t instantiate abstract class HaystackProblem with abstract methods execute, get_possible_actions, is_dynamic, more, reset, sense</pre>
 </div>
 </div>
 
@@ -724,7 +696,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The implementations for the methods other than <code>sense()</code> and <code>execute()</code> will be trivial, so let's start with those:</p>
+<p>The implementations for the property and the methods other than <code>sense()</code> and <code>execute()</code> will be trivial, so let's start with those:</p>
 
 </div>
 </div>
@@ -734,9 +706,9 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="prompt input_prompt">In&nbsp;[4]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<div class=" highlight hl-ipython3"><pre><span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">Scenario</span>
 
-<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">Scenario</span><span class="p">):</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
@@ -744,6 +716,10 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
         <span class="bp">self</span><span class="o">.</span><span class="n">initial_training_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_dynamic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="k">False</span>
+        
     <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
     
@@ -776,9 +752,9 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">random</span>
 
-<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">Scenario</span>
 
-<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">Scenario</span><span class="p">):</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
@@ -787,6 +763,10 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
         <span class="bp">self</span><span class="o">.</span><span class="n">remaining_cycles</span> <span class="o">=</span> <span class="n">training_cycles</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_dynamic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="k">False</span>
+        
     <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
     
@@ -820,10 +800,10 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">random</span>
 
-<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">Scenario</span>
 <span class="kn">from</span> <span class="nn">xcs.bitstrings</span> <span class="k">import</span> <span class="n">BitString</span>
 
-<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">Scenario</span><span class="p">):</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
@@ -833,6 +813,10 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
         <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">needle_value</span> <span class="o">=</span> <span class="k">None</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_dynamic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="k">False</span>
+        
     <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
     
@@ -871,10 +855,10 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">random</span>
 
-<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineProblem</span>
+<span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">Scenario</span>
 <span class="kn">from</span> <span class="nn">xcs.bitstrings</span> <span class="k">import</span> <span class="n">BitString</span>
 
-<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">OnLineProblem</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">HaystackProblem</span><span class="p">(</span><span class="n">Scenario</span><span class="p">):</span>
     
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">training_cycles</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">input_size</span>
@@ -884,6 +868,10 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
         <span class="bp">self</span><span class="o">.</span><span class="n">needle_index</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">needle_value</span> <span class="o">=</span> <span class="k">None</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_dynamic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="k">False</span>
+        
     <span class="k">def</span> <span class="nf">get_possible_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">possible_actions</span>
     
@@ -914,7 +902,7 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>We have now defined all of the methods that <code>OnLineProblem</code> requires. Let's give it a test run.</p>
+<p>We have now defined all of the methods that <code>Scenario</code> requires. Let's give it a test run.</p>
 
 </div>
 </div>
@@ -927,17 +915,17 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class=" highlight hl-ipython3"><pre><span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">xcs</span>
 
-<span class="kn">from</span> <span class="nn">xcs.problems</span> <span class="k">import</span> <span class="n">OnLineObserver</span>
+<span class="kn">from</span> <span class="nn">xcs.scenarios</span> <span class="k">import</span> <span class="n">ScenarioObserver</span>
 
 <span class="c"># Setup logging so we can see the test run as it progresses.</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 
-<span class="c"># Create the problem instance</span>
+<span class="c"># Create the scenario instance</span>
 <span class="n">problem</span> <span class="o">=</span> <span class="n">HaystackProblem</span><span class="p">()</span>
 
-<span class="c"># Wrap the problem instance in an observer so progress gets logged,</span>
+<span class="c"># Wrap the scenario instance in an observer so progress gets logged,</span>
 <span class="c"># and pass it on to the test() function.</span>
-<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">problem</span><span class="o">=</span><span class="n">OnLineObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
+<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">scenario</span><span class="o">=</span><span class="n">ScenarioObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
 </pre></div>
 
 </div>
@@ -951,38 +939,38 @@ INFO:xcs:Total time: 12.20588 seconds</code></pre>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 
-<pre><code>INFO:xcs.problems:Possible actions:
-INFO:xcs.problems:    False
-INFO:xcs.problems:    True
-INFO:xcs.problems:Steps completed: 0
-INFO:xcs.problems:Average reward per step: 0.00000
-INFO:xcs.problems:Steps completed: 100
-INFO:xcs.problems:Average reward per step: 0.50000
+<pre><code>INFO:xcs.scenarios:Possible actions:
+INFO:xcs.scenarios:    False
+INFO:xcs.scenarios:    True
+INFO:xcs.scenarios:Steps completed: 0
+INFO:xcs.scenarios:Average reward per step: 0.00000
+INFO:xcs.scenarios:Steps completed: 100
+INFO:xcs.scenarios:Average reward per step: 0.55000
 
 .
 .
 .
 
-INFO:xcs.problems:Steps completed: 900
-INFO:xcs.problems:Average reward per step: 0.50444
-INFO:xcs.problems:Steps completed: 1000
-INFO:xcs.problems:Average reward per step: 0.51100
-INFO:xcs.problems:Run completed.
-INFO:xcs.problems:Total steps: 1000
-INFO:xcs.problems:Total reward received: 511.00000
-INFO:xcs.problems:Average reward per step: 0.51100
-INFO:xcs:Population:
+INFO:xcs.scenarios:Steps completed: 900
+INFO:xcs.scenarios:Average reward per step: 0.51667
+INFO:xcs.scenarios:Steps completed: 1000
+INFO:xcs.scenarios:Average reward per step: 0.50900
+INFO:xcs.scenarios:Run completed.
+INFO:xcs.scenarios:Total steps: 1000
+INFO:xcs.scenarios:Total reward received: 509.00000
+INFO:xcs.scenarios:Average reward per step: 0.50900
+INFO:xcs:Classifiers:
 
-0#01###1100#0#101000#00##0#11100#11000#1100#10001#0##010#01010##0100#00##0111#00101010#1##1#110#00###000#10##0#1#010100####00101001#######100#01##00#001#01####10010#010010001#1100#0##0#1#01#1#00#000####0##01#0#01#011#11#0010#001110011001#001###111#01#0010#101###1#0#00#01##1#1010##100#1####00111100010#11#01001100011##1##1##10#011##1101110110###10100001#001100##1#11110000#00#010#1001#11001#1###110#0##111#0001010#01010101#1#01100##110##1###110011#0###0000##0#1110##1##1001#1110#101#11##100#1#0#10##0 =&gt; False
-    Time Stamp: 402
-    Average Reward: 1e-05
-    Error: 1e-05
-    Fitness: 1.0000000000000002e-06
-    Experience: 0
-    Action Set Size: 1
+010#11110##001###01#101001#00#1##100110##11#111#00#00#1#10#10#1110#100110#1#1100#10#111#1011100###1#1##1#0#1##011#1#0#0##1011010011#0#0101#00#01#0#0##01101##100#00010111##111010#100110##1101110##11#01110##1#0#110#000#010#1011##10#00#0#101011#000000##11#00#1#0110#0110100010##0100011#1#0###11#110#0###1##0100##1#11#1##101####111011#01#110101011001#110110#011111##1#0##1010#011000101001#10#10#0#00##1#110##1011100#1111##01#00#11#010001100#10####01###010001###1##1110#10####100#0#01#0#10##100####1110#00 =&gt; False
+    Time Stamp: 169
+    Average Reward: 0.0
+    Error: 0.0
+    Fitness: 0.15000850000000002
+    Experience: 1
+    Action Set Size: 1.0
     Numerosity: 1
-0#11111#1##0#0#0#011#01##0#11#1#1011#01#11#0010000#00####01#1#11110###1####1001#01#100###0#10##101100100010##10#0110###00###1#1##110#01#101011#1#100#110#1#0010001##10#1100001###1111##1000000#1100#011#0010#1#01001110##00#100#01#0010#1000110#000###11#0010#01#0##11#1###1#01####0#0#11#0#1#011111001111101001#1#1##0101010001#110#1101###1#01101011#00011#1#10000#0#010###11101010011111##01##01#1#0##111##1#010101###1####1#10#0#0####011010#010011110000100###1#111001111001111100#111#001#1#11#101##00011#0100 =&gt; True
-    Time Stamp: 13
+11##101#1###11101#0010####01#111##100011010###10##01#1100#010#11##01011#00##0#0#1001111#0#11011100010100101#1#1#01#0001000##101100###11#1#1111011110010#01010#101010###010##010##001#1#10#1001##0#1101111##0#0#0#1#11#01011000####111#1#1##10110##1###1#1#00#110##00000#11101110010###01#0#11#1###1#1#01#100110####11##0000#01#0#0011#01##10#100##00##010111##0#1#100#0##10#01000000001#00##1#11001#1011##1##1100011#1###01#####0#0111111#00#1101101##101#01#101#11##001#0000#1011#01#0#11#0#0#0##0#1010#0#01110110# =&gt; False
+    Time Stamp: 254
     Average Reward: 0.0
     Error: 0.0
     Fitness: 0.15000850000000002
@@ -994,15 +982,15 @@ INFO:xcs:Population:
 .
 .
 
-#0#101011##0#0111#0001###0##0#001#00##1001101##0#00010011#110##1##01100#0011011101011#1##0##1100#1#011#00#111#100#11010#10000#0##1#00#0011#######0#00#001##011#1#10#11001#0110#####11#0#00#11#00#1100110##10000#1#001100#010100101001#1011100000###1001#1#0###0##010#0#1111100#0001#01##1#1#01#101#001100##01##1011#0##11#0#01100###1#00111010#01011#110111#010#00###01#00100001##1###1#000#1##010##001#11#1#000#0#011#0#10##0011#11000#10#0100#11####0##11111###01100#110##1#0#11#00##10#100000#001011011#1110#11#0 =&gt; False
-    Time Stamp: 997
+###10010010010110#1#01###000100##0#0##0###01#1#1#100101#01#110#0##011#0100#0#1111001##01010##0#1#01011110#0#100110#00##1100##1011##1##0#0####111##111##000##01#001##110##10#01#0#1#00#110#100#10#1#0#1100#010#110##1011##1110#0#01#00#011#0001110#1110#0110111#0#101#01#101#00#0#1110100#1##0#101101#1###11#11###001100010###0#111101##1#111#111010#1##0011##00111000##11110#0#01#0#0#0#1#0#110000###00110##10001001011111#001101#11#111##01#0#1#10#1##000######0110##01#1#010#011#11#001##10111#1101#0#1001##011#10 =&gt; True
+    Time Stamp: 996
     Average Reward: 1.0
     Error: 0.0
     Fitness: 0.15000850000000002
     Experience: 1
     Action Set Size: 1.0
     Numerosity: 1
-11101110###0#10###11#000#100#111#1#110110010#11001#00###1#010#0011###0010111001#1#1#0##10#1#1#00##0#0010##1##01###10#11#001#0#10###0##00110#11#11110#####0#001110#11100#00#000#11#0#0011010#1#0011#101001#11##0#0#11011###10010110#01011##1011010#00###001#010010#1##11001110#010100101#0000011###1#00#10#00110##11#1#0#0#011100#00##0000###1#10#10##11#1##1#10000#110#1#11#000#11#010#110110#10001#1111#01#1#0100#0##01#100###1#001101100#00#001#101#0###0#1#010##10#0100#01#00110##101000#1#0#1#00100001#1001#1#1# =&gt; True
+0101#0010100011#11##1100##001001###010#111001#####111001#1011#1100#1111#00101111#0#1011##1#1###00001011001#10##00###101##011111##1#00#1011001###10001###11####1##1#01#0#1#0#11100001110##11#001001#01#####0110#011011#0#111#1111##0#110111001#100#011111100110#11####0##01#100#11#1000#10#00#00#0#0#1##0100#100#11###01#1100##1###000##01#10#0#0001#0100#10#1#001#11####1001#110#0##11#0#0100#010##0#011100##11#0#11101#000000010#00101#0#0#11110#0010#1100#11#01#11##10#10#10#1100#1#00#0100#10#1##10#00011010100#0 =&gt; True
     Time Stamp: 998
     Average Reward: 1.0
     Error: 0.0
@@ -1011,7 +999,7 @@ INFO:xcs:Population:
     Action Set Size: 1.0
     Numerosity: 1
 
-INFO:xcs:Total time: 2.64835 seconds</code></pre>
+INFO:xcs:Total time: 2.65542 seconds</code></pre>
 
 </div>
 </div>
@@ -1021,7 +1009,7 @@ INFO:xcs:Total time: 2.64835 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Hmm, the algorithm didn't do so hot. Maybe we've found a weakness in the algorithm, or maybe some different parameter settings will improve its performance. Let's reduce the size of the haystack and give it more reward cycles so we can see whether it's learning at all.</p>
+<p>Hmm, the classifier set didn't do so hot. Maybe we've found a weakness in the algorithm, or maybe some different parameter settings will improve its performance. Let's reduce the size of the haystack and give it more reward cycles so we can see whether it's learning at all.</p>
 
 </div>
 </div>
@@ -1033,7 +1021,7 @@ INFO:xcs:Total time: 2.64835 seconds</code></pre>
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span class="n">problem</span> <span class="o">=</span> <span class="n">HaystackProblem</span><span class="p">(</span><span class="n">training_cycles</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span> <span class="n">input_size</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 
-<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">problem</span><span class="o">=</span><span class="n">OnLineObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
+<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">scenario</span><span class="o">=</span><span class="n">ScenarioObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
 </pre></div>
 
 </div>
@@ -1047,67 +1035,67 @@ INFO:xcs:Total time: 2.64835 seconds</code></pre>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 
-<pre><code>INFO:xcs.problems:Possible actions:
-INFO:xcs.problems:    False
-INFO:xcs.problems:    True
-INFO:xcs.problems:Steps completed: 0
-INFO:xcs.problems:Average reward per step: 0.00000
-INFO:xcs.problems:Steps completed: 100
-INFO:xcs.problems:Average reward per step: 0.58000
+<pre><code>INFO:xcs.scenarios:Possible actions:
+INFO:xcs.scenarios:    False
+INFO:xcs.scenarios:    True
+INFO:xcs.scenarios:Steps completed: 0
+INFO:xcs.scenarios:Average reward per step: 0.00000
+INFO:xcs.scenarios:Steps completed: 100
+INFO:xcs.scenarios:Average reward per step: 0.47000
 
 .
 .
 .
 
-INFO:xcs.problems:Steps completed: 9900
-INFO:xcs.problems:Average reward per step: 0.50081
-INFO:xcs.problems:Steps completed: 10000
-INFO:xcs.problems:Average reward per step: 0.50060
-INFO:xcs.problems:Run completed.
-INFO:xcs.problems:Total steps: 10000
-INFO:xcs.problems:Total reward received: 5006.00000
-INFO:xcs.problems:Average reward per step: 0.50060
-INFO:xcs:Population:
+INFO:xcs.scenarios:Steps completed: 9900
+INFO:xcs.scenarios:Average reward per step: 0.49222
+INFO:xcs.scenarios:Steps completed: 10000
+INFO:xcs.scenarios:Average reward per step: 0.49210
+INFO:xcs.scenarios:Run completed.
+INFO:xcs.scenarios:Total steps: 10000
+INFO:xcs.scenarios:Total reward received: 4921.00000
+INFO:xcs.scenarios:Average reward per step: 0.49210
+INFO:xcs:Classifiers:
 
-10#00011#1100111#0#0##100#100#011001####101#10##001#0#1##0010#101###1#000##011#011###10100##0010###0 =&gt; False
-    Time Stamp: 9827
-    Average Reward: 1e-05
-    Error: 1e-05
-    Fitness: 1.0000000000000002e-06
-    Experience: 0
-    Action Set Size: 1
-    Numerosity: 1
-1#110011#1101001#00#01#001100100#01#111#011#1101###11###1100101010##010#111110#10#1000010#1#101#110# =&gt; False
-    Time Stamp: 9963
-    Average Reward: 1e-05
-    Error: 1e-05
-    Fitness: 1.0000000000000002e-06
-    Experience: 0
-    Action Set Size: 1
-    Numerosity: 1
-
-.
-.
-.
-
-#1###0#001100#000#1###11001#101001110#000#0#011#010##010##10#10001#1#0011#0#0#0#11#101#00###0#001101 =&gt; False
-    Time Stamp: 9994
+11#1001##0110000#101####001010##111111#1110#00#0100#11100#1###0110110####11#011##0#0#1###011#1#11001 =&gt; False
+    Time Stamp: 9771
     Average Reward: 1.0
     Error: 0.0
-    Fitness: 0.15000850000000002
-    Experience: 1
-    Action Set Size: 1.0
+    Fitness: 8.5e-07
+    Experience: 0
+    Action Set Size: 1
     Numerosity: 1
-####0########1001#0111001#0###0##010#1000#00000010010#01##01##11#0#1#1#01101#1011#1#10#0#0#0110#0#01 =&gt; False
-    Time Stamp: 9998
-    Average Reward: 1.0
+#00001100##1010#01111101001#0###0#10#10#11###10#1#0#0#11#11010111111#0#01#111#0#100#00#10000111##000 =&gt; False
+    Time Stamp: 8972
+    Average Reward: 0.0
     Error: 0.0
     Fitness: 0.15000850000000002
     Experience: 1
     Action Set Size: 1.0
     Numerosity: 1
 
-INFO:xcs:Total time: 22.56881 seconds</code></pre>
+.
+.
+.
+
+100#0010010###0#1001#1#0100##0#1##101#011#0#0101110#1111#11#000##0#1#0##001#1110##001011###1001##01# =&gt; True
+    Time Stamp: 9993
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.15000850000000002
+    Experience: 1
+    Action Set Size: 1.0
+    Numerosity: 1
+10#100##110##00#001##0#100100#00#1110##100##1#1##1111###00#0#1#1##00#010##00011#10#1#11##0#0#01100#0 =&gt; False
+    Time Stamp: 9997
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.15000850000000002
+    Experience: 1
+    Action Set Size: 1.0
+    Numerosity: 1
+
+INFO:xcs:Total time: 21.50882 seconds</code></pre>
 
 </div>
 </div>
@@ -1117,7 +1105,7 @@ INFO:xcs:Total time: 22.56881 seconds</code></pre>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>It appears the algorithm isn't learning at all, at least not at a visible rate. But after a few rounds of playing with the parameter values, it becomes apparent that with the correct settings and sufficient training cycles, it is possible for the algorithm to handle the new problem.</p>
+<p>It appears the algorithm isn't learning at all, at least not at a visible rate. But after a few rounds of playing with the parameter values, it becomes apparent that with the correct settings and sufficient training cycles, it is possible for the algorithm to handle the new scenario.</p>
 
 </div>
 </div>
@@ -1133,7 +1121,6 @@ INFO:xcs:Total time: 22.56881 seconds</code></pre>
 
 <span class="c"># Default parameter settings in test()</span>
 <span class="n">algorithm</span><span class="o">.</span><span class="n">exploration_probability</span> <span class="o">=</span> <span class="o">.</span><span class="mi">1</span>
-<span class="n">algorithm</span><span class="o">.</span><span class="n">discount_factor</span> <span class="o">=</span> <span class="mi">0</span>
 
 <span class="c"># Modified parameter settings</span>
 <span class="n">algorithm</span><span class="o">.</span><span class="n">ga_threshold</span> <span class="o">=</span> <span class="mi">1</span>
@@ -1144,7 +1131,7 @@ INFO:xcs:Total time: 22.56881 seconds</code></pre>
 <span class="n">algorithm</span><span class="o">.</span><span class="n">deletion_threshold</span> <span class="o">=</span> <span class="mi">1</span>
 <span class="n">algorithm</span><span class="o">.</span><span class="n">mutation_probability</span> <span class="o">=</span> <span class="o">.</span><span class="mi">002</span>
 
-<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">problem</span><span class="o">=</span><span class="n">OnLineObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
+<span class="n">xcs</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">scenario</span><span class="o">=</span><span class="n">ScenarioObserver</span><span class="p">(</span><span class="n">problem</span><span class="p">))</span>
 </pre></div>
 
 </div>
@@ -1158,50 +1145,100 @@ INFO:xcs:Total time: 22.56881 seconds</code></pre>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 
-<pre><code>INFO:xcs.problems:Possible actions:
-INFO:xcs.problems:    False
-INFO:xcs.problems:    True
-INFO:xcs.problems:Steps completed: 0
-INFO:xcs.problems:Average reward per step: 0.00000
-INFO:xcs.problems:Steps completed: 100
-INFO:xcs.problems:Average reward per step: 0.51000
+<pre><code>INFO:xcs.scenarios:Possible actions:
+INFO:xcs.scenarios:    False
+INFO:xcs.scenarios:    True
+INFO:xcs.scenarios:Steps completed: 0
+INFO:xcs.scenarios:Average reward per step: 0.00000
+INFO:xcs.scenarios:Steps completed: 100
+INFO:xcs.scenarios:Average reward per step: 0.44000
 
 .
 .
 .
 
-INFO:xcs.problems:Steps completed: 9900
-INFO:xcs.problems:Average reward per step: 0.74768
-INFO:xcs.problems:Steps completed: 10000
-INFO:xcs.problems:Average reward per step: 0.74930
-INFO:xcs.problems:Run completed.
-INFO:xcs.problems:Total steps: 10000
-INFO:xcs.problems:Total reward received: 7493.00000
-INFO:xcs.problems:Average reward per step: 0.74930
-INFO:xcs:Population:
+INFO:xcs.scenarios:Steps completed: 9900
+INFO:xcs.scenarios:Average reward per step: 0.71818
+INFO:xcs.scenarios:Steps completed: 10000
+INFO:xcs.scenarios:Average reward per step: 0.71990
+INFO:xcs.scenarios:Run completed.
+INFO:xcs.scenarios:Total steps: 10000
+INFO:xcs.scenarios:Total reward received: 7199.00000
+INFO:xcs.scenarios:Average reward per step: 0.71990
+INFO:xcs:Classifiers:
 
 .
 .
 .
 
-#########################################################################################################################################################################################################################################################################0########################################################################################################################################################################################################################################## =&gt; True
-    Time Stamp: 9985
-    Average Reward: 0.0
-    Error: 0.0
-    Fitness: 0.9140861041662134
-    Experience: 151
-    Action Set Size: 12.562816142718065
-    Numerosity: 11
-#########################################################################################################################################################################################################################################################################1########################################################################################################################################################################################################################################## =&gt; True
+#########################################################################0#################################################################################################################################################################################################################0######################################################################################################################################################################################################################## =&gt; False
     Time Stamp: 10000
     Average Reward: 1.0
     Error: 0.0
-    Fitness: 0.9754584872714894
-    Experience: 2552
-    Action Set Size: 36.04654244034175
-    Numerosity: 37
+    Fitness: 0.06603241567396244
+    Experience: 84
+    Action Set Size: 35.38393265784616
+    Numerosity: 2
 
-INFO:xcs:Total time: 43.38809 seconds</code></pre>
+.
+.
+.
+
+#########################################################################0##################################################################################################################0####################################################################################################################################################################################################################################################################################################################### =&gt; False
+    Time Stamp: 10000
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.11504822315545861
+    Experience: 218
+    Action Set Size: 35.391204726113
+    Numerosity: 2
+
+.
+.
+.
+
+#########################################################################0################################################################################################################################################################################################################################################################################################################################1######################################################################################################### =&gt; False
+    Time Stamp: 10000
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.09257423134262922
+    Experience: 67
+    Action Set Size: 35.07541457874612
+    Numerosity: 3
+#########################################################################0########################################################################################################################################################################################################################################################################################################################################################################################################################################## =&gt; False
+    Time Stamp: 10000
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.12456467313416163
+    Experience: 2384
+    Action Set Size: 35.1459543020003
+    Numerosity: 5
+#################################################1#######################0########################################################################################################################################################################################################################################################################################################################################################################################################################################## =&gt; False
+    Time Stamp: 9998
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.14507972120595913
+    Experience: 178
+    Action Set Size: 35.37225272699431
+    Numerosity: 5
+#########################################################################0####################################################################################################################################################0##################################################################################################################################################################################################################################################################################### =&gt; False
+    Time Stamp: 10000
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.17931849040575895
+    Experience: 60
+    Action Set Size: 37.06726834263018
+    Numerosity: 5
+#########################################################################1########################################################################################################################################################################################################################################################################################################################################################################################################################################## =&gt; True
+    Time Stamp: 9997
+    Average Reward: 1.0
+    Error: 0.0
+    Fitness: 0.9556621050752229
+    Experience: 2482
+    Action Set Size: 54.59161655445003
+    Numerosity: 49
+
+INFO:xcs:Total time: 35.27361 seconds</code></pre>
 
 </div>
 </div>
