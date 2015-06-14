@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# -------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # xcs
 # ---
 # Accuracy-based Classifier Systems for Python 3
@@ -13,18 +13,45 @@
 # as described in the 2001 paper, "An Algorithmic Description of XCS,"
 # by Martin Butz and Stewart Wilson.
 #
-# -------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
 """
-xcs
-===
 Accuracy-based Classifier Systems for Python 3
-(c) Aaron Hosford 2015, all rights reserved
-Revised BSD License
 
-xcs._python_bitstrings
-----------------------
-Bit-strings, implemented using standard Python data types.
+This xcs submodule provides a version of the BitString class, implemented
+using ordinary Python ints. Speed is comparable to numpy arrays.
+
+
+
+
+Copyright (c) 2015, Aaron Hosford
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice,
+  this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of xcs nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 """
 
 __author__ = 'Aaron Hosford'
@@ -35,25 +62,25 @@ __all__ = [
 
 import random
 
-
 from .bitstrings import BitStringBase
 
 
 class BitString(BitStringBase):
-    """A hashable, immutable sequence of bits (Boolean values). This is the slower, Python-only implementation that
-    doesn't depend on numpy.
+    """A hashable, immutable sequence of bits (Boolean values). This is the
+    Python-only implementation that doesn't depend on numpy.
 
-    In addition to operations for indexing and iteration, implements standard bitwise operations, including & (bitwise
-    and), | (bitwise or), ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator, which acts like string
-    concatenation.
+    In addition to operations for indexing and iteration, implements
+    standard bitwise operations, including & (bitwise and), | (bitwise or),
+    ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator,
+    which acts like string concatenation.
 
     A bit string can also be cast as an integer or an ordinary string.
     """
 
     @classmethod
     def random(cls, length, bit_prob=.5):
-        """Create a bit string of the given length, with the probability of each bit being set equal to bit_prob, which
-         defaults to .5."""
+        """Create a bit string of the given length, with the probability of
+        each bit being set equal to bit_prob, which defaults to .5."""
 
         assert isinstance(length, int) and length >= 0
         assert isinstance(bit_prob, (int, float)) and 0 <= bit_prob <= 1
@@ -67,8 +94,9 @@ class BitString(BitStringBase):
 
     @classmethod
     def crossover_template(cls, length, points=2):
-        """Create a crossover template with the given number of points. The crossover template can be used as a mask
-        to crossover two bitstrings of the same length:
+        """Create a crossover template with the given number of points. The
+        crossover template can be used as a mask to crossover two
+        bitstrings of the same length:
 
             assert len(parent1) == len(parent2)
             template = BitString.crossover_template(len(parent1))
@@ -153,10 +181,11 @@ class BitString(BitStringBase):
         return result
 
     def __len__(self):
+        """Overloads len(instance)"""
         return self._length
 
     def __getitem__(self, index):
-        # Overloads bitstring[index]
+        """Overloads bitstring[index]"""
         if isinstance(index, slice):
             start, stop, step = index.indices(self._length)
             if start < 0:
@@ -166,10 +195,14 @@ class BitString(BitStringBase):
                 start, stop = stop, start
             if step == 1:
                 length = stop - start
-                bits = (self._bits >> (self._length - stop)) % (1 << length)
+                bits = ((self._bits >> (self._length - stop)) %
+                        (1 << length))
                 return BitString(bits, length)
             else:
-                return BitString([self[point] for point in range(start, stop, step)])
+                return BitString([
+                    self[point]
+                    for point in range(start, stop, step)
+                ])
 
         assert isinstance(index, int)
 
@@ -181,19 +214,19 @@ class BitString(BitStringBase):
             return (self._bits >> (-index - 1)) % 2
 
     def __hash__(self):
-        # Overloads hash(bitstring)
+        """Overloads hash(bitstring)"""
         if self._hash is None:
             self._hash = hash(self._bits) ^ hash(self._length)
         return self._hash
 
     def __eq__(self, other):
-        # Overloads ==
+        """Overloads =="""
         if not isinstance(other, BitString):
             return NotImplemented
         return self._bits == other._bits and self._length == other._length
 
     def __and__(self, other):
-        # Overloads &
+        """Overloads &"""
         if isinstance(other, BitString):
             assert self._length == other._length
         else:
@@ -201,7 +234,7 @@ class BitString(BitStringBase):
         return BitString(self._bits & other._bits, self._length)
 
     def __or__(self, other):
-        # Overloads |
+        """Overloads |"""
         if isinstance(other, BitString):
             assert self._length == other._length
         else:
@@ -209,7 +242,7 @@ class BitString(BitStringBase):
         return BitString(self._bits | other._bits, self._length)
 
     def __xor__(self, other):
-        # Overloads ^
+        """Overloads ^"""
         if isinstance(other, BitString):
             assert self._length == other._length
         else:
@@ -217,27 +250,23 @@ class BitString(BitStringBase):
         return BitString(self._bits ^ other._bits, self._length)
 
     def __invert__(self):
-        # Overloads unary ~
+        """Overloads unary ~"""
         return BitString(~self._bits % (1 << self._length), self._length)
 
     def __add__(self, other):
-        # Overloads +
+        """Overloads +"""
         if not isinstance(other, BitString):
             other = BitString(other)
-        return BitString((self._bits << other._length) + other._bits, self._length + other._length)
-
-    @classmethod
-    def from_int(cls, value, length=None):
-        """Create a bit string from an integer value. If the length parameter is provided, it determines the number of
-        bits in the bit string. Otherwise, the minimum length required to represent the value is used."""
-
-        return cls(value, length)
+        return BitString(
+            (self._bits << other._length) + other._bits,
+            self._length + other._length
+        )
 
     def __int__(self):
-        # Overloads int(bitstring)
+        """Overloads int(bitstring)"""
         return self._bits
 
     def __iter__(self):
-        # Overloads iter(bitstring), and also, for bit in bitstring
+        """Overloads iter(bitstring), and also, for bit in bitstring"""
         for index in range(self._length - 1, -1, -1):
             yield (self._bits >> index) % 2

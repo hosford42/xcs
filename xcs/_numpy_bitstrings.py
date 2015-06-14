@@ -73,7 +73,6 @@ try:
 except AttributeError:
     raise ImportError('The numpy module failed to uninstall properly.')
 
-
 from .bitstrings import BitStringBase
 
 
