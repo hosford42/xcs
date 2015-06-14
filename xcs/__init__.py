@@ -15,9 +15,11 @@
 #
 # -------------------------------------------------------------------------
 
-# TODO: Rename LCS to ClassifierSet
-# TODO: Recheck the module headers and docstrings to make sure they are
-#       consistently formatted.
+# TODO: Move code that explicitly depends on bit-strings and bit-conditions
+#       out of the classes in this file; bit-strings should be used by
+#       default, but it should be possible to use arbitrary input and
+#       condition types, provided they implement a sufficiently similar
+#       interface.
 # TODO: Add classifier and action to the metadata. Then take advantage of
 #       this to simplify the interfaces. As an alternative, create a Rule
 #       or Classifier class and supply the condition, action, and metadata
@@ -27,8 +29,6 @@
 #       possible actions. (What about infinite ranges?)
 # TODO: Update docstrings in all files. Add argument and return types, and
 #       use cases.
-# TODO: Wrap all docstrings at 75(?) characters to ensure they look nice
-#       when using help().
 # TODO: Improve test coverage
 # TODO: Clean up all TODOs.
 # TODO: Ensure all external documentation uses final interface.
@@ -359,7 +359,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
         """Reduce the classifier set's population size, if necessary, by
         removing lower-quality rules. Return a sequence containing the
         rules whose numerosities dropped to zero as a result of this call.
-        The model argument is an LCS instance which utilizes this
+        The model argument is a ClassifierSet instance which utilizes this
         algorithm."""
         raise NotImplementedError()
 
@@ -1378,7 +1378,11 @@ class XCSAlgorithm(LCSAlgorithm):
                             # Sometimes the parent is removed from a
                             # previous subsumption
                             metadata.numerosity = 1
-                            action_set.model.add(parent, action_set.action, metadata)
+                            action_set.model.add(
+                                parent,
+                                action_set.action,
+                                metadata
+                            )
                         subsumed = True
                         break
                 if subsumed:
