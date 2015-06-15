@@ -41,8 +41,8 @@ Usage:
     logging.root.setLevel(logging.INFO)
     scenario = ScenarioObserver(scenario)
 
-    # Instantiate the algorithm and set the parameters to values
-    # appropriate to the scenario. Calling help(XCSAlgorithm) will give
+    # Instantiate the algorithm and set the parameters to values that are
+    # appropriate for the scenario. Calling help(XCSAlgorithm) will give
     # you a description of each parameter's meaning.
     algorithm = XCSAlgorithm()
     algorithm.exploration_probability = .1
@@ -199,6 +199,14 @@ class ActionSelectionStrategy(metaclass=ABCMeta):
     Usage:
         This is an abstract base class. Use a subclass, such as
         EpsilonGreedySelectionStrategy, to create an instance.
+
+    Init Arguments: n/a (See appropriate subclass.)
+
+    Callable Instance:
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            An action from among those suggested by match_set.
     """
 
     @abstractmethod
@@ -222,6 +230,15 @@ class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
         # strategy we just created.
         algorithm = XCSAlgorithm()
         algorithm.exploration_strategy = strategy
+
+    Init Arguments:
+        epsilon: The probability of exploration; default is .1.
+
+    Callable Instance:
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            An action from among those suggested by match_set.
     """
 
     def __init__(self, epsilon=.1):
@@ -257,6 +274,8 @@ class ClassifierRule(metaclass=ABCMeta):
     Usage:
         This is an abstract base class. Use a subclass, such as
         XCSClassifierRule, to create an instance.
+
+    Init Arguments: n/a (See appropriate subclass.)
     """
 
     # The number of instances of the classifier rule in its classifier set.
@@ -322,6 +341,8 @@ class LCSAlgorithm(metaclass=ABCMeta):
     Usage:
         This is an abstract base class. Use a subclass, such as
         XCSAlgorithm, to create an instance.
+
+    Init Arguments: n/a (See appropriate subclass.)
     """
 
     def new_model(self, scenario):
@@ -329,13 +350,38 @@ class LCSAlgorithm(metaclass=ABCMeta):
         the given scenario.
 
         Usage:
-            algorithm = XCSAlgorithm()
             scenario = MUXProblem()
             model = algorithm.new_model(scenario)
             model.run(scenario, learn=True)
+
+        Arguments:
+            scenario: A Scenario instance.
+        Return:
+            A new, untrained classifier set, suited for the given scenario.
         """
         assert isinstance(scenario, scenarios.Scenario)
         return ClassifierSet(self, scenario.get_possible_actions())
+
+    def run(self, scenario):
+        """Run the algorithm, utilizing a classifier set to choose the
+        most appropriate action for each situation produced by the
+        scenario. Improve the situation/action mapping on each reward
+        cycle to maximize reward. Return the classifier set that was
+        created.
+
+        Usage:
+            scenario = MUXProblem()
+            model = algorithm.run(scenario)
+
+        Arguments:
+            scenario: A Scenario instance.
+        Return:
+            A new classifier set, trained on the given scenario.
+        """
+        assert isinstance(scenario, scenarios.Scenario)
+        model = self.new_model(scenario)
+        model.run(scenario, learn=True)
+        return model
 
     @property
     @abstractmethod
@@ -348,7 +394,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
     @abstractmethod
     def get_future_expectation(self, match_set):
         """Return a numerical value representing the expected future payoff
-        of the previously selected action(s), given only the current match
+        of the previously selected action, given only the current match
         set. The match_set argument is a MatchSet instance representing the
         current match set.
 
@@ -357,6 +403,13 @@ class LCSAlgorithm(metaclass=ABCMeta):
             expectation = model.algorithm.get_future_expectation(match_set)
             payoff = previous_reward + discount_factor * expectation
             previous_match_set.payoff = payoff
+
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            A float, the estimate of the expected near-future payoff for
+            the situation for which match_set was generated, based on the
+            contents of match_set.
         """
         raise NotImplementedError()
 
@@ -373,6 +426,13 @@ class LCSAlgorithm(metaclass=ABCMeta):
                 assert new_rule.condition(situation)
                 model.add(new_rule)
                 match_set = model.match(situation)
+
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            A bool indicating whether match_set contains too few matching
+            classifier rules and therefore needs to be augmented with a
+            new one.
         """
         raise NotImplementedError()
 
@@ -382,8 +442,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
         with a condition that matches the situation of the match set and an
         action selected to avoid duplication of the actions already
         contained therein. The match_set argument is a MatchSet instance
-        representing the match set to which the returned rule will be
-        added.
+        representing the match set to which the returned rule may be added.
 
         Usage:
             match_set = model.match(situation)
@@ -392,6 +451,13 @@ class LCSAlgorithm(metaclass=ABCMeta):
                 assert new_rule.condition(situation)
                 model.add(new_rule)
                 match_set = model.match(situation)
+
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            A new ClassifierRule instance, appropriate for the addition to
+            match_set and to the classifier set from which match_set was
+            drawn.
         """
         raise NotImplementedError()
 
@@ -408,6 +474,11 @@ class LCSAlgorithm(metaclass=ABCMeta):
             match_set.select_action()
             match_set.payoff = reward
             model.algorithm.distribute_payoff(match_set)
+
+        Arguments:
+            match_set: A MatchSet instance for which the accumulated payoff
+                needs to be distributed among its classifier rules.
+        Return: None
         """
         raise NotImplementedError()
 
@@ -425,13 +496,19 @@ class LCSAlgorithm(metaclass=ABCMeta):
             match_set.payoff = reward
             model.algorithm.distribute_payoff(match_set)
             model.algorithm.update(match_set)
+
+        Arguments:
+            match_set: A MatchSet instance for which the classifier set
+                from which it was drawn needs to be updated based on the
+                match set's payoff distribution.
+        Return: None
         """
         raise NotImplementedError()
 
     @abstractmethod
     def prune(self, model):
         """Reduce the classifier set's population size, if necessary, by
-        removing lower-quality rules. Return a list containing any rules
+        removing lower-quality *rules. Return a list containing any rules
         whose numerosities dropped to zero as a result of this call. (The
         list may be empty, if no rule's numerosity dropped to 0.) The
         model argument is a ClassifierSet instance which utilizes this
@@ -439,24 +516,16 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
         Usage:
             deleted_rules = model.algorithm.prune(model)
+
+        Arguments:
+            model: A ClassifierSet instance whose population may need to
+                be reduced in size.
+        Return:
+            A possibly empty list of ClassifierRule instances which were
+            removed entirely from the classifier set because their
+            numerosities dropped to 0.
         """
         raise NotImplementedError()
-
-    def run(self, scenario):
-        """Run the algorithm, utilizing a classifier set to choose the
-        most appropriate action for each situation produced by the
-        scenario. Improve the situation/action mapping on each reward
-        cycle to maximize reward. Return the classifier set that was
-        created.
-
-        Usage:
-            scenario = MUXProblem()
-            model = algorithm.run(scenario)
-        """
-        assert isinstance(scenario, scenarios.Scenario)
-        model = self.new_model(scenario)
-        model.run(scenario, learn=True)
-        return model
 
 
 class ActionSet:
@@ -473,10 +542,19 @@ class ActionSet:
         }
         action_set = ActionSet(model, situation, action, rules)
 
-    NOTE: For efficiency, the ActionSet instance captures the rules
-          dictionary. You should not modify this dictionary once it
-          has been passed to the ActionSet. If you must do so, make a
-          copy instead, and modify that.
+    Init Arguments:
+        model: The ClassifierSet from which this action set was drawn.
+        situation: The situation against which the classifier rules in this
+            action set all matched.
+        action: The action which the classifier rules in this action set
+            collectively suggest.
+        rules: A dictionary of the form {rule.condition: rule}, where each
+            value is a ClassifierRule instance and its associated key is
+            the condition of that rule.
+
+    NOTE: For efficiency, the ActionSet instance uses the rules dictionary
+          directly rather than making a copy. You should not modify this
+          dictionary once it has been passed to the ActionSet.
     """
 
     def __init__(self, model, situation, action, rules):
@@ -536,7 +614,15 @@ class ActionSet:
         action set. The combined prediction is the weighted average of the
         individual predictions of the classifiers. The combined prediction
         weight is the sum of the individual prediction weights of the
-        classifiers."""
+        classifiers.
+
+        Usage:
+            Do not call this method directly. Use the prediction and/or
+            prediction_weight properties instead.
+
+        Arguments: None
+        Return: None
+        """
         total_weight = 0
         total_prediction = 0
         for rule in self._rules.values():
@@ -586,11 +672,16 @@ class ActionSet:
 
     def remove(self, rule):
         """Remove this classifier rule from the action set. (Does not
-        affect numerosity.)
+        affect numerosity.) A KeyError is raised if the rule is not present
+        in the action set when this method is called.
 
         Usage:
             if rule in action_set:
                 action_set.remove(rule)
+
+        Arguments:
+            rule: The ClassifierRule instance to be removed.
+        Return: None
         """
         del self._rules[rule.condition]
 
@@ -609,6 +700,23 @@ class MatchSet:
                 by_action[action][rule.condition] = rule
 
         match_set = MatchSet(model, situation, by_action)
+
+    Init Arguments:
+        model: The ClassifierSet instance from which the classifier rules
+            in this match set were drawn.
+        situation: The situation against which the rules in this match set
+            all matched.
+        by_action: A 2-tiered dictionary of the form {action: {condition:
+            rule}}, containing the classifier rules in this match set. The
+            the values of the inner dictionary should be ClassifierRule
+            instances, and for each of them,
+                assert by_action[rule.action][rule.condition] is rule
+            should succeed.
+
+    NOTE: For efficiency, the MatchSet instance uses the inner dictionaries
+          in by_action directly rather than making copies of them. You
+          should not modify these dictionaries once they have been passed
+          to the MatchSet.
     """
 
     def __init__(self, model, situation, by_action):
@@ -676,6 +784,11 @@ class MatchSet:
 
         Usage:
             action_set = match_set.get(action)
+
+        Arguments:
+            action: The action suggested by the desired ActionSet.
+            default: The value returned if no such ActionSet exists. If no
+                value is provided, None is used.
         """
         return self._action_sets.get(action, default)
 
@@ -711,6 +824,10 @@ class MatchSet:
         Usage:
             if match_set.selected_action is None:
                 match_set.select_action()
+
+        Arguments: None
+        Return:
+            The action that was selected by the action selection strategy.
         """
         if self._selected_action is not None:
             raise ValueError("The action has already been selected.")
@@ -785,6 +902,13 @@ class MatchSet:
         Usage:
             match_set = model.match(situation)
             match_set.pay(previous_match_set)
+
+        Arguments:
+            predecessor: The MatchSet instance which was produced by the
+                same classifier set in response to the immediately
+                preceding situation, or None if this is the first situation
+                in the scenario.
+        Return: None
         """
         assert predecessor is None or isinstance(predecessor, MatchSet)
 
@@ -803,6 +927,9 @@ class MatchSet:
             match_set.select_action()
             match_set.payoff = reward
             match_set.apply_payoff()
+
+        Arguments: None
+        Return: None
         """
         if self._selected_action is None:
             raise ValueError("The action has not been selected yet.")
@@ -838,6 +965,13 @@ class ClassifierSet:
         algorithm = XCSAlgorithm()
         possible_actions = range(5)
         model = ClassifierSet(algorithm, possible_actions)
+
+    Init Arguments:
+        algorithm: The LCSAlgorithm instance which will manage this
+            classifier set's population and behavior.
+        possible_actions: A sequence containing the possible actions that
+            may be suggested by classifier rules later appearing in this
+            classifier set.
     """
 
     def __init__(self, algorithm, possible_actions):
@@ -918,6 +1052,12 @@ class ClassifierSet:
 
         Usage:
             match_set = model.match(situation)
+
+        Arguments:
+            situation: The situation for which a match set is desired.
+        Return:
+            A MatchSet instance for the given situation, drawn from the
+            classifier rules in this classifier set.
         """
 
         # Find the conditions that match against the current situation, and
@@ -994,6 +1134,15 @@ class ClassifierSet:
 
         Usage:
             displaced_rules = model.add(rule)
+
+        Arguments:
+            rule: A ClassifierRule instance which is to be added to this
+                classifier set.
+        Return:
+            A possibly empty list of ClassifierRule instances which were
+            removed altogether from the classifier set (as opposed to
+            simply having their numerosities decremented) in order to make
+            room for the newly added rule.
         """
 
         assert isinstance(rule, ClassifierRule)
@@ -1027,6 +1176,16 @@ class ClassifierSet:
         Usage:
             if rule in model and model.discard(rule, count=3):
                 print("Rule numerosity dropped to zero.")
+
+        Arguments:
+            rule: A ClassifierRule instance whose numerosity is to be
+                decremented.
+            count: An int, the size of the decrement to the rule's
+                numerosity; default is 1.
+        Return:
+            A bool indicating whether the rule was removed altogether from
+            the classifier set, as opposed to simply having its numerosity
+            decremented.
         """
         assert isinstance(rule, ClassifierRule)
         assert isinstance(count, int) and count >= 0
@@ -1052,10 +1211,21 @@ class ClassifierSet:
     def get(self, rule, default=None):
         """Return the existing version of the given rule. If the rule is
         not present in the classifier set, return the default. If no
-        default was given, use None.
+        default was given, use None. This is useful for eliminating
+        duplicate copies of rules.
 
         Usage:
-            actual_rule = model.get(possible_rule, possible_rule)
+            unique_rule = model.get(possible_duplicate, possible_duplicate)
+
+        Arguments:
+            rule: The ClassifierRule instance which may be a duplicate of
+                another already contained in the classifier set.
+            default: The value returned if the rule is not a duplicate of
+                another already contained in the classifier set.
+        Return:
+            If the rule is a duplicate of another already contained in the
+            classifier set, the existing one is returned. Otherwise, the
+            value of default is returned.
         """
         assert isinstance(rule, ClassifierRule)
 
@@ -1071,6 +1241,9 @@ class ClassifierSet:
         Usage:
             if training_cycle_complete:
                 model.update_time_stamp()
+
+        Arguments: None
+        Return: None
         """
         self._time_stamp += 1
 
@@ -1082,6 +1255,16 @@ class ClassifierSet:
 
         Usage:
             model.run(scenario, learn=True)
+
+        Arguments:
+            scenario: A Scenario instance which this classifier set is to
+                interact with.
+            learn: A bool indicating whether the classifier set should
+                attempt to optimize its performance based on reward
+                received for each action, as opposed to simply using what
+                it has already learned from previous runs and ignoring
+                reward received; default is True.
+        Return: None
         """
 
         assert isinstance(scenario, scenarios.Scenario)
@@ -1163,6 +1346,15 @@ class XCSClassifierRule(ClassifierRule):
             algorithm=model.algorithm,  # An XCSAlgorithm instance
             time_stamp=model.time_stamp
         )
+
+    Init Arguments:
+        condition: The condition which this rule uses to determine whether
+            it should be included in a MatchSet.
+        action: The action which this rule always suggests.
+        algorithm: The XCSAlgorithm managing the classifier set to which
+            this rule belongs.
+        time_stamp: The time stamp of the classifier set to which this
+            rule belongs, as of the moment this rule is created.
     """
 
     def __init__(self, condition, action, algorithm, time_stamp):
@@ -1455,6 +1647,8 @@ class XCSAlgorithm(LCSAlgorithm):
         algorithm = XCSAlgorithm()
         algorithm.exploration_probability = .1
         model = algorithm.run(scenario)
+
+    Init Arguments: None
     """
 
     # For a detailed explanation of each parameter, please see the original
@@ -1505,7 +1699,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
     def get_future_expectation(self, match_set):
         """Return a numerical value representing the expected future payoff
-        of the previously selected action(s), given only the current match
+        of the previously selected action, given only the current match
         set. The match_set argument is a MatchSet instance representing the
         current match set.
 
@@ -1514,6 +1708,13 @@ class XCSAlgorithm(LCSAlgorithm):
             expectation = model.algorithm.get_future_expectation(match_set)
             payoff = previous_reward + discount_factor * expectation
             previous_match_set.payoff = payoff
+
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            A float, the estimate of the expected near-future payoff for
+            the situation for which match_set was generated, based on the
+            contents of match_set.
         """
         assert isinstance(match_set, MatchSet)
         assert match_set.algorithm is self
@@ -1535,6 +1736,13 @@ class XCSAlgorithm(LCSAlgorithm):
                 assert new_rule.condition(situation)
                 model.add(new_rule)
                 match_set = model.match(situation)
+
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            A bool indicating whether match_set contains too few matching
+            classifier rules and therefore needs to be augmented with a
+            new one.
         """
         assert isinstance(match_set, MatchSet)
         assert match_set.algorithm is self
@@ -1549,8 +1757,7 @@ class XCSAlgorithm(LCSAlgorithm):
         with a condition that matches the situation of the match set and an
         action selected to avoid duplication of the actions already
         contained therein. The match_set argument is a MatchSet instance
-        representing the match set to which the returned rule will be
-        added.
+        representing the match set to which the returned rule may be added.
 
         Usage:
             match_set = model.match(situation)
@@ -1559,6 +1766,13 @@ class XCSAlgorithm(LCSAlgorithm):
                 assert new_rule.condition(situation)
                 model.add(new_rule)
                 match_set = model.match(situation)
+
+        Arguments:
+            match_set: A MatchSet instance.
+        Return:
+            A new ClassifierRule instance, appropriate for the addition to
+            match_set and to the classifier set from which match_set was
+            drawn.
         """
 
         assert isinstance(match_set, MatchSet)
@@ -1600,6 +1814,11 @@ class XCSAlgorithm(LCSAlgorithm):
             match_set.select_action()
             match_set.payoff = reward
             model.algorithm.distribute_payoff(match_set)
+
+        Arguments:
+            match_set: A MatchSet instance for which the accumulated payoff
+                needs to be distributed among its classifier rules.
+        Return: None
         """
 
         assert isinstance(match_set, MatchSet)
@@ -1644,9 +1863,7 @@ class XCSAlgorithm(LCSAlgorithm):
     def update(self, match_set):
         """Update the classifier set from which the match set was drawn,
         e.g. by applying a genetic algorithm. The match_set argument is the
-        MatchSet instance whose classifier set should be updated. The
-        classifier set which is to be updated can be accessed through the
-        match set's model property.
+        MatchSet instance whose classifier set should be updated.
 
         Usage:
             match_set = model.match(situation)
@@ -1654,6 +1871,12 @@ class XCSAlgorithm(LCSAlgorithm):
             match_set.payoff = reward
             model.algorithm.distribute_payoff(match_set)
             model.algorithm.update(match_set)
+
+        Arguments:
+            match_set: A MatchSet instance for which the classifier set
+                from which it was drawn needs to be updated based on the
+                match set's payoff distribution.
+        Return: None
         """
 
         assert isinstance(match_set, MatchSet)
@@ -1771,7 +1994,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
     def prune(self, model):
         """Reduce the classifier set's population size, if necessary, by
-        removing lower-quality rules. Return a list containing any rules
+        removing lower-quality *rules. Return a list containing any rules
         whose numerosities dropped to zero as a result of this call. (The
         list may be empty, if no rule's numerosity dropped to 0.) The
         model argument is a ClassifierSet instance which utilizes this
@@ -1779,6 +2002,14 @@ class XCSAlgorithm(LCSAlgorithm):
 
         Usage:
             deleted_rules = model.algorithm.prune(model)
+
+        Arguments:
+            model: A ClassifierSet instance whose population may need to
+                be reduced in size.
+        Return:
+            A possibly empty list of ClassifierRule instances which were
+            removed entirely from the classifier set because their
+            numerosities dropped to 0.
         """
 
         assert isinstance(model, ClassifierSet)
@@ -1971,6 +2202,21 @@ def test(algorithm=None, scenario=None):
         algorithm = XCSAlgorithm()
         scenario = HaystackProblem()
         steps, reward, seconds, model = test(algorithm, scenario)
+
+    Arguments:
+        algorithm: The LCSAlgorithm instance which should be run; default
+            is a new XCSAlgorithm instance with exploration probability
+            set to .1 and GA and action set subsumption turned on.
+        scenario: The Scenario instance which the algorithm should be run
+            on; default is a MUXProblem instance with 10,000 training
+            cycles.
+    Return:
+        A tuple, (total_steps, total_reward, total_time, model), where
+        total_steps is the number of training cycles executed, total_reward
+        is the total reward received summed over all executed training
+        cycles, total_time is the time in seconds from start to end of the
+        call to model.run(), and model is the ClassifierSet instance that
+        was created and trained.
     """
 
     assert algorithm is None or isinstance(algorithm, LCSAlgorithm)
