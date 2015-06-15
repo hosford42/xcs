@@ -142,6 +142,20 @@ class BitString(BitStringBase):
         # crossover operators, e.g. like those used in Genetic Algorithms.
         template = BitString.crossover_template(10)
         child = (bitstring1 & template) | (bitstring3 & ~template)
+
+
+    Init Arguments:
+        bits: An int or a sequence of bools which is used to determine the
+            values of the bits in the BitString.
+        length: An int indicating the expected length of the BitString, or
+            None. Default is None, which causes the length of bits to be
+            used if it is a sequence, or bits.bit_length() if bits is an
+            int.
+
+    NOTE: If the bits argument is an int, length must be None or an int
+          of length >= bits.bit_length(). If bits is a sequence of bools,
+          then the length of the sequence must exactly equal length. If
+          these length constraints are not met, a ValueError is raised.
     """
 
     @classmethod
@@ -152,6 +166,16 @@ class BitString(BitStringBase):
         Usage:
             # Create a random BitString of length 10 with mostly zeros.
             bits = BitString.random(10, bit_prob=.1)
+
+        Arguments:
+            length: An int, indicating the desired length of the result.
+            bit_prob: A float in the range [0, 1]. This is the probability
+                of any given bit in the result having a value of 1; default
+                is .5, giving 0 and 1 equal probabilities of appearance for
+                each bit's value.
+        Return:
+            A randomly generated BitString instance of the requested
+            length.
         """
 
         assert isinstance(length, int) and length >= 0
@@ -178,6 +202,13 @@ class BitString(BitStringBase):
             inv_template = ~template
             child1 = (parent1 & template) | (parent2 & inv_template)
             child2 = (parent1 & inv_template) | (parent2 & template)
+
+        Arguments:
+            length: An int, indicating the desired length of the result.
+            points: An int, the number of crossover points.
+        Return:
+            A BitString instance of the requested length which can be used
+            as a crossover template.
         """
 
         assert isinstance(length, int) and length >= 0
@@ -282,7 +313,8 @@ class BitString(BitStringBase):
 
             hash_value = None
 
-        assert length is None or len(bits) == length
+        if length is not None and len(bits) != length:
+            raise ValueError("Sequence has incorrect length.")
 
         super().__init__(bits, hash_value)
 
@@ -292,6 +324,10 @@ class BitString(BitStringBase):
         Usage:
             assert not BitString('0000').any()
             assert BitString('0010').any()
+
+        Arguments: None
+        Return:
+            A bool indicating whether at least one bit has value 1.
         """
         return self._bits.any()
 
@@ -300,6 +336,10 @@ class BitString(BitStringBase):
 
         Usage:
             assert BitString('00110').count() == 2
+
+        Arguments: None
+        Return:
+            An int, the number of bits with value 1.
         """
         return int(numpy.count_nonzero(self._bits))
 
