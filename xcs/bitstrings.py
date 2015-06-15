@@ -325,8 +325,9 @@ class BitCondition:
     that if the condition being used as the pattern specifies a 1 or 0 at a
     particular index, and the condition being used as the substrate
     contains an # at that point, the match fails. This means that if
-    condition1 matches a bitstring and condition2 matches condition1, then
-    condition2 is guaranteed to match the bitstring, as well.
+    you have two conditions, condition1 and condition2, where condition1
+    matches a bitstring and condition2 matches condition1, then condition2
+    is guaranteed to match the bitstring, as well.
 
     Usage:
         # A few ways to create a BitCondition instance
@@ -392,14 +393,19 @@ class BitCondition:
         concatenation = condition1 + condition3
         assert len(concatenation) == 10 * 2
 
-        # They support the crossover operator directly
-        child = condition1.crossover_with(condition3)
+        # They support the Genetic Algorithm's crossover operator directly
+        child1, child2 = condition1.crossover_with(condition3)
     """
 
     @classmethod
     def cover(cls, bits, wildcard_probability):
         """Create a new bit condition that matches the provided bit string,
-        with the indicated per-index wildcard probability."""
+        with the indicated per-index wildcard probability.
+
+        Usage:
+            condition = BitCondition.cover(bitstring, .33)
+            assert condition(bitstring)
+        """
 
         if not isinstance(bits, BitString):
             bits = BitString(bits)
@@ -460,13 +466,17 @@ class BitCondition:
 
     @property
     def mask(self):
-        """The bit string indicating the bit mask. A value of True for a
-        bit indicates it must match the value bit string. A value of False
+        """The bit string indicating the bit mask. A value of 1 for a
+        bit indicates it must match the value bit string. A value of 0
         indicates it is masked/wildcarded."""
         return self._mask
 
     def count(self):
-        """Return the number of bits that are not wildcards."""
+        """Return the number of bits that are not wildcards.
+
+        Usage:
+            non_wildcard_count = condition.count()
+        """
         return self._mask.count()
 
     def __str__(self):
@@ -574,7 +584,11 @@ class BitCondition:
 
     def crossover_with(self, other, points=2):
         """Perform 2-point crossover on this bit condition and another of
-        the same length, returning the two resulting children."""
+        the same length, returning the two resulting children.
+
+        Usage:
+            offspring1, offspring2 = condition1.crossover_with(condition2)
+        """
 
         assert isinstance(other, BitCondition)
         assert len(self) == len(other)
