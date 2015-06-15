@@ -102,6 +102,10 @@ def numpy_is_available():
     Usage:
         if numpy_is_available():
             import numpy
+
+    Arguments: None
+    Return:
+        A bool indicating whether numpy can be imported.
     """
     return xcs.numpy is not None
 
@@ -123,6 +127,12 @@ class BitStringBase(metaclass=ABCMeta):
     Usage:
         This is an abstract base class. Use the BitString subclass to
         create an instance.
+
+    Init Arguments:
+        bits: The object the implementation uses to represent the bits of
+            the BitString.
+        hash_value: None, indicating the hash value will be computed later,
+            or an int representing the hash value of the BitString.
     """
 
     @classmethod
@@ -134,6 +144,16 @@ class BitStringBase(metaclass=ABCMeta):
         Usage:
             # Create a random BitString of length 10 with mostly zeros.
             bits = BitString.random(10, bit_prob=.1)
+
+        Arguments:
+            length: An int, indicating the desired length of the result.
+            bit_prob: A float in the range [0, 1]. This is the probability
+                of any given bit in the result having a value of 1; default
+                is .5, giving 0 and 1 equal probabilities of appearance for
+                each bit's value.
+        Return:
+            A randomly generated BitString instance of the requested
+            length.
         """
         raise NotImplementedError()
 
@@ -150,6 +170,13 @@ class BitStringBase(metaclass=ABCMeta):
             inv_template = ~template
             child1 = (parent1 & template) | (parent2 & inv_template)
             child2 = (parent1 & inv_template) | (parent2 & template)
+
+        Arguments:
+            length: An int, indicating the desired length of the result.
+            points: An int, the number of crossover points.
+        Return:
+            A BitString instance of the requested length which can be used
+            as a crossover template.
         """
         raise NotImplementedError()
 
@@ -166,6 +193,10 @@ class BitStringBase(metaclass=ABCMeta):
         Usage:
             assert not BitString('0000').any()
             assert BitString('0010').any()
+
+        Arguments: None
+        Return:
+            A bool indicating whether at least one bit has value 1.
         """
         raise NotImplementedError()
 
@@ -175,6 +206,10 @@ class BitStringBase(metaclass=ABCMeta):
 
         Usage:
             assert BitString('00110').count() == 2
+
+        Arguments: None
+        Return:
+            An int, the number of bits with value 1.
         """
         raise NotImplementedError()
 
@@ -263,6 +298,11 @@ def using_numpy():
     Usage:
         if using_numpy():
             use_pure_python()
+
+    Arguments: None
+    Return:
+        A bool indicating whether the numpy implementation is currently in
+        use, as opposed to the pure Python implementation.
     """
     return _using_numpy
 
@@ -276,6 +316,9 @@ def use_numpy():
     Usage:
         use_numpy()
         assert using_numpy()
+
+    Arguments: None
+    Return: None
     """
     global BitString, _using_numpy
     from ._numpy_bitstrings import BitString
@@ -290,6 +333,9 @@ def use_pure_python():
     Usage:
         use_pure_python()
         assert not using_numpy()
+
+    Arguments: None
+    Return: None
     """
     global BitString, _using_numpy
     from ._python_bitstrings import BitString
@@ -395,6 +441,14 @@ class BitCondition:
 
         # They support the Genetic Algorithm's crossover operator directly
         child1, child2 = condition1.crossover_with(condition3)
+
+    Init Arguments:
+        bits: If mask is provided, a sequence from which the bits of the
+            condition can be determined. If mask is omitted, a sequence
+            from which the bits and mask of the condition can be
+            determined.
+        mask: None, or a sequence from which the mask can be determined,
+            having the same length as the sequence provided for bits.
     """
 
     @classmethod
@@ -405,6 +459,14 @@ class BitCondition:
         Usage:
             condition = BitCondition.cover(bitstring, .33)
             assert condition(bitstring)
+
+        Arguments:
+            bits: A BitString which the resulting condition must match.
+            wildcard_probability: A float in the range [0, 1] which
+            indicates the likelihood of any given bit position containing
+            a wildcard.
+        Return:
+            A randomly generated BitCondition which matches the given bits.
         """
 
         if not isinstance(bits, BitString):
@@ -476,6 +538,11 @@ class BitCondition:
 
         Usage:
             non_wildcard_count = condition.count()
+
+        Arguments: None
+        Return:
+            An int, the number of positions in the BitCondition which are
+            not wildcards.
         """
         return self._mask.count()
 
@@ -588,6 +655,15 @@ class BitCondition:
 
         Usage:
             offspring1, offspring2 = condition1.crossover_with(condition2)
+
+        Arguments:
+            other: A second BitCondition of the same length as this one.
+            points: An int, the number of crossover points of the
+                crossover operation.
+        Return:
+            A tuple (condition1, condition2) of BitConditions, where the
+            value at each position of this BitCondition and the other is
+            preserved in one or the other of the two resulting conditions.
         """
 
         assert isinstance(other, BitCondition)
