@@ -327,7 +327,7 @@ class BitString(BitStringBase):
         """Overloads hash(bitstring)."""
         # If the hash value hasn't already been calculated, do so now.
         if self._hash is None:
-            self._hash = len(self._bits) + (hash(int(self)) << 13)
+            self._hash = hash(int(self._bits)) ^ hash(self._length)
         return self._hash
 
     def __eq__(self, other):
