@@ -19,7 +19,32 @@
 Accuracy-based Classifier Systems for Python 3
 
 This xcs submodule provides the scenario interface and a selection of
-predefined scenarios and wrappers.
+predefined scenarios and wrappers. Most widely used machine learning
+algorithms operate on static, non-interactive data sets which have already
+been collected, building a model from one data set and then using that
+model to assess a new data set drawn from the same data source, predicting
+unknown values from known ones. Unlike other machine learning algorithms,
+reinforcement learning algorithms, of which XCS is one example, are capable
+of dealing with not only non-interactive data, but interactive processes in
+which classification decisions must be made on the fly that can potentially
+affect which data will be gathered and classified in the future.
+
+As a consequence, training a reinforcement learning algorithm such as XCS
+is not always as simple as gathering a lot of data into a table or file and
+then running the algorithm to build a model. The interactivity between the
+algorithm and the environment from which the data is being collected must
+be accounted for; this is the role of the Scenario class. The Scenario
+class is an abstract base class that is designed to provide a standardized
+interface through which reinforcement learning algorithms can assess the
+environment and act upon it, building up models as they proceed.
+
+If you wish to create a scenario of your own, subclass the Scenario class
+and define the appropriate methods. To add logging to an existing scenario,
+wrap your scenario in a ScenarioObserver. To treat non-interactive, pre-
+collected data as a scenario, use PreClassifiedData for training and
+testing, or UnclassifiedData for prediction. To get a full listing of the
+classes provided by this module and see documentation on their appropriate
+usage, use "help(xcs.scenarios)".
 
 
 
@@ -57,9 +82,9 @@ POSSIBILITY OF SUCH DAMAGE.
 __author__ = 'Aaron Hosford'
 
 __all__ = [
-    'Scenario',
-    'MUXProblem',
     'HaystackProblem',
+    'MUXProblem',
+    'Scenario',
     'ScenarioObserver',
     'PreClassifiedData',
     'UnclassifiedData',
@@ -74,10 +99,16 @@ from . import bitstrings
 
 
 class Scenario(metaclass=ABCMeta):
-    """Abstract interface for scenarios accepted by ClassifierSets. To
-    create a new scenario to which XCS can be applied, subclass Scenario
-    and implement the methods defined here. See MUXProblem for an
-    example."""
+    """Abstract interface for scenarios accepted by LCSAlgorithms. To
+    create a new scenario to which an LCS algorithm like XCS can be
+    applied, subclass Scenario and implement the methods defined here. See
+    MUXProblem or HaystackProblem for examples.
+
+    Usage:
+        This is an abstract base class; it cannot be instantiated directly.
+        You must create a subclass that defines the problem you expect the
+        algorithm to solve, and instantiate that subclass instead.
+    """
 
     @property
     @abstractmethod
@@ -89,40 +120,71 @@ class Scenario(metaclass=ABCMeta):
     @abstractmethod
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be
-        executed within the environment."""
+        executed within the environment.
+
+        Usage:
+            possible_actions = scenario.get_possible_actions()
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def reset(self):
-        """Reset the scenario, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run.
+
+        Usage:
+            if not scenario.more():
+                scenario.reset()
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def sense(self):
         """Return a situation, encoded as a bit string, which represents
-        the observable state of the environment."""
+        the observable state of the environment.
+
+        Usage:
+            situation = scenario.sense()
+            assert isinstance(situation, BitString)
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def execute(self, action):
-        """Execute the indicated action(s) within the environment and
+        """Execute the indicated action within the environment and
         return the resulting immediate reward dictated by the reward
-        program."""
+        program.
+
+        Usage:
+            immediate_reward = scenario.execute(selected_action)
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def more(self):
         """Return a Boolean indicating whether additional actions may be
-        executed, per the reward program."""
+        executed, per the reward program.
+
+        Usage:
+            while scenario.more():
+                situation = scenario.sense()
+                selected_action = choice(possible_actions)
+                reward = scenario.execute(selected_action)
+        """
         raise NotImplementedError()
 
 
 class MUXProblem(Scenario):
     """Classic multiplexer problem. This scenario is static; each action
-    affects only the immediate reward and the environment is stateless. The
-    address size indicates the number of bits used as an address/index into
-    the remaining bits in the situations returned by sense(). The agent is
-    expected to return the value of the indexed bit from the situation."""
+    affects only the immediate reward, and the environment is stateless.
+    The address size indicates the number of bits used as an address/index
+    into the remaining bits in the situations returned by sense(). The
+    agent is expected to return the value of the indexed bit from the
+    situation.
+
+    Usage:
+        scenario = MUXProblem()
+        model = algorithm.run(scenario)
+    """
 
     def __init__(self, training_cycles=10000, address_size=3):
         assert isinstance(training_cycles, int) and training_cycles > 0
@@ -142,16 +204,30 @@ class MUXProblem(Scenario):
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be
-        executed within the environment."""
+        executed within the environment.
+
+        Usage:
+            possible_actions = scenario.get_possible_actions()
+        """
         return self.possible_actions
 
     def reset(self):
-        """Reset the scenario, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run.
+
+        Usage:
+            if not scenario.more():
+                scenario.reset()
+        """
         self.remaining_cycles = self.initial_training_cycles
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents
-        the observable state of the environment."""
+        the observable state of the environment.
+
+        Usage:
+            situation = scenario.sense()
+            assert isinstance(situation, BitString)
+        """
         self.current_situation = bitstrings.BitString([
             random.randrange(2)
             for _ in range(self.address_size + (1 << self.address_size))
@@ -159,9 +235,13 @@ class MUXProblem(Scenario):
         return self.current_situation
 
     def execute(self, action):
-        """Execute the indicated action(s) within the environment and
+        """Execute the indicated action within the environment and
         return the resulting immediate reward dictated by the reward
-        program."""
+        program.
+
+        Usage:
+            immediate_reward = scenario.execute(selected_action)
+        """
 
         assert action in self.possible_actions
 
@@ -174,7 +254,14 @@ class MUXProblem(Scenario):
 
     def more(self):
         """Return a Boolean indicating whether additional actions may be
-        executed, per the reward program."""
+        executed, per the reward program.
+
+        Usage:
+            while scenario.more():
+                situation = scenario.sense()
+                selected_action = choice(possible_actions)
+                reward = scenario.execute(selected_action)
+        """
         return int(self.remaining_cycles > 0)
 
 
@@ -182,7 +269,12 @@ class HaystackProblem(Scenario):
     """This is the scenario that appears in the tutorial in the section,
     "Defining a new scenario". This scenario is designed to test the
     algorithm's ability to find a single important input bit (the "needle")
-    from among a large number of irrelevant input bits (the "haystack")."""
+    from among a large number of irrelevant input bits (the "haystack").
+
+    Usage:
+        scenario = HaystackProblem()
+        model = algorithm.run(scenario)
+    """
 
     def __init__(self, training_cycles=10000, input_size=500):
 
@@ -204,24 +296,43 @@ class HaystackProblem(Scenario):
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be
-        executed within the environment."""
+        executed within the environment.
+
+        Usage:
+            possible_actions = scenario.get_possible_actions()
+        """
         return self.possible_actions
 
     def reset(self):
-        """Reset the scenario, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run.
+
+        Usage:
+            if not scenario.more():
+                scenario.reset()
+        """
         self.remaining_cycles = self.initial_training_cycles
         self.needle_index = random.randrange(self.input_size)
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents
-        the observable state of the environment."""
+        the observable state of the environment.
+
+        Usage:
+            situation = scenario.sense()
+            assert isinstance(situation, BitString)
+        """
         haystack = bitstrings.BitString.random(self.input_size)
         self.needle_value = haystack[self.needle_index]
         return haystack
 
     def execute(self, action):
-        """Execute the indicated action within the environment and return
-        the resulting immediate reward dictated by the reward program."""
+        """Execute the indicated action within the environment and
+        return the resulting immediate reward dictated by the reward
+        program.
+
+        Usage:
+            immediate_reward = scenario.execute(selected_action)
+        """
 
         assert action in self.possible_actions
 
@@ -230,14 +341,25 @@ class HaystackProblem(Scenario):
 
     def more(self):
         """Return a Boolean indicating whether additional actions may be
-        executed, per the reward program."""
+        executed, per the reward program.
+
+        Usage:
+            while scenario.more():
+                situation = scenario.sense()
+                selected_action = choice(possible_actions)
+                reward = scenario.execute(selected_action)
+        """
         return self.remaining_cycles > 0
 
 
 class ScenarioObserver(Scenario):
     """Wrapper for other Scenario instances which logs details of the
     agent/scenario interaction as they take place, forwarding the actual
-    work on to the wrapped instance."""
+    work on to the wrapped instance.
+
+    Usage:
+        model = algorithm.run(ScenarioObserver(scenario))
+    """
 
     def __init__(self, wrapped):
         # Ensure that the wrapped object implements the same interface
@@ -256,37 +378,54 @@ class ScenarioObserver(Scenario):
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be
-        executed within the environment."""
+        executed within the environment.
+
+        Usage:
+            possible_actions = scenario.get_possible_actions()
+        """
         possible_actions = self.wrapped.get_possible_actions()
 
-        # Try to ensure that the possible actions are unique. Also, put
-        # them into a list so we can iterate over them safely before
-        # returning them; this avoids accidentally exhausting an iterator,
-        # if the wrapped class happens to return one.
-        try:
-            possible_actions = list(set(possible_actions))
-        except TypeError:
-            possible_actions = list(possible_actions)
+        if len(possible_actions) <= 20:
+            # Try to ensure that the possible actions are unique. Also, put
+            # them into a list so we can iterate over them safely before
+            # returning them; this avoids accidentally exhausting an
+            # iterator, if the wrapped class happens to return one.
+            try:
+                possible_actions = list(set(possible_actions))
+            except TypeError:
+                possible_actions = list(possible_actions)
 
-        try:
-            possible_actions.sort()
-        except TypeError:
-            pass
+            try:
+                possible_actions.sort()
+            except TypeError:
+                pass
 
-        self.logger.info('Possible actions:')
-        for action in possible_actions:
-            self.logger.info('    %s', action)
+            self.logger.info('Possible actions:')
+            for action in possible_actions:
+                self.logger.info('    %s', action)
+        else:
+            self.logger.info("%d possible actions.", len(possible_actions))
 
         return possible_actions
 
     def reset(self):
-        """Reset the scenario, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run.
+
+        Usage:
+            if not scenario.more():
+                scenario.reset()
+        """
         self.logger.info('Resetting scenario.')
         self.wrapped.reset()
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents
-        the observable state of the environment."""
+        the observable state of the environment.
+
+        Usage:
+            situation = scenario.sense()
+            assert isinstance(situation, BitString)
+        """
         situation = self.wrapped.sense()
 
         self.logger.debug('Situation: %s', situation)
@@ -294,8 +433,13 @@ class ScenarioObserver(Scenario):
         return situation
 
     def execute(self, action):
-        """Execute the indicated action within the environment and return
-        the resulting immediate reward dictated by the reward program."""
+        """Execute the indicated action within the environment and
+        return the resulting immediate reward dictated by the reward
+        program.
+
+        Usage:
+            immediate_reward = scenario.execute(selected_action)
+        """
 
         self.logger.debug('Executing action: %s', action)
 
@@ -304,7 +448,8 @@ class ScenarioObserver(Scenario):
             self.total_reward += reward
         self.steps += 1
 
-        self.logger.debug('Reward received on this step: %.5f', reward)
+        self.logger.debug('Reward received on this step: %.5f',
+                          reward or 0)
         self.logger.debug('Average reward per step: %.5f',
                           self.total_reward / self.steps)
 
@@ -312,7 +457,14 @@ class ScenarioObserver(Scenario):
 
     def more(self):
         """Return a Boolean indicating whether additional actions may be
-        executed, per the reward program."""
+        executed, per the reward program.
+
+        Usage:
+            while scenario.more():
+                situation = scenario.sense()
+                selected_action = choice(possible_actions)
+                reward = scenario.execute(selected_action)
+        """
         more = self.wrapped.more()
 
         if not self.steps % 100:
@@ -332,7 +484,48 @@ class ScenarioObserver(Scenario):
 
 class PreClassifiedData(Scenario):
     """Wrap off-line (non-interactive) training/test data as an on-line
-    (interactive) scenario."""
+    (interactive) scenario.
+
+    Simple Usage:
+        X = features
+        y = classifications
+        assert len(X) == len(y)
+        scenario = PreClassifiedData(X, y)
+        model = algorithm.run(scenario)
+
+    Alternate Usage:
+        def grade_classification(actual, target):
+            '''Return a floating point value in the range [0, 1] that
+            indicates how desirable the actual classification was in
+            terms of how it compares to the correct classification.'''
+
+            # In this case we are dealing with a binary classification
+            # problem, where the classification targets (possible actions)
+            # are either True or False and false negatives are highly
+            # undesirable.
+            if actual == target:
+                # Correct classifications get maximum reward.
+                return 1.0
+            if actual:
+                # False positives get lower but not minimal reward; these
+                # types of errors are not good, but they are better than
+                # false negatives for this problem.
+                return .25
+            else:
+                # False negatives are really expensive to us so give them
+                # the lowest reward level.
+                return 0.0
+
+        X = features
+        y = classifications
+        assert len(X) == len(y)
+        scenario = PreClassifiedData(
+            X,
+            y,
+            reward_function=grade_classification
+        )
+        model = algorithm.run(scenario)
+    """
 
     def __init__(self, situations, classifications, reward_function=None):
         if (bitstrings.using_numpy() and
@@ -360,7 +553,7 @@ class PreClassifiedData(Scenario):
 
         self.reward_function = (
             reward_function or
-            (lambda action, target: float(action == target))
+            (lambda actual, target: float(actual == target))
         )
         self.possible_actions = set(self.classifications)
         self.steps = 0
@@ -374,22 +567,41 @@ class PreClassifiedData(Scenario):
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be
-        executed within the environment."""
+        executed within the environment.
+
+        Usage:
+            possible_actions = scenario.get_possible_actions()
+        """
         return self.possible_actions
 
     def reset(self):
-        """Reset the scenario, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run.
+
+        Usage:
+            if not scenario.more():
+                scenario.reset()
+        """
         self.steps = 0
         self.total_reward = 0
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents
-        the observable state of the environment."""
+        the observable state of the environment.
+
+        Usage:
+            situation = scenario.sense()
+            assert isinstance(situation, BitString)
+        """
         return self.situations[self.steps]
 
     def execute(self, action):
-        """Execute the indicated action within the environment and return
-        the resulting immediate reward dictated by the reward program."""
+        """Execute the indicated action within the environment and
+        return the resulting immediate reward dictated by the reward
+        program.
+
+        Usage:
+            immediate_reward = scenario.execute(selected_action)
+        """
         reward = self.reward_function(
             action,
             self.classifications[self.steps]
@@ -400,15 +612,29 @@ class PreClassifiedData(Scenario):
 
     def more(self):
         """Return a Boolean indicating whether additional actions may be
-        executed, per the reward program."""
+        executed, per the reward program.
+
+        Usage:
+            while scenario.more():
+                situation = scenario.sense()
+                selected_action = choice(possible_actions)
+                reward = scenario.execute(selected_action)
+        """
         return self.steps < len(self.situations)
 
 
 class UnclassifiedData(Scenario):
     """Wrap off-line (non-interactive) prediction data as an on-line
-    (interactive) scenario."""
+    (interactive) scenario.
 
-    def __init__(self, situations, possible_actions):
+    Usage:
+        X = features
+        scenario = UnclassifiedData(X)
+        model.run(scenario, learn=False)
+        y = scenario.get_classifications()
+    """
+
+    def __init__(self, situations, possible_actions=None):
         if (bitstrings.using_numpy() and
                 isinstance(situations, numpy.ndarray)):
             self.situations = []
@@ -423,7 +649,10 @@ class UnclassifiedData(Scenario):
                 for situation_bits in situations
             ]
 
-        self.possible_actions = frozenset(possible_actions)
+        if possible_actions is None:
+            self.possible_actions = None
+        else:
+            self.possible_actions = frozenset(possible_actions)
         self.steps = 0
         self.classifications = []
 
@@ -435,34 +664,71 @@ class UnclassifiedData(Scenario):
 
     def get_possible_actions(self):
         """Return a sequence containing the possible actions that can be
-        executed within the environment."""
+        executed within the environment.
+
+        Usage:
+            possible_actions = scenario.get_possible_actions()
+        """
+        # UnclassifiedData instances are typically not asked for possible
+        # actions because they are used with pre-existing models that
+        # already know the possible actions; thus for this one case we
+        # make an exception... literally.
+        if self.possible_actions is None:
+            raise ValueError("Possible actions were not provided.")
         return self.possible_actions
 
     def reset(self):
-        """Reset the scenario, starting it over for a new run."""
+        """Reset the scenario, starting it over for a new run.
+
+        Usage:
+            if not scenario.more():
+                scenario.reset()
+        """
         self.steps = 0
         self.classifications.clear()
 
     def sense(self):
         """Return a situation, encoded as a bit string, which represents
-        the observable state of the environment."""
+        the observable state of the environment.
+
+        Usage:
+            situation = scenario.sense()
+            assert isinstance(situation, BitString)
+        """
         return self.situations[self.steps]
 
     def execute(self, action):
-        """Execute the indicated action within the environment and return
-        the resulting immediate reward dictated by the reward program."""
+        """Execute the indicated action within the environment and
+        return the resulting immediate reward dictated by the reward
+        program.
+
+        Usage:
+            immediate_reward = scenario.execute(selected_action)
+        """
         self.classifications.append(action)
         self.steps += 1
         return None  # This scenario is not meant to be used for learning.
 
     def more(self):
         """Return a Boolean indicating whether additional actions may be
-        executed, per the reward program."""
+        executed, per the reward program.
+
+        Usage:
+            while scenario.more():
+                situation = scenario.sense()
+                selected_action = choice(possible_actions)
+                reward = scenario.execute(selected_action)
+        """
         return self.steps < len(self.situations)
 
     def get_classifications(self):
         """Return the classifications made by the algorithm for this
-        scenario."""
+        scenario.
+
+        Usage:
+            model.run(scenario, learn=False)
+            classifications = scenario.get_classifications()
+        """
         if bitstrings.using_numpy():
             return numpy.array(self.classifications)
         else:
