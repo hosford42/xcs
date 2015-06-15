@@ -21,6 +21,10 @@ Accuracy-based Classifier Systems for Python 3
 This xcs submodule provides a version of the BitString class, implemented
 using ordinary Python ints. Speed is comparable to numpy arrays.
 
+Do not access the contents of this module directly. See the documentation
+for xcs.bitstrings for a detailed explanation of how to properly access
+the appropriate BitString implementation.
+
 
 
 
