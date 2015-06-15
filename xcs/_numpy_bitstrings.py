@@ -62,6 +62,7 @@ __all__ = [
 
 import random
 
+
 # If numpy isn't installed, this will (intentionally) raise an ImportError
 import numpy
 
@@ -73,24 +74,81 @@ try:
 except AttributeError:
     raise ImportError('The numpy module failed to uninstall properly.')
 
+
 from .bitstrings import BitStringBase
 
 
 class BitString(BitStringBase):
-    """A hashable, immutable sequence of bits (Boolean values).
+    """A hashable, immutable sequence of bits (Boolean values). Implemented
+    on top of numpy arrays.
 
-    In addition to operations for indexing and iteration, implements
-    standard bitwise operations, including & (bitwise and), | (bitwise or),
-    ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator,
-    which acts like string concatenation.
+    Usage:
+        # A few ways to create a BitString instance
+        bitstring1 = BitString('0010010111')
+        bitstring2 = BitString(134, 10)
+        bitstring3 = BitString([0] * 10)
+        bitstring4 = BitString.random(10)
 
-    A bit string can also be cast as an integer or an ordinary string.
+        # They print up nicely
+        assert str(bitstring1) == '0010010111'
+        print(bitstring1)  # Prints: 0010010111
+        print(repr(bitstring1))  # Prints: BitString('0010010111')
+
+        # Indexing is from left to right, like an ordinary string
+        assert bitstring1[0] == 0
+        assert bitstring1[-1] == 1
+
+        # They are immutable
+        bitstring1[3] = 0  # This will raise a TypeError
+
+        # Slicing works
+        assert bitstring1[3:-3] == BitString('0010')
+
+        # You can iterate over them
+        for bit in bitstring1:
+            if bit == 1:
+                print("Found one!)
+
+        # They can be cast as ints
+        assert int(bitstring2) == 134
+
+        # They can be used in hash-based containers
+        s = {bitstring1, bitstring2, bitstring3}
+        d = {bitstring1: "a", bitstring2: "b", bitstring3: "c"}
+
+        # BitString.any() is True whenever there is at least 1 non-zero bit
+        assert bitstring1.any()
+        assert not bitstring3.any()
+
+        # BitString.count() returns the number of non-zero bits
+        assert bitstring1.count() == 5
+        assert bitstring3.count() == 0
+
+        # BitStrings can be treated like integer masks
+        intersection = bitstring1 & bitstring2
+        union = bitstring2 | bitstring3
+        complement = ~bitstring1
+
+        # And they can also be concatenated together like strings
+        concatenation = bitstring3 + bitstring4
+        assert len(concatenation) == 10 * 2
+
+        # BitString.crossover_template() is a special class method for
+        # creating BitString instances that can be used for N-point
+        # crossover operators, e.g. like those used in Genetic Algorithms.
+        template = BitString.crossover_template(10)
+        child = (bitstring1 & template) | (bitstring3 & ~template)
     """
 
     @classmethod
     def random(cls, length, bit_prob=.5):
         """Create a bit string of the given length, with the probability of
-        each bit being set equal to bit_prob, which defaults to .5."""
+        each bit being set equal to bit_prob, which defaults to .5.
+
+        Usage:
+            # Create a random BitString of length 10 with mostly zeros.
+            bits = BitString.random(10, bit_prob=.1)
+        """
 
         assert isinstance(length, int) and length >= 0
         assert isinstance(bit_prob, (int, float)) and 0 <= bit_prob <= 1
@@ -101,14 +159,16 @@ class BitString(BitStringBase):
             p=[1-bit_prob, bit_prob]
         )
         bits.flags.writeable = False
+
         return cls(bits)
 
     @classmethod
     def crossover_template(cls, length, points=2):
         """Create a crossover template with the given number of points. The
         crossover template can be used as a mask to crossover two
-        bitstrings of the same length:
+        bitstrings of the same length.
 
+        Usage:
             assert len(parent1) == len(parent2)
             template = BitString.crossover_template(len(parent1))
             inv_template = ~template
@@ -119,9 +179,15 @@ class BitString(BitStringBase):
         assert isinstance(length, int) and length >= 0
         assert isinstance(points, int) and points >= 0
 
+        # Select the crossover points.
         points = random.sample(range(length + 1), points)
+
+        # Prep the points for the loop.
         points.sort()
         points.append(length)
+
+        # Fill the bits in with alternating ranges of 0 and 1 according to
+        # the selected crossover points.
         previous = 0
         include_range = bool(random.randrange(2))
         pieces = []
@@ -133,6 +199,7 @@ class BitString(BitStringBase):
             previous = point
         bits = numpy.concatenate(pieces)
         bits.flags.writeable = False
+
         return cls(bits)
 
     def __init__(self, bits, length=None):
@@ -216,11 +283,20 @@ class BitString(BitStringBase):
         super().__init__(bits, hash_value)
 
     def any(self):
-        """Returns True iff at least one bit is set."""
+        """Returns True iff at least one bit is set.
+
+        Usage:
+            assert not BitString('0000').any()
+            assert BitString('0010').any()
+        """
         return self._bits.any()
 
     def count(self):
-        """Returns the number of bits set to True in the bit string."""
+        """Returns the number of bits set to True in the bit string.
+
+        Usage:
+            assert BitString('00110').count() == 2
+        """
         return int(numpy.count_nonzero(self._bits))
 
     def __int__(self):
