@@ -20,13 +20,14 @@ Accuracy-based Classifier Systems for Python 3
 
 This module implements the XCS (Accuracy-based Classifier System)
 algorithm, as described in the 2001 paper, "An Algorithmic Description of
-XCS," by Martin Butz and Stewart Wilson.[1] The module also a framework
-for implementing and experimenting with learning classifier systems in
-general.
+XCS," by Martin Butz and Stewart Wilson.[1] The module also provides a
+framework for implementing and experimenting with learning classifier
+systems in general.
 
 Usage:
+    import logging
     from xcs import XCSAlgorithm
-    from xcs.scenarios import MUXProblem, OnLineObserver
+    from xcs.scenarios import MUXProblem, ScenarioObserver
 
     # Create a scenario instance, either by instantiating one of the
     # predefined scenarios provided in xcs.scenarios, or by creating your
@@ -37,7 +38,6 @@ Usage:
     # If you want to log the process of the run as it proceeds, set the
     # logging level with the built-in logging module, and wrap the
     # scenario with an OnLineObserver.
-    import logging
     logging.root.setLevel(logging.INFO)
     scenario = ScenarioObserver(scenario)
 
@@ -46,7 +46,6 @@ Usage:
     # you a description of each parameter's meaning.
     algorithm = XCSAlgorithm()
     algorithm.exploration_probability = .1
-    algorithm.discount_factor = 0
     algorithm.do_ga_subsumption = True
     algorithm.do_action_set_subsumption = True
 
@@ -56,19 +55,19 @@ Usage:
 
     # Run the classifier set in the scenario, optimizing it as the
     # scenario unfolds.
-    run(model, scenario, learn=True)
+    model.run(scenario, learn=True)
 
     # Use the built-in pickle module to save/reload your model for reuse.
     import pickle
     pickle.dump(model, open('model.bin', 'wb'))
     reloaded_model = pickle.load(open('model.bin', 'rb'))
 
-    # Or print the results out.
+    # Or just print the results out.
     print(model)
 
-    # Or get a list of the best classifiers discovered.
+    # Or get a quick list of the best classifiers discovered.
     for rule in model:
-        if rule.fitness <= .5:
+        if rule.fitness <= .5 or rule.experience < 10:
             continue
         print(rule.condition, '=>', rule.action, ' [%.5f]' % rule.fitness)
 
@@ -80,20 +79,20 @@ A quick explanation of the XCS algorithm:
     mapping from inputs to outputs, where inputs are represented as
     sequences of bits and outputs are selected from a finite set of
     predetermined actions. It does so by using a genetic algorithm to
-    evolve a population of rules, called classifiers, of the form
+    evolve a competing population of classifier rules, of the form
 
         condition => action => prediction
 
     where the condition is a bit template (a string of 1s, 0s, and
     wildcards, represented as #s) which matches against one or more
-    inputs, and the prediction is a floating point value that indicates
-    the observed reward level when the condition matches the input and the
-    indicated action is selected. The fitness of each rule in the
-    classifier set is determined not by the size of the prediction, but by
-    its observed accuracy, as well as by the degree to which the rule fills
-    a niche that many other rules do not already fill. The reason for using
-    accuracy rather than reward is that it was found that using reward
-    destabilizes the population.
+    possible inputs, and the prediction is a floating point value that
+    indicates the observed reward level when the condition matches the
+    input and the indicated action is selected. The fitness of each rule in
+    the classifier set is determined not by the size of the prediction, but
+    by its observed accuracy, as well as by the degree to which the rule
+    fills a niche that many other rules do not already fill. The reason for
+    using accuracy rather than reward is that it was found that using r
+    eward destabilizes the population.
 
 
 More extensive help is available online at https://pythonhosted.org/xcs/
@@ -142,22 +141,28 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 __author__ = 'Aaron Hosford'
-__version__ = '1.0.0a9'
+__version__ = '1.0.0'
 
 __all__ = [
+    # Module Metadata
     '__author__',
     '__version__',
-    'ClassifierRule',
-    'LCSAlgorithm',
-    'ActionSet',
-    'MatchSet',
-    'ClassifierSet',
-    'XCSClassifierRule',
-    'XCSAlgorithm',
-    'run',
-    'test',
+
+    # Preloaded Submodules
     'bitstrings',
-    'scenarios.py',
+    'scenarios',
+
+    # Classes
+    'ActionSet',
+    'ClassifierRule',
+    'XCSClassifierRule',
+    'ClassifierSet',
+    'LCSAlgorithm',
+    'XCSAlgorithm',
+    'MatchSet',
+
+    # Functions
+    'test',
 ]
 
 
@@ -189,7 +194,12 @@ class ActionSelectionStrategy(metaclass=ABCMeta):
     and exploitation (utilizing existing experience to maximize reward).
     Define a new action selection strategy by subclassing this interface,
     or by defining a function which accepts a MatchSet as its sole argument
-    and returns one of the actions suggested by that match set."""
+    and returns one of the actions suggested by that match set.
+
+    Usage:
+        This is an abstract base class. Use a subclass, such as
+        EpsilonGreedySelectionStrategy, to create an instance.
+    """
 
     @abstractmethod
     def __call__(self, match_set):
@@ -202,7 +212,17 @@ class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
     epsilon, an action is chosen uniformly from all possible actions
     regardless of predicted payoff. The rest of the time, the action with
     the highest predicted payoff is chosen. The probability of exploration,
-    epsilon, does not change as time passes."""
+    epsilon, does not change as time passes.
+
+    Usage:
+        # Define a new strategy with probability of exploration .05
+        strategy = EpsilonGreedySelectionStrategy(epsilon=.05)
+
+        # Create an algorithm instance, and tell it to use the new
+        # strategy we just created.
+        algorithm = XCSAlgorithm()
+        algorithm.exploration_strategy = strategy
+    """
 
     def __init__(self, epsilon=.1):
         assert 0 <= epsilon <= 1
@@ -229,13 +249,17 @@ class ClassifierRule(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for classifier
     rules appearing in classifier sets. A classifier rule consists of a
     condition and an action taken as a pair, together with associated
-    metadata appropriate for its associated algorithm. If there are
-    multiple instances of a single classifier rule in a classifier set,
-    this is indicated by incrementing the numerosity attribute of
-    classifier rule, rather than adding another copy of it."""
+    metadata as determined by the algorithm. If there are multiple
+    instances of a single classifier rule in a classifier set, this is
+    indicated by incrementing the numerosity attribute of classifier rule,
+    rather than adding another copy of it.
 
-    # The number of instances of the rule (classifier) in its classifier
-    # set.
+    Usage:
+        This is an abstract base class. Use a subclass, such as
+        XCSClassifierRule, to create an instance.
+    """
+
+    # The number of instances of the classifier rule in its classifier set.
     numerosity = 1
 
     @abstractmethod
@@ -290,13 +314,26 @@ class ClassifierRule(metaclass=ABCMeta):
 class LCSAlgorithm(metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for LCS
     algorithms. To create a new algorithm that can be used to initialize a
-    ClassifierSet, inherit from this class. An LCS algorithm is responsible
-    for managing the population, distributing reward to the appropriate
-    rules, and determining the action selection strategy that is used."""
+    ClassifierSet, inherit from this class and implement each of the
+    abstract methods and properties. An LCS algorithm is responsible for
+    managing the population, distributing reward to the appropriate rules,
+    and determining the action selection strategy that is used.
+
+    Usage:
+        This is an abstract base class. Use a subclass, such as
+        XCSAlgorithm, to create an instance.
+    """
 
     def new_model(self, scenario):
         """Create and return a new classifier set initialized for handling
-        the given scenario."""
+        the given scenario.
+
+        Usage:
+            algorithm = XCSAlgorithm()
+            scenario = MUXProblem()
+            model = algorithm.new_model(scenario)
+            model.run(scenario, learn=True)
+        """
         assert isinstance(scenario, scenarios.Scenario)
         return ClassifierSet(self, scenario.get_possible_actions())
 
@@ -313,14 +350,30 @@ class LCSAlgorithm(metaclass=ABCMeta):
         """Return a numerical value representing the expected future payoff
         of the previously selected action(s), given only the current match
         set. The match_set argument is a MatchSet instance representing the
-        current match set."""
+        current match set.
+
+        Usage:
+            match_set = model.match(situation)
+            expectation = model.algorithm.get_future_expectation(match_set)
+            payoff = previous_reward + discount_factor * expectation
+            previous_match_set.payoff = payoff
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def covering_is_required(self, match_set):
         """Return a Boolean indicating whether covering is required for the
         current match set. The match_set argument is a MatchSet instance
-        representing the current match set before covering is applied."""
+        representing the current match set before covering is applied.
+
+        Usage:
+            match_set = model.match(situation)
+            if model.algorithm.covering_is_required(match_set):
+                new_rule = model.algorithm.cover(match_set)
+                assert new_rule.condition(situation)
+                model.add(new_rule)
+                match_set = model.match(situation)
+        """
         raise NotImplementedError()
 
     @abstractmethod
@@ -330,18 +383,32 @@ class LCSAlgorithm(metaclass=ABCMeta):
         action selected to avoid duplication of the actions already
         contained therein. The match_set argument is a MatchSet instance
         representing the match set to which the returned rule will be
-        added."""
+        added.
+
+        Usage:
+            match_set = model.match(situation)
+            if model.algorithm.covering_is_required(match_set):
+                new_rule = model.algorithm.cover(match_set)
+                assert new_rule.condition(situation)
+                model.add(new_rule)
+                match_set = model.match(situation)
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def distribute_payoff(self, match_set):
-        """Accept a payoff in response to the selected action of the given
-        match set, and distribute it among the rules in the action set
+        """Distribute the payoff received in response to the selected
+        action of the given match set among the rules in the action set
         which deserve credit for recommending the action. The match_set
         argument is the MatchSet instance which suggested the selected
-        action which earned the payoff, and the payoff argument is a
-        numerical value that represents the payoff received in response to
-        the selected action."""
+        action and earned the payoff.
+
+        Usage:
+            match_set = model.match(situation)
+            match_set.select_action()
+            match_set.payoff = reward
+            model.algorithm.distribute_payoff(match_set)
+        """
         raise NotImplementedError()
 
     @abstractmethod
@@ -350,16 +417,29 @@ class LCSAlgorithm(metaclass=ABCMeta):
         e.g. by applying a genetic algorithm. The match_set argument is the
         MatchSet instance whose classifier set should be updated. The
         classifier set which is to be updated can be accessed through the
-        match set's model property."""
+        match set's model property.
+
+        Usage:
+            match_set = model.match(situation)
+            match_set.select_action()
+            match_set.payoff = reward
+            model.algorithm.distribute_payoff(match_set)
+            model.algorithm.update(match_set)
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def prune(self, model):
         """Reduce the classifier set's population size, if necessary, by
-        removing lower-quality rules. Return a sequence containing the
-        rules whose numerosities dropped to zero as a result of this call.
-        The model argument is a ClassifierSet instance which utilizes this
-        algorithm."""
+        removing lower-quality rules. Return a list containing any rules
+        whose numerosities dropped to zero as a result of this call. (The
+        list may be empty, if no rule's numerosity dropped to 0.) The
+        model argument is a ClassifierSet instance which utilizes this
+        algorithm.
+
+        Usage:
+            deleted_rules = model.algorithm.prune(model)
+        """
         raise NotImplementedError()
 
     def run(self, scenario):
@@ -370,8 +450,8 @@ class LCSAlgorithm(metaclass=ABCMeta):
         created.
 
         Usage:
-            Create a scenario and pass it in to this method. Scenarios must
-            implement the Scenario interface.
+            scenario = MUXProblem()
+            model = algorithm.run(scenario)
         """
         assert isinstance(scenario, scenarios.Scenario)
         model = self.new_model(scenario)
@@ -383,14 +463,30 @@ class ActionSet:
     """A set of rules (classifiers) drawn from the same classifier set, all
     suggesting the same action and having conditions which matched the same
     situation, together with information as to the conditions under which
-    the rules matched together."""
+    the rules matched together.
+
+    Usage:
+        rules = {
+            rule.condition: rule
+            for rule in model
+            if rule.action == action and rule.condition(situation)
+        }
+        action_set = ActionSet(model, situation, action, rules)
+
+    NOTE: For efficiency, the ActionSet instance captures the rules
+          dictionary. You should not modify this dictionary once it
+          has been passed to the ActionSet. If you must do so, make a
+          copy instead, and modify that.
+    """
 
     def __init__(self, model, situation, action, rules):
         assert isinstance(model, ClassifierSet)
         assert isinstance(rules, dict)
         assert all(
-            isinstance(rule, ClassifierRule)
-            for rule in rules.values()
+            isinstance(rule, ClassifierRule) and
+            rule.condition == condition and
+            rule.condition(situation)
+            for condition, rule in rules.items()
         )
 
         self._model = model
@@ -407,32 +503,32 @@ class ActionSet:
 
     @property
     def model(self):
-        """The classifier set from which the classifiers in the action set
-        were drawn."""
+        """The classifier set from which the classifier rules in the action
+        set were drawn."""
         return self._model
 
     @property
     def situation(self):
-        """The common situation against which all the classifiers'
+        """The common situation against which all the classifier rules'
         conditions matched."""
         return self._situation
 
     @property
     def action(self):
-        """The common action suggested by all the classifiers in the action
-        set."""
+        """The common action suggested by all the classifier rules in the
+        action set."""
         return self._action
 
     @property
     def conditions(self):
-        """An iterator over the conditions of the classifiers in the action
-        set."""
+        """An iterator over the conditions of the classifier rules in the
+        action set."""
         return iter(self._rules)
 
     @property
     def time_stamp(self):
-        """The classifier set's time stamp at which this action set was
-        generated."""
+        """The time stamp of the classifier set at which this action set
+        was generated."""
         return self._time_stamp
 
     def _compute_prediction(self):
@@ -490,14 +586,30 @@ class ActionSet:
 
     def remove(self, rule):
         """Remove this classifier rule from the action set. (Does not
-        affect numerosity."""
+        affect numerosity.)
+
+        Usage:
+            if rule in action_set:
+                action_set.remove(rule)
+        """
         del self._rules[rule.condition]
 
 
 class MatchSet:
     """A collection of coincident action sets. This represents the set of
     all rules that matched within the same situation, organized into groups
-    according to which action each rule recommends."""
+    according to which action each rule recommends.
+
+    Usage:
+        from collections import defaultdict
+
+        by_action = defaultdict(dict)
+        for rule in model:
+            if rule.condition(situation):
+                by_action[action][rule.condition] = rule
+
+        match_set = MatchSet(model, situation, by_action)
+    """
 
     def __init__(self, model, situation, by_action):
         assert isinstance(model, ClassifierSet)
@@ -512,11 +624,13 @@ class MatchSet:
             action: ActionSet(model, situation, action, rules)
             for action, rules in by_action.items()
         }
+
         self._best_actions = None
         self._best_prediction = None
-        self._selected_action = None
 
+        self._selected_action = None
         self._payoff = 0
+        self._closed = False
 
     @property
     def model(self):
@@ -558,7 +672,11 @@ class MatchSet:
     def get(self, action, default=None):
         """Return the action set, if any, associated with this action. If
         no action set is associated with this action, return the default.
-        If no default is provided, None is used."""
+        If no default is provided, None is used.
+
+        Usage:
+            action_set = match_set.get(action)
+        """
         return self._action_sets.get(action, default)
 
     @property
@@ -587,9 +705,15 @@ class MatchSet:
 
     def select_action(self):
         """Select an action according to the action selection strategy of
-        the associated algorithm."""
+        the associated algorithm. If an action has already been selected,
+        raise a ValueError instead.
+
+        Usage:
+            if match_set.selected_action is None:
+                match_set.select_action()
+        """
         if self._selected_action is not None:
-            raise ValueError("The action(s) have already been selected.")
+            raise ValueError("The action has already been selected.")
         strategy = self._algorithm.action_selection_strategy
         self._selected_action = strategy(self)
         return self._selected_action
@@ -603,20 +727,27 @@ class MatchSet:
         assert action in self._action_sets
 
         if self._selected_action is not None:
-            raise ValueError("The action(s) have already been selected.")
+            raise ValueError("The action has already been selected.")
         self._selected_action = action
 
     selected_action = property(
         _get_selected_action,
         _set_selected_action,
-        doc="The action which was selected for execution and which "
-            "deserves credit for whatever payoff is received."
+        doc="""The action which was selected for execution and which
+            deserves credit for whatever payoff is received. This will be
+            None if no action has been selected. An action can be selected
+            by calling match_set.select_action() or by assigning directly
+            to this property. Note, however, that if an action has already
+            been selected, attempting to assign to this property will cause
+            a ValueError to be raised."""
     )
 
     @property
     def prediction(self):
-        """The prediction associated with the selected action."""
-        assert self._selected_action is not None
+        """The prediction associated with the selected action. If the
+        action has not been selected yet, this will be None."""
+        if self._selected_action is None:
+            return None
         return self._action_sets[self._selected_action].prediction
 
     def _get_payoff(self):
@@ -625,12 +756,23 @@ class MatchSet:
 
     def _set_payoff(self, payoff):
         """Setter method for the payoff property."""
+        if self._selected_action is None:
+            raise ValueError("The action has not been selected yet.")
+        if self._closed:
+            raise ValueError("The payoff for this match set has already"
+                             "been applied.")
         self._payoff = float(payoff)
 
     payoff = property(
         _get_payoff,
         _set_payoff,
-        doc="The payoff received for the selected action."
+        doc="""The payoff received for the selected action. This starts out
+            as 0 and should be assigned or incremented to reflect the total
+            payoff (both immediate reward and discounted expected future
+            reward) in response to the selected action. Attempting to
+            modify this property before an action has been selected or
+            after the payoff has been applied will result in a ValueError.
+            """
     )
 
     def pay(self, predecessor):
@@ -638,7 +780,12 @@ class MatchSet:
         payoff to the predecessor in payment for its contribution to this
         match set's expected future payoff. The predecessor argument should
         be either None or a MatchSet instance whose selected action led
-        directly to this match set's situation."""
+        directly to this match set's situation.
+
+        Usage:
+            match_set = model.match(situation)
+            match_set.pay(previous_match_set)
+        """
         assert predecessor is None or isinstance(predecessor, MatchSet)
 
         if predecessor is not None:
@@ -647,15 +794,37 @@ class MatchSet:
 
     def apply_payoff(self):
         """Apply the payoff that has been accumulated from immediate
-        reward and/or payments from successor match sets."""
+        reward and/or payments from successor match sets. Attempting to
+        call this method before an action has been selected or after it
+        has already been called for the same match set will result in a
+        ValueError.
+
+        Usage:
+            match_set.select_action()
+            match_set.payoff = reward
+            match_set.apply_payoff()
+        """
+        if self._selected_action is None:
+            raise ValueError("The action has not been selected yet.")
+        if self._closed:
+            raise ValueError("The payoff for this match set has already"
+                             "been applied.")
         self._algorithm.distribute_payoff(self)
         self._payoff = 0
         self._algorithm.update(self)
+        self._closed = True
+
+    @property
+    def closed(self):
+        """A Boolean indicating whether the payoff for this match set has
+        been applied. Once the payoff has been applied, attempting to
+        modify or apply the payoff will result in a ValueError."""
+        return self._closed
 
 
 class ClassifierSet:
     """A set of classifier rules which work together to collectively
-    classify inputs provided to the classifier set. This classifier set
+    classify inputs provided to the classifier set. The classifier set
     represents the accumulated experience of the LCS algorithm with respect
     to a particular scenario or type of scenario. Each rule in the
     classifier set consists of a condition which identifies which
@@ -663,7 +832,13 @@ class ClassifierSet:
     suggested course of action by that rule. Each rule has its own
     associated metadata which the algorithm uses to determine how much
     weight should be given to that rule's suggestions, as well as how the
-    population should evolve to improve future performance."""
+    population should evolve to improve future performance.
+
+    Usage:
+        algorithm = XCSAlgorithm()
+        possible_actions = range(5)
+        model = ClassifierSet(algorithm, possible_actions)
+    """
 
     def __init__(self, algorithm, possible_actions):
         assert isinstance(algorithm, LCSAlgorithm)
@@ -686,8 +861,8 @@ class ClassifierSet:
 
     @property
     def possible_actions(self):
-        """The possible actions that can potentially be suggested by the
-        rules in this classifier set."""
+        """The possible actions that can potentially be suggested at some
+        point by a rule in this classifier set."""
         return self._possible_actions
 
     @property
@@ -715,7 +890,6 @@ class ClassifierSet:
         """Defining this determines the behavior of "item in instance"."""
         assert isinstance(rule, ClassifierRule)
         assert rule.algorithm is self.algorithm
-
         return rule.action in self._population.get(rule.condition, ())
 
     def __getitem__(self, rule):
@@ -734,16 +908,17 @@ class ClassifierSet:
 
     def __str__(self):
         """Defining this determines the behavior of str(instance)."""
-        return '\n'.join(
-            str(rule)
-            for rule in sorted(self)
-        )
+        return '\n'.join(str(rule) for rule in sorted(self))
 
     def match(self, situation):
         """Accept a situation (input) and return a MatchSet containing the
-        rules (classifiers) whose conditions match the situation. If
+        classifier rules whose conditions match the situation. If
         appropriate per the algorithm managing this classifier set, create
-        new rules to ensure sufficient coverage of the possible actions."""
+        new rules to ensure sufficient coverage of the possible actions.
+
+        Usage:
+            match_set = model.match(situation)
+        """
 
         # Find the conditions that match against the current situation, and
         # group them according to which action(s) they recommend.
@@ -770,7 +945,8 @@ class ClassifierSet:
             rule = self._algorithm.cover(match_set)
 
             # Ensure that the condition provided by the algorithm does
-            # indeed match the situation.
+            # indeed match the situation. If not, there is a bug in the
+            # algorithm.
             assert rule.condition(situation)
 
             # Add the new classifier, getting back a list of the rule(s)
@@ -783,8 +959,7 @@ class ClassifierSet:
             for replaced_rule in replaced:
                 action = replaced_rule.action
                 condition = replaced_rule.condition
-                if (action in by_action and
-                        condition in by_action[action]):
+                if action in by_action and condition in by_action[action]:
                     del by_action[action][condition]
                     if not by_action[action]:
                         del by_action[action]
@@ -805,7 +980,9 @@ class ClassifierSet:
         return match_set
 
     def add(self, rule):
-        """Add a new classifier rule to the classifier set. The rule
+        """Add a new classifier rule to the classifier set. Return a list
+        containing zero or more rules that were deleted from the classifier
+        by the algorithm in order to make room for the new rule. The rule
         argument should be a ClassifierRule instance. The behavior of this
         method depends on whether the rule already exists in the
         classifier set. When a rule is already present, the rule's
@@ -813,7 +990,11 @@ class ClassifierSet:
         present in the population. Otherwise, the new rule is captured.
         Note that this means that for rules already present in the
         classifier set, the metadata of the existing rule is not
-        overwritten by that of the one passed in as an argument."""
+        overwritten by that of the one passed in as an argument.
+
+        Usage:
+            displaced_rules = model.add(rule)
+        """
 
         assert isinstance(rule, ClassifierRule)
 
@@ -841,7 +1022,12 @@ class ClassifierSet:
         """Remove one or more instances of a rule from the classifier set.
         Return a Boolean indicating whether the rule's numerosity dropped
         to zero. (If the rule's numerosity was already zero, do nothing and
-        return False.)"""
+        return False.)
+
+        Usage:
+            if rule in model and model.discard(rule, count=3):
+                print("Rule numerosity dropped to zero.")
+        """
         assert isinstance(rule, ClassifierRule)
         assert isinstance(count, int) and count >= 0
 
@@ -852,6 +1038,10 @@ class ClassifierSet:
         # Only actually remove the rule if its numerosity drops below 1.
         rule.numerosity -= count
         if rule.numerosity <= 0:
+            # Ensure that if there is still a reference to this rule
+            # elsewhere, its numerosity is still well-defined.
+            rule.numerosity = 0
+
             del self._population[rule.condition][rule.action]
             if not self._population[rule.condition]:
                 del self._population[rule.condition]
@@ -862,7 +1052,11 @@ class ClassifierSet:
     def get(self, rule, default=None):
         """Return the existing version of the given rule. If the rule is
         not present in the classifier set, return the default. If no
-        default was given, use None."""
+        default was given, use None.
+
+        Usage:
+            actual_rule = model.get(possible_rule, possible_rule)
+        """
         assert isinstance(rule, ClassifierRule)
 
         if (rule.condition not in self._population or
@@ -872,7 +1066,12 @@ class ClassifierSet:
 
     def update_time_stamp(self):
         """Update the time stamp to indicate another completed training
-        cycle."""
+        cycle.
+
+        Usage:
+            if training_cycle_complete:
+                model.update_time_stamp()
+        """
         self._time_stamp += 1
 
     def run(self, scenario, learn=True):
@@ -882,8 +1081,7 @@ class ClassifierSet:
         maximize reward. Otherwise, ignore any reward received.
 
         Usage:
-            Create a scenario and pass it in to this method. Scenarios must
-            implement the Scenario interface.
+            model.run(scenario, learn=True)
         """
 
         assert isinstance(scenario, scenarios.Scenario)
@@ -956,7 +1154,16 @@ class XCSClassifierRule(ClassifierRule):
     of other classifiers appearing in an action set with the rule and
     thereby competing for the same niche, and a numerosity value which
     represents the number of (virtual) occurrences of the rule in the
-    classifier set."""
+    classifier set.
+
+    Usage:
+        rule = XCSClassifierRule(
+            condition=BitCondition('01##1'),
+            action=random.choice(list(model.possible_actions)),
+            algorithm=model.algorithm,  # An XCSAlgorithm instance
+            time_stamp=model.time_stamp
+        )
+    """
 
     def __init__(self, condition, action, algorithm, time_stamp):
         assert isinstance(algorithm, XCSAlgorithm)
@@ -1017,9 +1224,9 @@ class XCSClassifierRule(ClassifierRule):
         attribute_order = (
             'numerosity',
             'fitness',
+            'experience',
             'error',
             'average_reward',
-            'experience',
             'action_set_size',
             'time_stamp'
         )
@@ -1027,9 +1234,9 @@ class XCSClassifierRule(ClassifierRule):
             my_key = getattr(self, attribute)
             other_key = getattr(other, attribute)
             if my_key < other_key:
-                return attribute != 'error'
+                return attribute not in ('error', 'action_set_size')
             if my_key > other_key:
-                return attribute == 'error'
+                return attribute in ('error', 'action_set_size')
         return False
 
     @property
@@ -1242,6 +1449,12 @@ class XCSAlgorithm(LCSAlgorithm):
             by new ones with a low probability of matching future
             situations. If it is too high, it can result in the sustained
             presence of overly general classifiers in the classifier set.
+
+    Usage:
+        scenario = MUXProblem()
+        algorithm = XCSAlgorithm()
+        algorithm.exploration_probability = .1
+        model = algorithm.run(scenario)
     """
 
     # For a detailed explanation of each parameter, please see the original
@@ -1291,7 +1504,17 @@ class XCSAlgorithm(LCSAlgorithm):
         )
 
     def get_future_expectation(self, match_set):
-        """Return the future reward expectation for the given match set."""
+        """Return a numerical value representing the expected future payoff
+        of the previously selected action(s), given only the current match
+        set. The match_set argument is a MatchSet instance representing the
+        current match set.
+
+        Usage:
+            match_set = model.match(situation)
+            expectation = model.algorithm.get_future_expectation(match_set)
+            payoff = previous_reward + discount_factor * expectation
+            previous_match_set.payoff = payoff
+        """
         assert isinstance(match_set, MatchSet)
         assert match_set.algorithm is self
 
@@ -1301,8 +1524,18 @@ class XCSAlgorithm(LCSAlgorithm):
         )
 
     def covering_is_required(self, match_set):
-        """Return a Boolean value indicating whether covering is required
-        based on the contents of the current match set."""
+        """Return a Boolean indicating whether covering is required for the
+        current match set. The match_set argument is a MatchSet instance
+        representing the current match set before covering is applied.
+
+        Usage:
+            match_set = model.match(situation)
+            if model.algorithm.covering_is_required(match_set):
+                new_rule = model.algorithm.cover(match_set)
+                assert new_rule.condition(situation)
+                model.add(new_rule)
+                match_set = model.match(situation)
+        """
         assert isinstance(match_set, MatchSet)
         assert match_set.algorithm is self
 
@@ -1312,9 +1545,21 @@ class XCSAlgorithm(LCSAlgorithm):
             return len(match_set) < self.minimum_actions
 
     def cover(self, match_set):
-        """Create a new rule that matches the given situation and return
-        it. Preferentially choose an action that is not present in the
-        existing actions, if possible."""
+        """Return a new classifier rule that can be added to the match set,
+        with a condition that matches the situation of the match set and an
+        action selected to avoid duplication of the actions already
+        contained therein. The match_set argument is a MatchSet instance
+        representing the match set to which the returned rule will be
+        added.
+
+        Usage:
+            match_set = model.match(situation)
+            if model.algorithm.covering_is_required(match_set):
+                new_rule = model.algorithm.cover(match_set)
+                assert new_rule.condition(situation)
+                model.add(new_rule)
+                match_set = model.match(situation)
+        """
 
         assert isinstance(match_set, MatchSet)
         assert match_set.model.algorithm is self
@@ -1344,8 +1589,18 @@ class XCSAlgorithm(LCSAlgorithm):
         )
 
     def distribute_payoff(self, match_set):
-        """Update the rules belonging to the selected action set of this
-        match set, based on the payoff received."""
+        """Distribute the payoff received in response to the selected
+        action of the given match set among the rules in the action set
+        which deserve credit for recommending the action. The match_set
+        argument is the MatchSet instance which suggested the selected
+        action and earned the payoff.
+
+        Usage:
+            match_set = model.match(situation)
+            match_set.select_action()
+            match_set.payoff = reward
+            model.algorithm.distribute_payoff(match_set)
+        """
 
         assert isinstance(match_set, MatchSet)
         assert match_set.algorithm is self
@@ -1387,9 +1642,19 @@ class XCSAlgorithm(LCSAlgorithm):
             self._action_set_subsumption(action_set)
 
     def update(self, match_set):
-        """Update the time stamp. If sufficient time has passed on average
-        for the members of the selected action set, apply the genetic
-        algorithm's operators to update the classifier set's population."""
+        """Update the classifier set from which the match set was drawn,
+        e.g. by applying a genetic algorithm. The match_set argument is the
+        MatchSet instance whose classifier set should be updated. The
+        classifier set which is to be updated can be accessed through the
+        match set's model property.
+
+        Usage:
+            match_set = model.match(situation)
+            match_set.select_action()
+            match_set.payoff = reward
+            model.algorithm.distribute_payoff(match_set)
+            model.algorithm.update(match_set)
+        """
 
         assert isinstance(match_set, MatchSet)
         assert match_set.model.algorithm is self
@@ -1505,9 +1770,16 @@ class XCSAlgorithm(LCSAlgorithm):
                 action_set.model.add(child)
 
     def prune(self, model):
-        """Reduce the population size, if necessary, to ensure that it does
-        not exceed the maximum population size set out in the
-        parameters."""
+        """Reduce the classifier set's population size, if necessary, by
+        removing lower-quality rules. Return a list containing any rules
+        whose numerosities dropped to zero as a result of this call. (The
+        list may be empty, if no rule's numerosity dropped to 0.) The
+        model argument is a ClassifierSet instance which utilizes this
+        algorithm.
+
+        Usage:
+            deleted_rules = model.algorithm.prune(model)
+        """
 
         assert isinstance(model, ClassifierSet)
         assert model.algorithm is self
@@ -1649,7 +1921,7 @@ class XCSAlgorithm(LCSAlgorithm):
     def _select_parent(action_set):
         """Select a rule from this action set, with probability
         proportionate to its fitness, to act as a parent for a new rule in
-        the classifier set. Return its bit condition."""
+        the classifier set. Return the selected rule."""
         total_fitness = sum(rule.fitness for rule in action_set)
         selector = random.uniform(0, total_fitness)
         for rule in action_set:
@@ -1686,8 +1958,20 @@ class XCSAlgorithm(LCSAlgorithm):
 
 
 def test(algorithm=None, scenario=None):
-    """A quick test of the XCS algorithm, demonstrating how to use it in
-    client code."""
+    """Run the algorithm on the scenario, creating a new classifier set in
+    the process. Log the performance as the scenario unfolds. Return a
+    tuple, (total_steps, total_reward, total_seconds, model), indicating
+    the performance of the algorithm in the scenario and the resulting
+    classifier set that was produced. By default, the algorithm used is a
+    new XCSAlgorithm instance with exploration probability .1 and GA and
+    action set subsumption turned on, and the scenario is a MUXProblem
+    instance with 10,000 reward cycles.
+
+    Usage:
+        algorithm = XCSAlgorithm()
+        scenario = HaystackProblem()
+        steps, reward, seconds, model = test(algorithm, scenario)
+    """
 
     assert algorithm is None or isinstance(algorithm, LCSAlgorithm)
     assert scenario is None or isinstance(scenario, scenarios.Scenario)
