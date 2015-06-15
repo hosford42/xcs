@@ -21,6 +21,28 @@ Accuracy-based Classifier Systems for Python 3
 This xcs submodule provides bit-string and bit-condition data types used by
 the XCS algorithm.
 
+Pure Python versus numpy:
+    This submodule has two alternate implementations for the BitString
+    class. One is based on Python ints, has no external dependencies, and
+    is used by default. The other is based on numpy arrays, requires numpy
+    to be installed, and can be activated by calling use_numpy(). If you
+    change your mind, you can always switch back to the pure Python
+    implementation by calling use_pure_python(). If you're not sure which
+    one you're using, you can tell by calling using_numpy(). Before you
+    call use_numpy(), it is recommended that you verify that numpy is
+    available by calling numpy_is_available() to avoid an import error.
+    While it is safe to switch back and forth between implementations as
+    many times as you like, you must not mix BitString or BitCondition
+    instances from one implementation with those of the other; to do so may
+    lead to undefined behavior.
+
+    It is worth noting that the Python int-based and numpy array-based
+    implementations have (somewhat surprisingly) roughly comparable speeds.
+    In fact, on some systems, the Python-based implementation is visibly
+    faster. If you are concerned with speed, it is best to actually test
+    the two implementations on your system to see which is faster. If not,
+    the pure Python implementation, enabled by default, is recommended.
+
 
 
 
@@ -57,8 +79,11 @@ POSSIBILITY OF SUCH DAMAGE.
 __author__ = 'Aaron Hosford'
 
 __all__ = [
-    'BitString',
+    # Classes
     'BitCondition',
+    'BitString',
+
+    # Functions
     'numpy_is_available',
     'use_numpy',
     'use_pure_python',
@@ -72,27 +97,44 @@ import xcs
 
 
 def numpy_is_available():
-    """Return a Boolean indicating whether numpy can be imported."""
+    """Return a Boolean indicating whether numpy can be imported.
+
+    Usage:
+        if numpy_is_available():
+            import numpy
+    """
     return xcs.numpy is not None
 
 
+# IMPORTANT:
+#   This class must appear *before* the BitString class is imported. It is
+#   a rather ugly solution, but _numpy_bitstrings.py and
+#   _python_bitstrings.py import this module, and then this module imports
+#   one of them. This lets us switch back and forth as needed.
 class BitStringBase(metaclass=ABCMeta):
     """Abstract base class for hashable, immutable sequences of bits
-    (Boolean values).
+    (Boolean values). There are two separate implementations of the
+    BitString class, each of which inherits from this base class. One is
+    implemented in pure Python (using Python ints), and the other is
+    implemented using numpy arrays. Inheriting from this abstract base
+    class serves to ensure that both implementations provide the same
+    interface.
 
-    In addition to operations for indexing and iteration, provides standard
-    bitwise operations, including & (bitwise and), | (bitwise or),
-    ^ (bitwise xor), and ~ (bitwise not). Also implements the + operator,
-    which acts like string concatenation.
-
-    A bit string can also be cast as an integer or an ordinary string.
+    Usage:
+        This is an abstract base class. Use the BitString subclass to
+        create an instance.
     """
 
     @classmethod
     @abstractmethod
     def random(cls, length, bit_prob=.5):
         """Create a bit string of the given length, with the probability of
-        each bit being set equal to bit_prob, which defaults to .5."""
+        each bit being set equal to bit_prob, which defaults to .5.
+
+        Usage:
+            # Create a random BitString of length 10 with mostly zeros.
+            bits = BitString.random(10, bit_prob=.1)
+        """
         raise NotImplementedError()
 
     @classmethod
@@ -100,8 +142,9 @@ class BitStringBase(metaclass=ABCMeta):
     def crossover_template(cls, length, points=2):
         """Create a crossover template with the given number of points. The
         crossover template can be used as a mask to crossover two
-        bitstrings of the same length:
+        bitstrings of the same length.
 
+        Usage:
             assert len(parent1) == len(parent2)
             template = BitString.crossover_template(len(parent1))
             inv_template = ~template
@@ -118,12 +161,21 @@ class BitStringBase(metaclass=ABCMeta):
 
     @abstractmethod
     def any(self):
-        """Returns True iff at least one bit is set."""
+        """Returns True iff at least one bit is set.
+
+        Usage:
+            assert not BitString('0000').any()
+            assert BitString('0010').any()
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def count(self):
-        """Returns the number of bits set to True in the bit string."""
+        """Returns the number of bits set to True in the bit string.
+
+        Usage:
+            assert BitString('00110').count() == 2
+        """
         raise NotImplementedError()
 
     def __str__(self):
@@ -132,7 +184,7 @@ class BitStringBase(metaclass=ABCMeta):
 
     def __repr__(self):
         """Overloads repr(bitstring)"""
-        return type(self).__name__ + '(' + str(self) + ')'
+        return type(self).__name__ + '(' + repr(str(self)) + ')'
 
     @abstractmethod
     def __int__(self):
@@ -206,7 +258,12 @@ _using_numpy = False
 
 def using_numpy():
     """Return a Boolean indicating whether the numpy implementation is
-    currently in use."""
+    currently in use.
+
+    Usage:
+        if using_numpy():
+            use_pure_python()
+    """
     return _using_numpy
 
 
@@ -214,7 +271,12 @@ def use_numpy():
     """Force the package to use the numpy-based BitString implementation.
     If numpy is not available, this will result in an ImportError.
     IMPORTANT: Bitstrings of different implementations cannot be mixed.
-    Attempting to do so will result in undefined behavior."""
+    Attempting to do so will result in undefined behavior.
+
+    Usage:
+        use_numpy()
+        assert using_numpy()
+    """
     global BitString, _using_numpy
     from ._numpy_bitstrings import BitString
     _using_numpy = True
@@ -223,7 +285,12 @@ def use_numpy():
 def use_pure_python():
     """Force the package to use the pure Python BitString implementation.
     IMPORTANT: Bitstrings of different implementations cannot be mixed.
-    Attempting to do so will result in undefined behavior."""
+    Attempting to do so will result in undefined behavior.
+
+    Usage:
+        use_pure_python()
+        assert not using_numpy()
+    """
     global BitString, _using_numpy
     from ._python_bitstrings import BitString
     _using_numpy = False
@@ -235,9 +302,9 @@ class BitCondition:
     bit strings. Like bit strings, bit conditions are hashable and
     immutable. Think of BitConditions as patterns which can match against
     BitStrings of the same length. At each index, we can have a 1, a 0, or
-    a #. If the value is 1 or 0, the BitString must have the same value at
-    that index. If the value is #, the BitString can have any value at that
-    index.
+    a # (wildcard). If the value is 1 or 0, the BitString must have the
+    same value at that index. If the value is #, the BitString can have any
+    value at that index.
 
     BitConditions are matched against BitStrings in one of two ways:
         Method 1:
@@ -257,7 +324,76 @@ class BitCondition:
     way that they are matched against BitStrings, with the sole exception
     that if the condition being used as the pattern specifies a 1 or 0 at a
     particular index, and the condition being used as the substrate
-    contains an # at that point, the match fails.
+    contains an # at that point, the match fails. This means that if
+    condition1 matches a bitstring and condition2 matches condition1, then
+    condition2 is guaranteed to match the bitstring, as well.
+
+    Usage:
+        # A few ways to create a BitCondition instance
+        condition1 = BitCondition('001###01#1')
+        condition2 = BitCondition(BitString('0010010111'),
+                                  BitString('1110001101'))
+        assert condition1 == condition2
+        condition3 = BitCondition.cover('0010010111', .25)
+        assert condition3(BitString('0010010111'))  # It matches
+
+        # They print up nicely
+        assert str(condition1) == '001###01#1'
+        print(condition1)  # Prints: 001###01#1
+        print(repr(condition1))  # Prints: BitCondition('001###01#1')
+
+        # Indexing is from left to right, like an ordinary string.
+        # (Wildcards are represented as the value None at the given index.)
+        assert condition1[0] == 0
+        assert condition1[-1] == 1
+        assert condition1[4] is None
+
+        # They are immutable
+        condition1[3] = 0  # This will raise a TypeError
+
+        # Slicing works
+        assert condition1[3:-3] == BitCondition('###0')
+
+        # You can iterate over them
+        for bit in condition1:
+            if bit is None:
+                print("Found a wildcard!)
+
+        # Unlike bitstrings, they cannot be cast as ints
+        as_int = int(condition1)  # This will raise a TypeError
+
+        # They can be used in hash-based containers
+        s = {condition1, condition3}
+        d = {condition1: "a", condition3: "b"}
+
+        # Unlike bitstrings, they do not support the any() method
+        condition1.any()  # This will raise an AttributeError
+
+        # Unlike bitstrings, BitCondition.count() returns the number of
+        # bits that are not wildcards, rather than the number of bits that
+        # have a value of 1.
+        assert condition1.count() == condition1.mask.count() == 6
+
+        # The bitwise operators for BitConditions work differently from
+        # those of BitStrings; provided the bits of each condition are
+        # compatible, i.e. there is no point where their bits disagree
+        # and neither of them is a wildcard, then &, |, and ~ actually
+        # represent set operations over the BitStrings that the conditions
+        # will match.
+        assert condition1 & condition1 == condition1
+        assert condition1 | condition1 == condition1
+        assert (condition1 | ~condition1)(BitString.random(10))
+        assert condition1(condition1 & condition3)  # They are compatible
+        assert condition3(condition1 & condition3)  # They are compatible
+        assert (condition1 | condition3)(condition1)  # They are compatible
+        assert (condition1 | condition3)(condition3)  # They are compatible
+
+        # BitConditions can also be concatenated together like strings
+        concatenation = condition1 + condition3
+        assert len(concatenation) == 10 * 2
+
+        # They support the crossover operator directly
+        child = condition1.crossover_with(condition3)
     """
 
     @classmethod
@@ -301,7 +437,7 @@ class BitCondition:
             else:
                 if not isinstance(bits, BitString):
                     bits = BitString(bits)
-                mask = BitString.from_int(~0, len(bits))
+                mask = BitString(~0, len(bits))
                 hash_value = None
         else:
             if not isinstance(bits, BitString):
@@ -342,7 +478,7 @@ class BitCondition:
 
     def __repr__(self):
         """Overloads repr(condition)"""
-        return type(self).__name__ + repr((self._bits, self._mask))
+        return type(self).__name__ + '(' + repr(str(self)) + ')'
 
     def __len__(self):
         """Overloads len(condition)"""
@@ -398,16 +534,7 @@ class BitCondition:
             return NotImplemented
         return type(self)(
             self._bits | other._bits,
-            self._mask & other._mask
-        )
-
-    def __xor__(self, other):
-        """Overloads ^"""
-        if not isinstance(other, BitCondition):
-            return NotImplemented
-        return type(self)(
-            self._bits ^ other._bits,
-            self._mask & other._mask
+            self._mask & other._mask & ~(self._bits ^ other._bits)
         )
 
     def __invert__(self):
