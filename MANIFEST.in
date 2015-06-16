@@ -2,7 +2,10 @@ include README.md
 include doc/XCSTutorial.*
 
 # Include the test suite
-recursive-exclude tests *
+# recursive-exclude tests *
+# recursive-include tests *
+recursive-exclude tests/__pycache__ *
+include tests
 
 # If using Python 2.6 or less, then have to include package data, even
 # though it's already declared in setup.py

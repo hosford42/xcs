@@ -44,6 +44,8 @@ if path.isfile(path.join(here, 'README.rst')):
               mode='rU') as description_file:
         long_description = description_file.read()
 
+# See https://pythonhosted.org/setuptools/setuptools.html for a full list
+# of parameters and their meanings.
 setup(
     name='xcs',
     version=__version__,
@@ -74,4 +76,7 @@ setup(
     keywords='xcs accuracy classifier lcs machine learning',
     packages=['xcs'],
     # install_requires=['numpy'],  # No longer required
+
+    test_suite="tests",
+    tests_require=["numpy"],
 )
