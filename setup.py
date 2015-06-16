@@ -49,16 +49,17 @@ if path.isfile(path.join(here, 'README.rst')):
 setup(
     name='xcs',
     version=__version__,
-    description='XCS (Accuracy-based Classifier System)',
-    long_description=long_description,
-    url='http://hosford42.github.io/xcs',
     author=__author__,
     author_email='hosford42@gmail.com',
+    url='http://hosford42.github.io/xcs',
     license='Revised BSD',
+    platforms=['any'],
+    description='XCS (Accuracy-based Classifier System)',
+    long_description=long_description,
 
     # See https://pypi.python.org/pypi?:action=list_classifiers
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
@@ -73,7 +74,7 @@ setup(
         'Programming Language :: Python :: 3.4',
     ],
 
-    keywords='xcs accuracy classifier lcs machine learning',
+    keywords='xcs accuracy classifier lcs reinforcement machine learning',
     packages=['xcs'],
     # install_requires=['numpy'],  # No longer required
 
