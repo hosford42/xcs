@@ -39,6 +39,24 @@ with open('xcs.egg-info/PKG-INFO', encoding='utf-8', mode='rU') as infile:
 os.remove('xcs.egg-info/PKG-INFO')
 os.rename('xcs.egg-info/PKG-INFO-FIXED', 'xcs.egg-info/PKG-INFO')
 
+import zipfile
+
+zip_path = 'dist/xcs-' + __version__ + '.zip'
+old_zip_path = '_old'.join(os.path.splitext(zip_path))
+os.rename(zip_path, old_zip_path)
+with zipfile.ZipFile(old_zip_path, mode='r') as old_zip:
+    with zipfile.ZipFile(zip_path, mode='w') as new_zip:
+        for item in old_zip.infolist():
+            if item.filename.endswith('/PKG-INFO'):
+                new_zip.write(
+                    'xcs.egg-info/PKG-INFO',
+                    item.filename
+                )
+            else:
+                data = old_zip.read(item.filename)
+                new_zip.writestr(item, data)
+os.remove(old_zip_path)
+
 dist = glob.glob('dist/*-' + __version__ + '-*.whl')[-1]
 print(dist)
 os.system('pip install ' +
