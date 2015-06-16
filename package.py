@@ -39,7 +39,6 @@ with open('xcs.egg-info/PKG-INFO', encoding='utf-8', mode='rU') as infile:
 os.remove('xcs.egg-info/PKG-INFO')
 os.rename('xcs.egg-info/PKG-INFO-FIXED', 'xcs.egg-info/PKG-INFO')
 
-import zipfile
 
 zip_path = 'dist/xcs-' + __version__ + '.zip'
 old_zip_path = '_old'.join(os.path.splitext(zip_path))
