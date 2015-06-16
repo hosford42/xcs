@@ -39,7 +39,7 @@ with open('xcs.egg-info/PKG-INFO', encoding='utf-8', mode='rU') as infile:
 os.remove('xcs.egg-info/PKG-INFO')
 os.rename('xcs.egg-info/PKG-INFO-FIXED', 'xcs.egg-info/PKG-INFO')
 
-dist = glob.glob('dist/*' + __version__ + '*.whl')[-1]
+dist = glob.glob('dist/*-' + __version__ + '-*.whl')[-1]
 print(dist)
 os.system('pip install ' +
           os.path.join('dist', os.path.basename(dist)) +
