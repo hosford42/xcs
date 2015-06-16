@@ -13,8 +13,8 @@ import os
 import zipfile
 
 from xcs import __version__
-import build_readme
 
+import build_readme
 build_readme.build_readme()
 
 os.chdir('.\\doc')
@@ -22,9 +22,6 @@ try:
     os.system('ipython nbconvert XCSTutorial.ipynb')
 finally:
     os.chdir('..')
-
-# This is already done in setup.py. No need to do it here.
-# build_readme.build_readme()
 
 os.system('python setup.py sdist bdist_wheel')
 
