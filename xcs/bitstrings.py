@@ -680,3 +680,54 @@ class BitCondition:
 
         # Convert the modified sequences back into BitConditions
         return type(self)(bits1, mask1), type(self)(bits2, mask2)
+
+    def specialize(self, bits, wildcards=1):
+        """Create a new bit condition that matches the given bit string,
+        with the same wildcard locations as this bit condition, except with
+        the given number of wildcards randomly removed. By default, the
+        number of wildcards removed is 1. If the wildcards to be removed
+        exceeds the total number of wildcards in the condition, all
+        wildcards are removed.
+
+        Usage:
+            specific_condition = generic_condition.specialize(bitstring, N)
+            assert specific_condition(bitstring)
+            assert (generic_condition.mask &
+                    ~specific_condition.mask).count() == 0
+            assert ((~generic_condition.mask &
+                     specific_condition.mask).count() ==
+                    min(N, (~generic_condition.mask).count()))
+
+        Arguments:
+            bits: A BitString which the resulting condition must match.
+            wildcards: An integer in the range [0, len(self)] which
+            indicates the number of wildcards to remove.
+        Return:
+            A randomly generated BitCondition which matches the given bits
+            and whose wildcard positions are a subset of the wildcards
+            positions of this condition.
+        """
+
+        if not isinstance(bits, BitString):
+            bits = BitString(bits)
+
+        if wildcards >= len(self._mask) - self._mask.count():
+            wildcard_positions = ()
+        else:
+            wildcard_positions = [
+                index
+                for index in range(len(self._mask))
+                if not self._mask[index]
+            ]
+            wildcard_positions = set(random.sample(
+                wildcard_positions,
+                len(wildcard_positions) - wildcards
+            ))
+
+        mask = BitString([
+            index in wildcard_positions
+            for index in range(len(self._mask))
+        ])
+
+        return type(self)(bits, mask)
+
