@@ -469,13 +469,16 @@ class BitCondition:
             A randomly generated BitCondition which matches the given bits.
         """
 
-        if not isinstance(bits, BitString):
+        if not isinstance(bits, (BitString, BitCondition)):
             bits = BitString(bits)
 
         mask = BitString([
             random.random() > wildcard_probability
             for _ in range(len(bits))
         ])
+
+        if isinstance(bits, BitCondition):
+            return cls(bits._bits, mask & bits._mask)
 
         return cls(bits, mask)
 
