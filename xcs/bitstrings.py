@@ -725,7 +725,7 @@ class BitCondition:
             ))
 
         mask = BitString([
-            index in wildcard_positions
+            index not in wildcard_positions
             for index in range(len(self._mask))
         ])
 
