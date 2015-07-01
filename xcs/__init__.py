@@ -1012,6 +1012,7 @@ class ClassifierSet:
         for by_action in self._population.values():
             for rule in by_action.values():
                 yield rule
+                assert rule.numerosity > 0
 
     def __len__(self):
         """Defining this determines the behavior of len(instance)."""
@@ -1068,6 +1069,7 @@ class ClassifierSet:
                 continue
 
             for action, rule in actions.items():
+                assert rule.numerosity > 0
                 if action in by_action:
                     by_action[action][condition] = rule
                 else:
@@ -1083,6 +1085,7 @@ class ClassifierSet:
             # Ask the algorithm to provide a new classifier rule to add to
             # the population.
             rule = self._algorithm.cover(match_set)
+            assert rule.numerosity > 0
 
             # Ensure that the condition provided by the algorithm does
             # indeed match the situation. If not, there is a bug in the
@@ -1146,6 +1149,7 @@ class ClassifierSet:
         """
 
         assert isinstance(rule, ClassifierRule)
+        assert rule.numerosity > 0
 
         condition = rule.condition
         action = rule.action
@@ -1165,7 +1169,9 @@ class ClassifierSet:
 
         # Any time we add a rule, we need to call this to keep the
         # population size under control.
-        return self._algorithm.prune(self)
+        result = self._algorithm.prune(self)
+        assert rule.numerosity > 0 or rule not in self
+        return result
 
     def discard(self, rule, count=1):
         """Remove one or more instances of a rule from the classifier set.
@@ -1458,6 +1464,11 @@ class XCSClassifierRule(ClassifierRule):
         """The weight of this rule's prediction as compared to others in
         the same action set. For XCS, this is the fitness of the rule."""
         return self.fitness
+
+    def extend(self, count=1):
+        """Extend the condition with the requested number of wildcards,
+        which is 1 by default."""
+        self._condition += bitstrings.BitCondition('#' * count)
 
 
 class XCSAlgorithm(LCSAlgorithm):
