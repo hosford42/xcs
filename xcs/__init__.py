@@ -1468,7 +1468,20 @@ class XCSClassifierRule(ClassifierRule):
     def extend(self, count=1):
         """Extend the condition with the requested number of wildcards,
         which is 1 by default."""
-        self._condition += bitstrings.BitCondition('#' * count)
+        condition = self._condition + bitstrings.BitCondition('#' * count)
+        result = type(self)(
+            condition,
+            self._action,
+            self._algorithm,
+            self.time_stamp
+        )
+        result.average_reward = self.average_reward
+        result.error = self.error
+        result.fitness = self.fitness
+        result.experience = self.experience
+        result.action_set_size = self.action_set_size
+        result.numerosity = self.numerosity
+        return result
 
 
 class XCSAlgorithm(LCSAlgorithm):
