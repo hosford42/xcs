@@ -1711,6 +1711,10 @@ class XCSAlgorithm(LCSAlgorithm):
     # parameter and should be set to 0 in that case.
     idealization_factor = 0
 
+    averaged_error = True  # True for standard XCS
+    relative_error = False  # False for standard XCS
+    rank_based_accuracy = False  # False for standard XCS
+
     @property
     def action_selection_strategy(self):
         """The action selection strategy used to govern the trade-off
@@ -1854,6 +1858,15 @@ class XCSAlgorithm(LCSAlgorithm):
         action_set = match_set[match_set.selected_action]
         action_set_size = sum(rule.numerosity for rule in action_set)
 
+        if self.rank_based_accuracy:
+            by_rank = sorted(
+                action_set,
+                key=lambda rule: abs(payoff - rule.average_reward)
+            )
+            length = len(by_rank)
+            ranks = {rule: index / length
+                     for index, rule in enumerate(by_rank, 1)}
+
         # Update the average reward, error, and action set size of each
         # rule participating in the action set.
         for rule in action_set:
@@ -1866,11 +1879,14 @@ class XCSAlgorithm(LCSAlgorithm):
                 update_rate
             )
 
-            rule.error += (
-                (abs(payoff - rule.average_reward) - rule.error) *
-                update_rate
+            if self.rank_based_accuracy:
+                rule.error += (ranks[rule] - rule.error) * update_rate
+            else:
+                rule.error += (
+                    (abs(payoff - rule.average_reward) - rule.error) *
+                    update_rate
 
-            )
+                )
 
             rule.action_set_size += (
                 (action_set_size - rule.action_set_size) *
@@ -1878,7 +1894,7 @@ class XCSAlgorithm(LCSAlgorithm):
             )
 
         # Update the fitness of the rules.
-        self._update_fitness(action_set)
+        self._update_fitness(action_set, payoff)
 
         # If the parameters so indicate, perform action set subsumption.
         if self.do_action_set_subsumption:
@@ -2084,28 +2100,58 @@ class XCSAlgorithm(LCSAlgorithm):
 
         assert False  # We should never reach this point.
 
-    def _update_fitness(self, action_set):
+    def _update_fitness(self, action_set, payoff):
         """Update the fitness values of the rules belonging to this action
         set."""
-        # Compute the accuracy of each rule. Accuracy is inversely
-        # proportional to error. Below a certain error threshold, accuracy
-        # becomes constant. Accuracy values range over (0, 1].
-        total_accuracy = 0
-        accuracies = {}
-        for rule in action_set:
-            if rule.error < self.error_threshold:
-                accuracy = 1
-            else:
-                accuracy = (
-                    self.accuracy_coefficient *
-                    (rule.error / self.error_threshold) **
-                    -self.accuracy_power
-                )
-            accuracies[rule] = accuracy
-            total_accuracy += accuracy * rule.numerosity
 
-        # On rare occasions we have zero total accuracy. This avoids a div
-        # by zero
+        if self.averaged_error:
+            errors = {rule: rule.error for rule in action_set}
+        elif self.rank_based_accuracy:
+            by_rank = sorted(
+                action_set,
+                key=lambda rule: abs(rule.prediction - payoff)
+            )
+            length = len(by_rank)
+            errors = {rule: index / length
+                      for index, rule in enumerate(by_rank, 1)}
+        else:
+            errors = {rule: abs(rule.prediction - payoff)
+                      for rule in action_set}
+
+        # Compute the accuracy of each rule.
+        if self.relative_error:
+            min_error = min(errors.values())
+            max_error = max(errors.values())
+            if min_error >= max_error:
+                #max_error += 1
+                min_error -= 1
+            ratio = 1 / (max_error - min_error)
+            accuracies = {rule: (max_error - error) * ratio
+                          for rule, error in errors.items()}
+            total_accuracy = sum(
+                accuracy * rule.numerosity
+                for rule, accuracy in accuracies.items()
+            )
+        else:
+            # Accuracy is inversely
+            # proportional to error. Below a certain error threshold, accuracy
+            # becomes constant. Accuracy values range over (0, 1].
+            accuracies = {}
+            total_accuracy = 0
+            for rule in action_set:
+                error = errors[rule]
+                if error < self.error_threshold:
+                    accuracy = 1
+                else:
+                    accuracy = (
+                        self.accuracy_coefficient *
+                        (error / self.error_threshold) **
+                        -self.accuracy_power
+                    )
+                accuracies[rule] = accuracy
+                total_accuracy += accuracy * rule.numerosity
+
+        # Prevent divide by 0
         total_accuracy = total_accuracy or 1
 
         # Use the relative accuracies of the rules to update their fitness
