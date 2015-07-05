@@ -1,3 +1,6 @@
+# PyCharm
+.idea/
+
 # Test data (excluded for now)
 test_data/
 
