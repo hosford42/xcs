@@ -1005,6 +1005,10 @@ class ClassifierSet:
         was initialized."""
         return self._time_stamp
 
+    def add_possible_action(self, action):
+        """Add a new possible action."""
+        self._possible_actions |= frozenset([action])
+
     def __iter__(self):
         """Defining this determines the behavior of instances of this class
         with respect to iteration constructs such as "iter(instance)" and
