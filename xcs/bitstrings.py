@@ -617,6 +617,21 @@ class BitCondition:
             self._mask & other._mask & ~(self._bits ^ other._bits)
         )
 
+    def __xor__(self, other):
+        if isinstance(other, BitString):
+            return type(self)(
+                self._bits ^ other,
+                self._mask
+            )
+        elif isinstance(other, BitCondition):
+            return type(self)(
+                self._bits ^ other._bits,
+                self._mask | other._mask
+            )
+        else:
+            return NotImplemented
+    __rxor__ = __xor__
+
     def __invert__(self):
         """Overloads unary ~"""
         return type(self)(~self._bits, self._mask)
