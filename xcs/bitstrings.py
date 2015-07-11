@@ -536,6 +536,28 @@ class BitCondition:
         indicates it is masked/wildcarded."""
         return self._mask
 
+    @property
+    def specificity(self):
+        """The number of bits that are not masked."""
+        return self._mask.count()
+
+    @property
+    def generality(self):
+        """The number of bits that are masked."""
+        return len(self._mask) - self._mask.count()
+
+    @property
+    def specificity_measure(self):
+        """The degree of specificity, expressed as a value in the range
+        [0, 1]. Equivalent to condition.specificity / len(condition)."""
+        return self._mask.count() / len(self._mask)
+
+    @property
+    def generality_measure(self):
+        """The degree of generality, expressed as a value in the range
+        [0, 1]. Equivalent to condition.generality / len(condition)."""
+        return 1 - self._mask.count() / len(self._mask)
+
     def count(self):
         """Return the number of bits that are not wildcards.
 
@@ -749,6 +771,40 @@ class BitCondition:
 
         return type(self)(bits, mask)
 
+    def limit_specificity(self, bits, lower=0, upper=None):
+        """Returns a new condition as similar as possible to this one, but
+        matching the given bits and conforming to the specificity bounds.
+        """
+
+        assert len(bits) == len(self)
+        assert isinstance(lower, int)
+        assert upper is None or (isinstance(upper, int) and lower < upper)
+
+        mask = self._mask
+        count = mask.count()
+
+        if count < lower:
+            # TODO: Make an indices() method that does this efficiently
+            wildcards = [index for index, bit in enumerate(mask)
+                         if not bit]
+
+            selected = random.sample(wildcards, lower - count)
+
+            mask |= BitString([(index in selected)
+                               for index in range(len(mask))])
+        elif upper is not None and count > upper:
+            # TODO: Make an indices() method that does this efficiently
+            non_wildcards = [index for index, bit in enumerate(mask)
+                             if bit]
+
+            selected = random.sample(non_wildcards,
+                                     len(non_wildcards) - (count - upper))
+
+            mask &= BitString([(index not in selected)
+                               for index in range(len(mask))])
+
+        return BitCondition(bits, mask)
+
     def generalize(self, bits=None, wildcards=1):
         """Create a new bit condition that matches the given bit string,
         with the same wildcard locations as this bit condition, except with
@@ -800,3 +856,38 @@ class BitCondition:
         ])
 
         return type(self)(bits, mask)
+
+    def limit_generality(self, bits, lower=0, upper=None):
+        """Returns a new condition as similar as possible to this one, but
+        matching the given bits and conforming to the generality bounds.
+        """
+
+        assert len(bits) == len(self)
+        assert isinstance(lower, int)
+        assert upper is None or (isinstance(upper, int) and lower < upper)
+
+        mask = self._mask
+        count = (~mask).count()
+
+        if count < lower:
+            # TODO: Make an indices() method that does this efficiently
+            non_wildcards = [index for index, bit in enumerate(mask)
+                             if bit]
+
+            selected = random.sample(non_wildcards, lower - count)
+
+            mask &= BitString([(index not in selected)
+                               for index in range(len(mask))])
+        elif upper is not None and count > upper:
+            # TODO: Make an indices() method that does this efficiently
+            wildcards = [index for index, bit in enumerate(mask)
+                         if not bit]
+
+            selected = random.sample(wildcards,
+                                     len(wildcards) - (count - upper))
+
+            mask |= BitString([(index in selected)
+                               for index in range(len(mask))])
+
+        return BitCondition(bits, mask)
+
