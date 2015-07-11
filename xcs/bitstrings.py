@@ -802,6 +802,8 @@ class BitCondition:
 
             mask &= BitString([(index not in selected)
                                for index in range(len(mask))])
+        else:
+            return self
 
         return BitCondition(bits, mask)
 
@@ -888,6 +890,8 @@ class BitCondition:
 
             mask |= BitString([(index in selected)
                                for index in range(len(mask))])
+        else:
+            return self
 
         return BitCondition(bits, mask)
 
