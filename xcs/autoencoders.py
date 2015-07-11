@@ -822,8 +822,7 @@ if __name__ == "__main__":
         recent += (score - recent) / min(cycle + 1, 1000)
         if cycle % 100 == 99:
             print(cycle + 1, average, recent)
-            encode
-            d = autoencoder.encode(bits)
+            encoded = autoencoder.encode(bits)
             decoded = autoencoder.decode(encoded)
             wrong = decoded ^ bits
             wrong_count = sum(bit or 0 for bit in wrong)
