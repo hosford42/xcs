@@ -437,7 +437,7 @@ class LCSAlgorithm(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def cover(self, match_set):
+    def cover(self, match_set, action=None):
         """Return a new classifier rule that can be added to the match set,
         with a condition that matches the situation of the match set and an
         action selected to avoid duplication of the actions already
@@ -1784,7 +1784,7 @@ class XCSAlgorithm(LCSAlgorithm):
         else:
             return len(match_set) < self.minimum_actions
 
-    def cover(self, match_set):
+    def cover(self, match_set, action=None):
         """Return a new classifier rule that can be added to the match set,
         with a condition that matches the situation of the match set and an
         action selected to avoid duplication of the actions already
@@ -1809,6 +1809,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
         assert isinstance(match_set, MatchSet)
         assert match_set.model.algorithm is self
+        assert action is None or action in match_set.model.possible_actions
 
         # Create a new condition that matches the situation.
         condition = bitstrings.BitCondition.cover(
@@ -1816,15 +1817,16 @@ class XCSAlgorithm(LCSAlgorithm):
             self.wildcard_probability
         )
 
-        # Pick a random action that (preferably) isn't already suggested by
-        # some other rule for this situation.
-        action_candidates = (
-            frozenset(match_set.model.possible_actions) -
-            frozenset(match_set)
-        )
-        if not action_candidates:
-            action_candidates = match_set.model.possible_actions
-        action = random.choice(list(action_candidates))
+        if action is None:
+            # Pick a random action that (preferably) isn't already
+            # suggested by some other rule for this situation.
+            action_candidates = (
+                frozenset(match_set.model.possible_actions) -
+                frozenset(match_set)
+            )
+            if not action_candidates:
+                action_candidates = match_set.model.possible_actions
+            action = random.choice(list(action_candidates))
 
         # Create the new rule.
         return XCSClassifierRule(
