@@ -1,8 +1,9 @@
 __author__ = 'Aaron Hosford'
 
+import math
 import random
 
-from xcs import ClassifierSet
+from xcs import ClassifierSet, MatchSet, ActionSet
 from xcs import bitstrings
 from xcs import scenarios
 
@@ -405,18 +406,354 @@ class ClassifierSetAutoEncoder:
         return correct.count() / len(correct)
 
 
+
+def logistic(x):
+    try:
+        return 1 / (1 + math.exp(-x))
+    except (ValueError, ZeroDivisionError, OverflowError):
+        return int(x > 0)
+
+
 class ExplanatoryClassifierSetAutoEncoder:
 
     def __init__(self, encoder_algorithm, input_size):
-        self._encoder = ClassifierSet(encoder_algorithm, [0, 1])
-        self._encoder.
+        self._encoder = ClassifierSet(encoder_algorithm, [0])
+        self._input_size = input_size
+        self._explanations = {0: [.5] * input_size}
+        self._ages = {0: 0}
+
+        self._cycles = 0
+
+    def train(self, bits):
+        assert isinstance(bits, (bitstrings.BitString, bitstrings.BitCondition))
+        assert len(bits) == self._input_size
+
+        self._cycles += 1
+        #for obj in self._ages:
+            #self._ages[obj] += 1
+
+        encoding_match = self._encoder.match(bits)
+
+        remaining_objects = set(self._explanations)#set(encoding_match)
+        #if len(remaining_objects) != len(self._explanations):
+            #print("NOT MAXED")
+        unexplained = [0 if bit is None else 1 for bit in bits]
+        contributions = {}
+
+        encoded = []
+        utilities = []
+        totals = [0] * len(bits)
+        error = .5 * sum(bit is not None for bit in bits)
+        while remaining_objects and max(unexplained) >= .1:#1 / self._cycles:#.1:
+            consonance = {}
+            dissonance = {}
+            for obj in remaining_objects:
+                explanation = self._explanations[obj]
+
+                degree = sum(
+                    (1 - abs(bit - exp)) * unexp
+                    for bit, exp, unexp in zip(bits,
+                                               explanation,
+                                               unexplained)
+                    if bit is not None
+                )
+
+                new_totals = [
+                    total + (exp - .5)
+                    for total, exp in zip(totals, explanation)
+                ]
+                new_error = sum(
+                    #abs(bit - logistic(total))
+                    #abs(bit - (.5 + total))
+                    abs(bit - (1 if total > 0 else 0 if total < 0 else .5)) + abs(bit - (.5 + total))
+                    for bit, total in zip(bits, new_totals)
+                    if bit is not None
+                )
+
+                consonance[obj] = degree / self._cycles + (error - new_error) / len(bits)# + (encoding_match[obj].prediction if obj in encoding_match else 1)
+                #consonance[obj] = (error - new_error) / len(bits)
+
+                # degree = sum(
+                #     (1 - abs((not bit) - exp))
+                #     for bit, exp in zip(bits, explanation)
+                #     if bit is not None
+                # )
+                # dissonance[obj] = degree
+
+            next_obj = max(
+                remaining_objects,
+                key=lambda obj: (
+                    consonance[obj] * (1 + 1 / (1 + self._ages[obj])) #-
+                    #dissonance[obj] * (1 - 1 / (1 + self._ages[obj]))
+                    #* (2 - encoding_match[obj].prediction)
+                )
+            )
+
+            #if encoded and consonance[next_obj] <= dissonance[next_obj]:
+                #break
+
+            remaining_objects.discard(next_obj)
+            explanation = self._explanations[next_obj]
+
+            new_totals = [
+                total + (exp - .5)
+                for total, exp in zip(totals, explanation)
+            ]
+            new_error = sum(
+                #abs(bit - logistic(total))
+                abs(bit - (1 if total > 0 else 0 if total < 0 else .5)) + abs(bit - (.5 + total))
+                for bit, total in zip(bits, new_totals)
+                if bit is not None
+            )
+            #if new_error >= error:
+                #continue
+
+            totals = new_totals
+            error = new_error
+
+            encoded.append(next_obj)
+            utilities.append(consonance[next_obj])# - dissonance[next_obj])
+
+            contributions[next_obj] = [
+                (1 - abs(exp - bit)) if bit is not None else 0
+                for exp, bit in zip(explanation, bits)
+            ]
+
+            unexplained = [
+                max(0, unexp - contr)
+                for unexp, contr in zip(
+                    unexplained,
+                    contributions[next_obj]
+                )
+            ]
+
+        decoded = self.decode(bitstrings.BitString([1 if index in encoded else 0 for index in range(len(self._explanations))]))#encoded)
+        bad = decoded.count() < len(decoded) or decoded.bits != bits or len(encoded) == len(self._explanations)
+        if bad:
+            bad_count = sum(bits[index] != decoded[index] for index in range(len(bits)))
+        else:
+            bad_count = 0
+
+        #if bad:
+        #    print(bits)
+        #    print(decoded)
+        #    print(encoded)
+        for obj_index, obj in enumerate(encoded):
+            self._ages[obj] += 1
+            explanation = self._explanations[obj]
+            for index, bit in enumerate(bits):
+                if bit is None:
+                    continue
+                if len(self._explanations) == 1:
+                    dist_from_others = 0
+                    #bitdist = 1
+                else:
+                    dist_from_others = sum(
+                        abs(explanation[index] - other[index]) ** 2
+                        for other in self._explanations.values()
+                        if other is not explanation
+                    ) / (len(self._explanations) - 1)
+                    #bitdist = sum(
+                    #    abs(bit - other[index]) ** 2
+                    #    for other in self._explanations.values()
+                    #    if other is not explanation
+                    #) ** .5 / (len(self._explanations) - 1)
+                nearest = abs(self._explanations[obj][index] - bit) == min(abs(self._explanations[other][index] - bit) for other in self._explanations)
+                if dist_from_others < 1 / len(self._explanations):# and abs(self._explanations[obj][index] - bit) > .5:
+                    explanation[index] += (bit - explanation[index]) * random.uniform(.5, 1)
+                else:
+                    #print(dist_from_others)
+                    explanation[index] += (bit - explanation[index]) / self._ages[obj] * (.5 + .5 * nearest) * (1 - dist_from_others ** .5)#* .5)# ** .5# * len(encoded) / (obj_index + 1) #/ (index + 1)# ** .5#* max(.1, ((decoded[index] != bits[index]) + unexplained[index]) / 2) / len(encoded) / self._ages[obj]#/ self._cycles#min(1, unexplained[index] + 1 / len(self._explanations))#* .1
+
+        #unexplained = [
+        #    max(0, 1 - sum(contributions[obj][index] for obj in encoded))
+        #    for index in range(len(unexplained))
+        #]
+
+        #if max(unexplained) >= .1 and (random.random() < .1 or len(encoded) < 2):
+        if not encoded or len(self._ages) <= 2 or (bad and random.random() ** ((bad_count) / (len(bits))) < math.log(len(bits), 2) / (len(self._ages))):# ** .5):# ** .5):#sum(unexplained) / len(unexplained) / len(self._explanations)):# * .5):# / len(encoded):
+        #if not encoded or len(self._ages) <= 2 or (bad and random.random() < ((min(self._ages.values()) / max(self._ages.values())) / len(self._ages)) ** len(bits)):#sum(unexplained) / len(unexplained) / len(self._explanations)):# * .5):# / len(encoded):
+            new_obj = max(self._encoder.possible_actions) + 1
+            new_explanation = [
+                .5 + (unexp if bit else -unexp) / 2
+                for bit, unexp in zip(bits, unexplained)
+            ]
+            self._explanations[new_obj] = new_explanation
+            self._ages[new_obj] = 0
+
+            encoded.append(new_obj)
+
+            self._encoder.add_possible_action(new_obj)
+            new_rule = self._encoder.algorithm.cover(encoding_match, new_obj)
+            self._encoder.add(new_rule)
+
+            # contributions[new_obj] = [
+            #     (1 - abs(exp - bit)) if bit is not None else 0
+            #     for exp, bit in zip(new_explanation, bits)
+            # ]
+
+        # objects = list(encoding_match)
+        # encoding_match.selected_actions = objects
+        # encoding_match.payoff = [(obj in encoding) for obj in objects]
+        # encoding_match.apply_payoff()
+
+        if len(encoded) > 1:
+            best_obj = max(encoded[:-1], key=lambda obj: sum(contributions[obj]))#random.choice(encoded[:-1])#encoded[0]
+            if best_obj in encoding_match:
+                encoding_match.selected_action = best_obj
+                encoding_match.payoff = 1 - bad - sum((bits[index] != decoded[index]) * contributions[obj][index] for index in range(len(bits))) / len(bits)#not bad #-sum((bits[index] != decoded[index]) * contributions[obj][index] for index in range(len(bits))) / len(bits)#not bad#-random.random() if bad else 1#not bad#1 - max(unexplained)
+                encoding_match.apply_payoff()
+            else:
+                new_rule = self._encoder.algorithm.cover(encoding_match, best_obj)
+                self._encoder.add(new_rule)
+
+        # print(bits)
+        # for obj in encoded:
+        #     print(obj, self._explanations[obj])
+        # print()
+
+    def encode(self, bits):
+        assert isinstance(bits, (bitstrings.BitString, bitstrings.BitCondition))
+        assert len(bits) == self._input_size
+
+        encoding_match = self._encoder.match(bits)
+
+        remaining_objects = set(encoding_match)
+        unexplained = [0 if bit is None else 1 for bit in bits]
+        contributions = {}
+
+        encoded = []
+        utilities = []
+        totals = [0] * len(bits)
+        error = .5 * sum(bit is not None for bit in bits)
+        while remaining_objects and max(unexplained) >= .1:#1 / (1 + self._cycles):#.1:
+            consonance = {}
+            dissonance = {}
+            for obj in remaining_objects:
+                explanation = self._explanations[obj]
+
+                degree = sum(
+                    (1 - abs(bit - exp)) * unexp
+                    for bit, exp, unexp in zip(bits,
+                                               explanation,
+                                               unexplained)
+                    if bit is not None
+                )
+                #consonance[obj] = degree
+
+                new_totals = [
+                    total + (exp - .5)
+                    for total, exp in zip(totals, explanation)
+                ]
+                new_error = sum(
+                    #abs(bit - logistic(total))
+                    #abs(bit - (.5 + total))
+                    abs(bit - (1 if total > 0 else 0 if total < 0 else .5)) + abs(bit - (.5 + total))
+                    for bit, total in zip(bits, new_totals)
+                    if bit is not None
+                )
+
+                #consonance[obj] = degree + (error - new_error) / len(bits)
+                consonance[obj] = (error - new_error) / len(bits) + encoding_match[obj].prediction / len(bits)
+
+                # degree = sum(
+                #     (1 - abs((not bit) - exp))
+                #     for bit, exp in zip(bits, explanation)
+                #     if bit is not None
+                # )
+                # dissonance[obj] = degree
+
+            next_obj = max(
+                remaining_objects,
+                key=lambda obj: (
+                    consonance[obj]# - dissonance[obj]
+                    #*
+                    #(2 - encoding_match[obj].prediction)
+                )
+            )
+
+            #if len(encoded) > 1 and consonance[next_obj] <= dissonance[next_obj]:
+                #break
+
+            remaining_objects.discard(next_obj)
+            explanation = self._explanations[next_obj]
+
+            new_totals = [
+                total + (exp - .5)
+                for total, exp in zip(totals, explanation)
+            ]
+            new_error = sum(
+                abs(bit - logistic(total))
+                for bit, total in zip(bits, new_totals)
+                if bit is not None
+            )
+            if new_error >= error:
+                continue
+
+            totals = new_totals
+            error = new_error
+
+            encoded.append(next_obj)
+            utilities.append(consonance[next_obj])
+
+            contributions[next_obj] = [
+                (1 - abs(exp - bit)) if bit is not None else 0
+                for exp, bit in zip(explanation, bits)
+            ]
+
+            unexplained = [
+                max(0, unexp - contr)
+                for unexp, contr in zip(
+                    unexplained,
+                    contributions[next_obj]
+                )
+            ]
+
+        # print(bits)
+        # for obj in encoded:
+        #     print(obj, self._explanations[obj])
+        # print(self.decode(encoded))
+        # print()
+
+        #return encoded
+        return bitstrings.BitString([1 if index in encoded else 0 for index in range(len(self._explanations))])
+
+    def decode(self, bits):#encoded):
+        assert isinstance(bits, bitstrings.BitString)
+        encoded = [index for index, bit in enumerate(bits) if bit]
+
+        weights = [0] * self._input_size
+
+        for obj in encoded:
+            explanation = self._explanations[obj]
+            weights = [
+                weight + (exp - .5)
+                for weight, exp in zip(weights, explanation)
+            ]
+            # print(explanation, weights)
+
+        return bitstrings.BitCondition(
+            [weight > 0 for weight in weights],
+            [weight != 0 for weight in weights]
+        )
+
+    def test(self, bits):
+        assert isinstance(bits, (bitstrings.BitString, bitstrings.BitCondition))
+        assert len(bits) == self._input_size
+
+        reconstructed = self.decode(self.encode(bits))
+        correct = bits ^ ~reconstructed
+        if isinstance(bits, bitstrings.BitString):
+            return correct.count() / len(correct)
+        else:
+            return sum(bit or 0 for bit in correct) / (correct.count() or 1)
 
 
 if __name__ == "__main__":
     from xcs import XCSAlgorithm
     #from ics import ICSAlgorithm
 
-    input_size = 10#20
+    input_size = 40#10#20
     encoded_size = 50#10
     #max_encoded_size = 50
 
@@ -453,22 +790,54 @@ if __name__ == "__main__":
     e_algorithm.wildcard_probability = 1 - 1 / encoded_size
     d_algorithm.exploration_probability = 1 / input_size * .5#.01#0#.01#.1 / input_size
 
-    autoencoder = ClassifierSetAutoEncoder(e_algorithm, input_size, d_algorithm, encoded_size)#1)
+    exp_algorithm = XCSAlgorithm()
+    #exp_algorithm.ga_threshold = .5 * input_size#1
+    #exp_algorithm.do_action_set_subsumption = False
+    #exp_algorithm.do_ga_subsumption = True
+    exp_algorithm.learning_rate = .001#.5#.001
+    #exp_algorithm.crossover_probability = .75#.5#0#1
+    exp_algorithm.mutation_probability = .25 / input_size#.5/input_size#.5#2/input_size#0
+    exp_algorithm.wildcard_probability = 1 - 1 / input_size
+    #exp_algorithm.minimum_actions = 2
+
+    # TODO: Try stacking autoencoders.
+    # TODO: Determine whether bitmap autoencoders produced by this algorithm
+    #       can be used to efficiently initialize neural networks for rapid
+    #       training.
+    # TODO: Can this algorithm be used for association rule discovery? Do
+    #       the explanations represent meaningful groupings of bits? What
+    #       about the classifier set rules' conditions?
+
+    autoencoder = ExplanatoryClassifierSetAutoEncoder(exp_algorithm, input_size)#ClassifierSetAutoEncoder(e_algorithm, input_size, d_algorithm, encoded_size)#1)
     average = 0
     recent = 0
-    for cycle in range(10000):
-        bits = bitstrings.BitString.random(input_size // 2)
-        bits += bitstrings.BitString(reversed(bits), input_size // 2)
+    for cycle in range(50000):
+        bits = bitstrings.BitString.random(input_size // 4)
+        bits2 = bitstrings.BitString(reversed(bits), input_size // 4)
+        bits = bits + bits2 + (bits ^ bits2) + (bits & bits2)
+        #bits = bitstrings.BitString(1 << random.randrange(input_size), input_size)
         score = autoencoder.test(bits)
         autoencoder.train(bits)
         average += (score - average) / (cycle + 1)
         recent += (score - recent) / min(cycle + 1, 1000)
         if cycle % 100 == 99:
             print(cycle + 1, average, recent)
-            encoded = autoencoder.encode(bits)
+            encode
+            d = autoencoder.encode(bits)
             decoded = autoencoder.decode(encoded)
             wrong = decoded ^ bits
-            print(bits, '=>', encoded, '=>', decoded, '(' + str(wrong) + ',', str(wrong.count()) + ')')
+            wrong_count = sum(bit or 0 for bit in wrong)
+            print(bits, '=>', encoded, '=>', decoded, '(' + str(wrong) + ',', str(wrong_count) + ')')
+            if cycle % 1000 == 999:
+                for action in sorted(autoencoder._encoder.possible_actions):
+                    explanation = bitstrings.BitCondition(
+                        [exp > .5 for exp in autoencoder._explanations[action]],
+                        [exp != .5 for exp in autoencoder._explanations[action]]
+                    )
+                    print(action, explanation)
             print()
             #if encoded_size < max_encoded_size:# and cycle % 1000 == 999:
             #    autoencoder.extend()
+
+    print(autoencoder._encoder)
+
