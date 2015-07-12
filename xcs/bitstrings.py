@@ -778,7 +778,7 @@ class BitCondition:
 
         assert len(bits) == len(self)
         assert isinstance(lower, int)
-        assert upper is None or (isinstance(upper, int) and lower < upper)
+        assert upper is None or (isinstance(upper, int) and lower <= upper)
 
         mask = self._mask
         count = mask.count()
@@ -866,7 +866,7 @@ class BitCondition:
 
         assert len(bits) == len(self)
         assert isinstance(lower, int)
-        assert upper is None or (isinstance(upper, int) and lower < upper)
+        assert upper is None or (isinstance(upper, int) and lower <= upper)
 
         mask = self._mask
         count = (~mask).count()
