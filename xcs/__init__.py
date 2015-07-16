@@ -663,6 +663,13 @@ class ActionSet:
         """Defining this determines the behavior of iter(instance)."""
         return iter(self._rules.values())
 
+    def __len__(self):
+        return len(self._rules)
+
+    @property
+    def total_numerosity(self):
+        return sum(rule.numerosity for rule in self._rules.values())
+
     def __getitem__(self, rule):
         """Return the existing version of the classifier rule having the
         same condition and action and appearing in this action set. This
@@ -1718,6 +1725,9 @@ class XCSAlgorithm(LCSAlgorithm):
     averaged_error = True  # True for standard XCS
     relative_error = False  # False for standard XCS
     rank_based_accuracy = False  # False for standard XCS
+    min_specificity = 0  # 0 for standard XCS
+    max_specificity = None  # None for standard XCS
+    even_coverage = False  # False for standard XCS
 
     @property
     def action_selection_strategy(self):
@@ -1816,6 +1826,13 @@ class XCSAlgorithm(LCSAlgorithm):
             match_set.situation,
             self.wildcard_probability
         )
+
+        if self.min_specificity or self.max_specificity is not None:
+            condition = condition.limit_specificity(
+                match_set.situation,
+                self.min_specificity,
+                self.max_specificity
+            )
 
         if action is None:
             # Pick a random action that (preferably) isn't already
@@ -1967,6 +1984,18 @@ class XCSAlgorithm(LCSAlgorithm):
         # their mask bits with a small probability.
         condition1 = self._mutate(condition1, action_set.situation)
         condition2 = self._mutate(condition2, action_set.situation)
+
+        if self.min_specificity or self.max_specificity is not None:
+            condition1 = condition1.limit_specificity(
+                match_set.situation,
+                self.min_specificity,
+                self.max_specificity
+            )
+            condition2 = condition2.limit_specificity(
+                match_set.situation,
+                self.min_specificity,
+                self.max_specificity
+            )
 
         # If the newly generated children are already present in the
         # population (or if they should be subsumed due to GA subsumption)
@@ -2139,9 +2168,9 @@ class XCSAlgorithm(LCSAlgorithm):
                 for rule, accuracy in accuracies.items()
             )
         else:
-            # Accuracy is inversely
-            # proportional to error. Below a certain error threshold, accuracy
-            # becomes constant. Accuracy values range over (0, 1].
+            # Accuracy is inversely proportional to error. Below a certain
+            # error threshold, accuracy becomes constant. Accuracy values
+            # range over (0, 1].
             accuracies = {}
             total_accuracy = 0
             for rule in action_set:
@@ -2163,11 +2192,10 @@ class XCSAlgorithm(LCSAlgorithm):
         # Use the relative accuracies of the rules to update their fitness
         for rule in action_set:
             accuracy = accuracies[rule]
-            rule.fitness += (
-                self.learning_rate *
-                (accuracy * rule.numerosity / total_accuracy -
-                 rule.fitness)
-            )
+            fitness_target = \
+                accuracy * rule.numerosity / total_accuracy
+            rule.fitness += \
+                self.learning_rate * (fitness_target - rule.fitness)
 
     def _action_set_subsumption(self, action_set):
         """Perform action set subsumption."""
@@ -2224,17 +2252,63 @@ class XCSAlgorithm(LCSAlgorithm):
         for rule in action_set:
             rule.time_stamp = action_set.model.time_stamp
 
-    @staticmethod
-    def _select_parent(action_set):
+    def _select_parent(self, action_set):
         """Select a rule from this action set, with probability
         proportionate to its fitness, to act as a parent for a new rule in
         the classifier set. Return the selected rule."""
+        if self.even_coverage:
+            situation_length = len(action_set.situation)
+            counts = ([0] * situation_length, [0] * situation_length)
+            for rule in action_set.model:
+                for index, bit in enumerate(rule.condition):
+                    if bit is not None:
+                        counts[bit][index] += 1
+
+            least_balanced_bits = [
+                counts[1][index] < counts[0][index]
+                for index in range(situation_length)
+            ]
+
+            balance_weights = (
+                abs(counts[1][index] - counts[0][index]) /
+                (1 + counts[0][index] + counts[1][index])
+                for index in range(situation_length)
+            )
+
+            selection_weights = {
+                rule: rule.fitness +
+                      (.5 + sum(
+                          (weight * (condition_bit == least_balanced_bit))
+                          for weight, condition_bit, least_balanced_bit in
+                          zip(balance_weights,
+                              rule.condition,
+                              least_balanced_bits)
+                      )) /
+                      (1 + sum(
+                          weight
+                          for weight, condition_bit in zip(
+                              balance_weights,
+                              rule.condition
+                          )
+                          if condition_bit is not None
+                      ))
+                for rule in action_set
+            }
+
+            total_weight = sum(selection_weights.values())
+            selector = random.uniform(0, total_weight)
+            for rule, weight in selection_weights.items():
+                selector -= weight
+                if selector <= 0:
+                    return rule
+
         total_fitness = sum(rule.fitness for rule in action_set)
         selector = random.uniform(0, total_fitness)
         for rule in action_set:
             selector -= rule.fitness
             if selector <= 0:
                 return rule
+
         # If for some reason a case slips through the above loop, perhaps
         # due to floating point error, we fall back on uniform selection.
         return random.choice(list(action_set))
