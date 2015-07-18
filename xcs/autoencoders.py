@@ -154,11 +154,14 @@ class ExplanatoryClassifierSetAutoEncoder:
                     abs(self._explanations[obj][index] - bit) ==
                     min(abs(self._explanations[other][index] - bit) for other in self._explanations)
                 )
+
+                delta = bit - explanation[index]
+
                 if dist_from_others < 1 / len(self._explanations):
-                    explanation[index] += (bit - explanation[index]) * random.uniform(.5, 1)
+                    explanation[index] += delta * random.uniform(.5, 1)
                 else:
                     explanation[index] += (
-                        (bit - explanation[index]) /
+                        delta /
                         self._ages[obj] *
                         (.5 + .5 * nearest) *
                         (1 - dist_from_others ** .5)
@@ -331,6 +334,28 @@ if __name__ == "__main__":
 
     input_size = 12
     encoded_size = None#8
+    training_cycles = 50000
+
+    if False:
+        input_distribution = "uniformly random"
+
+        def input_factory():
+            return bitstrings.BitString.random(input_size)
+    elif False:
+        assert input_size % 4 == 0
+        input_distribution = "bitwise operators"
+
+        def input_factory():
+            bits = bitstrings.BitString.random(input_size // 4)
+            bits2 = bitstrings.BitString(reversed(bits), input_size // 4)
+            return bits + bits2 + (bits ^ bits2) + (bits & bits2)
+    else:
+        input_distribution = "single bit on"
+
+        def input_factory():
+            return bitstrings.BitString(1 << random.randrange(input_size), input_size)
+
+    print("Input distribution name:", input_distribution)
 
     exp_algorithm = XCSAlgorithm()
     exp_algorithm.max_population_size = (encoded_size or 1) * 20
@@ -365,16 +390,8 @@ if __name__ == "__main__":
     recent = 0
     last_error = -1
     try:
-        for cycle in range(50000):
-            if False:
-                bits = bitstrings.BitString.random(input_size)
-            elif False:
-                bits = bitstrings.BitString.random(input_size // 4)
-                bits2 = bitstrings.BitString(reversed(bits), input_size // 4)
-                bits = bits + bits2 + (bits ^ bits2) + (bits & bits2)
-            else:
-                bits = bitstrings.BitString(1 << random.randrange(input_size), input_size)
-
+        for cycle in range(training_cycles):
+            bits = input_factory()
             score = autoencoder.test(bits)
             if score < 1:
                 last_error = cycle
@@ -388,6 +405,7 @@ if __name__ == "__main__":
                 wrong = decoded ^ bits
                 wrong_count = sum(bit or 0 for bit in wrong)
                 print(bits, '=>', encoded, '=>', decoded, '(' + str(wrong) + ',', str(wrong_count) + ')')
+                print(len(autoencoder._encoder))
                 if cycle % 1000 == 999 and isinstance(autoencoder, ExplanatoryClassifierSetAutoEncoder):
                     for action in sorted(autoencoder._encoder.possible_actions):
                         explanation = bitstrings.BitCondition(
@@ -398,7 +416,15 @@ if __name__ == "__main__":
                 print()
     finally:
         print(autoencoder._encoder)
-        print(exp_algorithm.max_population_size)
+        print("Explanations:")
         for obj, explanation in sorted(autoencoder._explanations.items()):
-            print(', '.join(str(round(exp, 3)) for exp in explanation))
-
+            condition = bitstrings.BitCondition([
+                1 if exp >= 2/3 else 0 if exp <= 2/3 else None
+                for exp in explanation
+            ])
+            print('    ' + ''.join(str(round(exp, 3)).ljust(8) for exp in explanation) + '    ' + str(condition))
+        print("Max population size:", exp_algorithm.max_population_size)
+        print("Input distribution name:", input_distribution)
+        print("Input size:", input_size)
+        print("Encoding size:", len(autoencoder._explanations), '(' + ('auto' if encoded_size is None else 'manual') + ')')
+        print(training_cycles, last_error + 1, average, recent)
