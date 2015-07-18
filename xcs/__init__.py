@@ -1728,6 +1728,7 @@ class XCSAlgorithm(LCSAlgorithm):
     min_specificity = 0  # 0 for standard XCS
     max_specificity = None  # None for standard XCS
     even_coverage = False  # False for standard XCS
+    condition_type = bitstrings.BitCondition  # standard for XCS
 
     @property
     def action_selection_strategy(self):
@@ -1822,7 +1823,7 @@ class XCSAlgorithm(LCSAlgorithm):
         assert action is None or action in match_set.model.possible_actions
 
         # Create a new condition that matches the situation.
-        condition = bitstrings.BitCondition.cover(
+        condition = self.condition_type.cover(
             match_set.situation,
             self.wildcard_probability
         )
@@ -1982,8 +1983,10 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # Apply the mutation operator to each child, randomly flipping
         # their mask bits with a small probability.
-        condition1 = self._mutate(condition1, action_set.situation)
-        condition2 = self._mutate(condition2, action_set.situation)
+        condition1 = condition1.mutate(action_set.situation,
+                                       self.mutation_probability)
+        condition2 = condition2.mutate(action_set.situation,
+                                       self.mutation_probability)
 
         if self.min_specificity or self.max_specificity is not None:
             condition1 = condition1.limit_specificity(
@@ -2312,30 +2315,6 @@ class XCSAlgorithm(LCSAlgorithm):
         # If for some reason a case slips through the above loop, perhaps
         # due to floating point error, we fall back on uniform selection.
         return random.choice(list(action_set))
-
-    def _mutate(self, condition, situation):
-        """Create a new condition from the given one by probabilistically
-        applying point-wise mutations. Bits that were originally wildcarded
-        in the parent condition acquire their values from the provided
-        situation, to ensure the child condition continues to match it."""
-
-        # Go through each position in the condition, randomly flipping
-        # whether the position is a value (0 or 1) or a wildcard (#). We do
-        # this in a new list because the original condition's mask is
-        # immutable.
-        mutation_points = bitstrings.BitString.random(
-            len(condition.mask),
-            self.mutation_probability
-        )
-        mask = condition.mask ^ mutation_points
-
-        # The bits that aren't wildcards always have the same value as the
-        # situation, which ensures that the mutated condition still matches
-        # the situation.
-        if isinstance(situation, bitstrings.BitCondition):
-            mask &= situation.mask
-            return bitstrings.BitCondition(situation.bits, mask)
-        return bitstrings.BitCondition(situation, mask)
 
 
 def test(algorithm=None, scenario=None):
