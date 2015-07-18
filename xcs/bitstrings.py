@@ -721,6 +721,31 @@ class BitCondition:
         # Convert the modified sequences back into BitConditions
         return type(self)(bits1, mask1), type(self)(bits2, mask2)
 
+    def mutate(self, bits, mutation_probability):
+        """Create a new condition from the given one by probabilistically
+        applying point-wise mutations. Bits that were originally wildcarded
+        in the parent condition acquire their values from the provided
+        situation, to ensure the child condition continues to match it."""
+
+        # Go through each position in the condition, randomly flipping
+        # whether the position is a value (0 or 1) or a wildcard (#). We do
+        # this in a new list because the original condition's mask is
+        # immutable.
+        mutation_points = BitString.random(
+            len(self._mask),
+            mutation_probability
+        )
+        mask = self._mask ^ mutation_points
+
+        # The bits that aren't wildcards always have the same value as the
+        # situation, which ensures that the mutated condition still matches
+        # the situation.
+        if isinstance(bits, BitCondition):
+            mask &= bits._mask
+            return type(self)(bits._bits, mask)
+        else:
+            return type(self)(bits, mask)
+
     def specialize(self, bits, wildcards=1):
         """Create a new bit condition that matches the given bit string,
         with the same wildcard locations as this bit condition, except with
@@ -894,4 +919,441 @@ class BitCondition:
             return self
 
         return BitCondition(bits, mask)
+
+
+
+class ArbitraryBitCondition:
+
+    @classmethod
+    def cover(cls, bits, wildcard_probability):
+        if isinstance(bits, ArbitraryBitCondition):
+            return cls([
+                BitCondition.cover(subcondition, wildcard_probability)
+                for subcondition in bits
+            ])
+        else:
+            return cls([
+                BitCondition.cover(bits, wildcard_probability)
+            ])
+
+    def __init__(self, subconditions, length=None):
+        if isinstance(subconditions, ArbitraryBitCondition):
+            self._length = subconditions._length
+            self._subconditions = subconditions._subconditions
+            self._hash = subconditions._hash
+            self._reduced_set = subconditions._reduced_set
+            return
+
+        if isinstance(subconditions, str):
+            subconditions = [BitCondition(subcondition)
+                             for subcondition in subconditions.split('|')]
+        else:
+            subconditions = [BitCondition(subcondition)
+                             for subcondition in subconditions]
+
+        assert isinstance(subconditions, list)
+        assert subconditions
+
+        if length is None:
+            length = len(subconditions[0])
+
+        assert all(len(subcondition) == length
+                   for subcondition in subconditions)
+
+        self._length = length
+        self._subconditions = frozenset(subconditions)
+        self._hash = hash(self._subconditions)
+
+        self._reduced_set = None
+
+    def reduced(self, take_unions=True):
+        if take_unions and self._reduced_set:
+            return self._reduced_set
+
+        subconditions = list(self._subconditions)
+
+        while True:
+            subconditions.sort(
+                key=lambda subcondition: subcondition.count()
+            )
+
+            #print("Sorted:", subconditions)
+
+            filtered = []
+            for subcondition in subconditions:
+                if not any(other(subcondition) for other in filtered):
+                    filtered.append(subcondition)
+
+            #print("Filtered:", filtered)
+
+            if not take_unions:
+                subconditions = filtered
+                break
+
+            unions = set()
+            for index, subcondition1 in enumerate(filtered):
+                for subcondition2 in filtered[index + 1:]:
+                    unions.add(subcondition1 | subcondition2)
+
+            #print("Unions:", unions)
+
+            kept = []
+            for union in unions:
+                for count in range(union.count() + 1, len(union) + 1):
+                    combined = [
+                        subcondition
+                        for subcondition in filtered
+                        if subcondition.count() == count
+                    ]
+                    if len(combined) == 1 << (count - union.count()):
+                        kept.append(union)
+                        break
+
+            #print("Kept:", kept)
+
+            if not kept and len(filtered) == len(subconditions):
+                break
+
+            subconditions = kept + filtered
+
+        #print("Final:", subconditions)
+
+        assert subconditions
+
+        result = type(self)(subconditions, self._length)
+
+        if take_unions:
+            self._reduced_set = result._reduced_set = result
+
+        return result
+
+    @property
+    def subconditions(self):
+        return self._subconditions
+
+    @property
+    def specificity(self):
+        return len(self._subconditions) / sum(
+            1 / (subcondition.specificity + 1)
+            for subcondition in self._subconditions
+        ) - 1
+
+    @property
+    def generality(self):
+        return len(self._subconditions) / sum(
+            1 / (subcondition.generality + 1)
+            for subcondition in self._subconditions
+        ) - 1
+
+    @property
+    def specificity_measure(self):
+        """The degree of specificity, expressed as a value in the range
+        [0, 1]. Equivalent to condition.specificity / len(condition)."""
+        return self.specificity / len(self)
+
+    @property
+    def generality_measure(self):
+        """The degree of generality, expressed as a value in the range
+        [0, 1]. Equivalent to condition.generality / len(condition)."""
+        return self.generality / len(self)
+
+    def count(self):
+        return self.specificity
+
+    def __str__(self):
+        """Overloads str(condition)"""
+        return '|'.join(
+            str(subcondition)
+            for subcondition in sorted(
+                self._subconditions,
+                key=lambda subcondition: (
+                    subcondition.count(),
+                    int(subcondition.mask),
+                    int(subcondition.bits)
+                )
+            )
+        )
+
+    def __repr__(self):
+        """Overloads repr(condition)"""
+        return type(self).__name__ + '(' + repr(str(self)) + ')'
+
+    def __len__(self):
+        """Overloads len(condition)"""
+        return self._length
+
+    def __hash__(self):
+        """Overloads hash(condition)."""
+        return self._hash
+
+    def __eq__(self, other):
+        """Overloads =="""
+        if not isinstance(other, ArbitraryBitCondition):
+            return False
+        return self._subconditions == other._subconditions
+
+    def __ne__(self, other):
+        """Overloads !="""
+        return not self == other
+
+    def __and__(self, other):
+        """Overloads &"""
+        if isinstance(other, BitCondition):
+            return type(self)([
+                subcondition & other
+                for subcondition in self._subconditions
+            ])
+        if not isinstance(other, ArbitraryBitCondition):
+            return NotImplemented
+        return type(self)([
+            my_subcondition & other_subcondition
+            for my_subcondition in self._subconditions
+            for other_subcondition in other._subconditions
+        ])
+
+    def __or__(self, other):
+        """Overloads |"""
+        if isinstance(other, BitCondition):
+            return type(self)(self._subconditions | {other})
+        if not isinstance(other, ArbitraryBitCondition):
+            return NotImplemented
+        return type(self)(self._subconditions | other._subconditions)
+
+    def __invert__(self):
+        """Overloads unary ~"""
+        return type(self)([
+            ~subcondition
+            for subcondition in self._subconditions
+        ])
+
+    def __add__(self, other):
+        """Overloads +"""
+        if isinstance(other, BitCondition):
+            return type(self)([
+                subcondition + other
+                for subcondition in self._subconditions
+            ])
+        if not isinstance(other, ArbitraryBitCondition):
+            return NotImplemented
+        return type(self)([
+            my_subcondition + other_subcondition
+            for my_subcondition in self._subconditions
+            for other_subcondition in other._subconditions
+        ])
+
+    def __floordiv__(self, other):
+        """Overloads the // operator, which we use to find the indices in
+        the other value that do/can disagree with this condition."""
+        reduced = self#.reduced(True)
+
+        combined = BitString(0, len(other))
+        for subcondition in reduced._subconditions:
+            combined |= subcondition // other
+        return combined
+
+    def __call__(self, other):
+        """Overloads condition(bitstring). Returns a Boolean value that
+        indicates whether the other value satisfies this condition."""
+
+        self_reduced = self#.reduced(True)
+
+        if isinstance(other, ArbitraryBitCondition):
+            other_reduced = other#.reduced(True)
+
+            for other_subcondition in other_reduced._subconditions:
+                if not any(my_subcondition(other_subcondition)
+                           for my_subcondition
+                           in self_reduced._subconditions):
+                    return False
+            return True
+
+        assert isinstance(other, (BitString, BitCondition))
+
+        return any(subcondition(other)
+                   for subcondition in self_reduced._subconditions)
+
+    def crossover_with(self, other, points=2):
+        assert isinstance(other, ArbitraryBitCondition)
+        assert len(self) == len(other)
+
+        minimal = (
+            len(self._subconditions) == 1 and
+            len(other._subconditions) == 1
+        )
+
+        if (minimal or (random.random() >
+                        1 / len(self._subconditions) / self._length)):
+
+            subconditions1 = sorted(
+                self._subconditions,
+                key=lambda subcondition: (
+                    subcondition.generality,
+                    int(subcondition.mask),
+                    int(subcondition.bits)
+                )
+
+            )
+
+            subconditions2 = sorted(
+                other._subconditions,
+                key=lambda subcondition: (
+                    subcondition.generality,
+                    int(subcondition.mask),
+                    int(subcondition.bits)
+                )
+
+            )
+
+            selector = random.random()
+
+            subcondition1 = subconditions1[int(len(subconditions1) *
+                                              selector)]
+            subconditions1.remove(subcondition1)
+
+            subcondition2 = subconditions2[int(len(subconditions2) *
+                                               selector)]
+            subconditions2.remove(subcondition2)
+
+            subcondition1, subcondition2 = subcondition1.crossover_with(
+                subcondition2,
+                points
+            )
+
+            subconditions1.append(subcondition1)
+            subconditions2.append(subcondition2)
+
+            return (
+                type(self)(subconditions1, self._length),
+                type(self)(subconditions2, self._length)
+            )
+
+        subconditions1 = list(self._subconditions)
+        subconditions2 = list(other._subconditions)
+        if len(subconditions2) == 1 or (len(subconditions1) != 1 and
+                                        random.randrange(2)):
+            subcondition = random.choice(subconditions1)
+            subconditions2.append(subcondition)
+            subconditions1.remove(subcondition)
+        else:
+            subcondition = random.choice(subconditions2)
+            subconditions1.append(subcondition)
+            subconditions2.remove(subcondition)
+
+        return (
+            type(self)(subconditions1, self._length),
+            type(self)(subconditions2, self._length)
+        )
+
+    def mutate(self, bits, mutation_probability):
+        if random.random() < mutation_probability:#** 2:#1 / (1 << len(self._subconditions)):
+            if random.random() > 1 / len(self._subconditions):
+                subconditions = random.sample(
+                    self._subconditions,
+                    len(self._subconditions) - 1
+                )
+                return type(self)(subconditions, self._length)
+            else:
+                subconditions = list(self._subconditions)
+                subcondition = random.choice(subconditions)
+                new_subcondition = subcondition.mutate(
+                    bits,
+                    mutation_probability
+                )
+                if random.randrange(2):
+                    subconditions.remove(subcondition)
+                subconditions.append(new_subcondition)
+                return type(self)(subconditions, self._length)
+
+        if True:
+            matching = []
+            non_matching = []
+            for subcondition in self._subconditions:
+                if subcondition(bits):
+                    matching.append(subcondition)
+                else:
+                    non_matching.append(subcondition)
+
+            subcondition = random.choice(matching or non_matching)
+            (matching or non_matching).remove(subcondition)
+
+            subcondition = subcondition.mutate(bits, mutation_probability)
+            subconditions = matching + non_matching
+            subconditions.append(subcondition)
+
+            return type(self)(subconditions, self._length)
+
+        if random.randrange(2) or len(self._subconditions) == 1:
+            subconditions = set(self._subconditions)
+            subcondition = random.choice(list(self._subconditions))
+            subconditions.discard(subcondition)
+            subcondition = subcondition.mutate(bits, mutation_probability)
+            subconditions.add(subcondition)
+            return type(self)(subconditions, self._length)
+        elif random.randrange(3):
+            subconditions = random.sample(self._subconditions,
+                                          len(self._subconditions) - 1)
+            return type(self)(subconditions, self._length)
+        else:
+            subconditions = set(self._subconditions)
+            subconditions.add(BitCondition(bits))
+            return type(self)(subconditions, self._length)#.reduced()
+
+    def specialize(self, bits, wildcards=1):
+        if not isinstance(bits, BitString):
+            bits = BitString(bits)
+
+        if not self._subconditions:
+            return self
+
+        if any(subcondition(bits) for subcondition in self._subconditions):
+            return type(self)([
+                subcondition.specialize(bits, wildcards)
+                if subcondition(bits)
+                else subcondition
+                for subcondition in self._subconditions
+            ])
+
+        subconditions = list(self._subconditions)
+        index = random.randrange(len(subconditions))
+        subconditions[index] = subconditions[index].specialize(
+            bits,
+            wildcards
+        )
+
+        return type(self)(subconditions)
+
+    def limit_specificity(self, bits, lower=0, upper=None):
+        raise NotImplementedError()
+
+    def generalize(self, bits=None, wildcards=1):
+        if bits and not isinstance(bits, BitString):
+            bits = BitString(bits)
+
+        if not self._subconditions:
+            if bits:
+                return type(self)([BitCondition(bits)])
+            else:
+                return type(self)([
+                    BitCondition(BitString.random(self._length))
+                ])
+
+        if any(subcondition(bits) for subcondition in self._subconditions):
+            return type(self)([
+                subcondition.generalize(bits, wildcards)
+                if subcondition(bits)
+                else subcondition
+                for subcondition in self._subconditions
+            ])
+
+        subconditions = list(self._subconditions)
+        index = random.randrange(len(subconditions))
+        subconditions[index] = subconditions[index].generalize(
+            bits,
+            wildcards
+        )
+
+        return type(self)(subconditions)
+
+    def limit_generality(self, bits, lower=0, upper=None):
+        raise NotImplementedError()
 
