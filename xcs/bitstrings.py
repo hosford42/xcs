@@ -505,10 +505,22 @@ class BitCondition:
                 hash_value = None
             elif isinstance(bits, BitCondition):
                 bits, mask, hash_value = bits._bits, bits._mask, bits._hash
-            else:
-                if not isinstance(bits, BitString):
-                    bits = BitString(bits)
+            elif isinstance(bits, int):
+                bits = BitString(bits)
                 mask = BitString(~0, len(bits))
+                hash_value = None
+            elif isinstance(bits, BitString):
+                mask = BitString(~0, len(bits))
+                hash_value = None
+            else:
+                if not isinstance(bits, (list, tuple)):
+                    bits = tuple(bits)
+                mask = BitString(
+                    (1 if bit is not None else 0
+                     for bit in bits),
+                    len(bits)
+                )
+                bits = BitString(bits)
                 hash_value = None
         else:
             if not isinstance(bits, BitString):
