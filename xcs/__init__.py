@@ -140,6 +140,9 @@ POSSIBILITY OF SUCH DAMAGE.
 """
 
 
+from __future__ import division
+
+
 __author__ = 'Aaron Hosford'
 __version__ = '1.0.0'
 
@@ -165,7 +168,6 @@ __all__ = [
     'test',
 ]
 
-
 import random
 from abc import ABCMeta, abstractmethod
 
@@ -187,7 +189,8 @@ else:
 from . import bitstrings, scenarios
 
 
-class ActionSelectionStrategy(metaclass=ABCMeta):
+class ActionSelectionStrategy(object):
+    __metaclass__ = ABCMeta
     """Abstract base class defining the minimal interface for action
     selection strategies. The action selection strategy is responsible for
     governing the trade-off between exploration (acquiring new experience)
@@ -262,7 +265,8 @@ class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
             return random.choice(best_actions)
 
 
-class ClassifierRule(metaclass=ABCMeta):
+class ClassifierRule(object):
+    __metaclass__ = ABCMeta
     """Abstract base class defining the minimal interface for classifier
     rules appearing in classifier sets. A classifier rule consists of a
     condition and an action taken as a pair, together with associated
@@ -330,7 +334,8 @@ class ClassifierRule(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class LCSAlgorithm(metaclass=ABCMeta):
+class LCSAlgorithm(object):
+    __metaclass__ = ABCMeta
     """Abstract base class defining the minimal interface for LCS
     algorithms. To create a new algorithm that can be used to initialize a
     ClassifierSet, inherit from this class and implement each of the

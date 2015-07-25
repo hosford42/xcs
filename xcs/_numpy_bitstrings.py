@@ -58,6 +58,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
 
+from __future__ import division
+
 __author__ = 'Aaron Hosford'
 
 __all__ = [
@@ -316,7 +318,7 @@ class BitString(BitStringBase):
         if length is not None and len(bits) != length:
             raise ValueError("Sequence has incorrect length.")
 
-        super().__init__(bits, hash_value)
+        super(BitString, self).__init__(bits, hash_value)
 
     def any(self):
         """Returns True iff at least one bit is set.

@@ -58,6 +58,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
 
+from __future__ import division
+
+
 __author__ = 'Aaron Hosford'
 
 __all__ = [
@@ -264,7 +267,7 @@ class BitString(BitStringBase):
                 assert length >= count
             hash_value = None
 
-        super().__init__(bits, hash_value)
+        super(BitString, self).__init__(bits, hash_value)
         self._length = length
 
     def any(self):

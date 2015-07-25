@@ -79,6 +79,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
 
+from __future__ import division
+
+
 __author__ = 'Aaron Hosford'
 
 __all__ = [
@@ -98,7 +101,8 @@ from . import numpy
 from . import bitstrings
 
 
-class Scenario(metaclass=ABCMeta):
+class Scenario(object):
+    __metaclass__ = ABCMeta
     """Abstract interface for scenarios accepted by LCSAlgorithms. To
     create a new scenario to which an LCS algorithm like XCS can be
     applied, subclass Scenario and implement the methods defined here. See

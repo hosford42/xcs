@@ -76,6 +76,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
 
+from __future__ import division
+
 __author__ = 'Aaron Hosford'
 
 __all__ = [
@@ -115,7 +117,8 @@ def numpy_is_available():
 #   a rather ugly solution, but _numpy_bitstrings.py and
 #   _python_bitstrings.py import this module, and then this module imports
 #   one of them. This lets us switch back and forth as needed.
-class BitStringBase(metaclass=ABCMeta):
+class BitStringBase(object):
+    __metaclass__ = ABCMeta
     """Abstract base class for hashable, immutable sequences of bits
     (Boolean values). There are two separate implementations of the
     BitString class, each of which inherits from this base class. One is
@@ -679,4 +682,4 @@ class BitCondition:
         mask2 = (self._mask & inv_template) | (other._mask & template)
 
         # Convert the modified sequences back into BitConditions
-        return type(self)(bits1, mask1), type(self)(bits2, mask2)
+        return self.__class__(bits1, mask1), self.__class__(bits2, mask2)
