@@ -6,16 +6,18 @@
 # TODO: Clean this hacked together script up!
 # TODO: Check results of each os.system call.
 
-__author__ = 'Aaron Hosford'
-
 import glob
 import os
+import unittest
 import zipfile
+
+import build_readme
 
 from xcs import __version__
 
-import build_readme
+
 build_readme.build_readme()
+
 
 os.chdir('.\\doc')
 try:
@@ -24,6 +26,7 @@ finally:
     os.chdir('..')
 
 os.system('python setup.py sdist bdist_wheel')
+
 
 with open('xcs.egg-info/PKG-INFO', encoding='utf-8', mode='rU') as infile:
     with open('xcs.egg-info/PKG-INFO-FIXED',
@@ -72,7 +75,7 @@ with zipfile.ZipFile(zip_path, mode="w") as zf:
     zf.write(tutorial_path, 'index.html')
 
 print("Running unit tests.")
-import unittest
+
 suite = unittest.defaultTestLoader.discover('.')
 result = unittest.TestResult()
 result.failfast = True

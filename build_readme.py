@@ -8,10 +8,11 @@ README.rst from a README.md. It requires pandoc to be installed
 (http://pandoc.org/) as well as pypandoc, the python bindings for pandoc.
 """
 
-__author__ = 'Aaron Hosford'
-
 import os
 import time
+
+
+__author__ = 'Aaron Hosford'
 
 
 def convert_md_to_rst(source, destination=None, backup_dir=None):

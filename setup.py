@@ -3,13 +3,12 @@
 
 """Setup script for xcs."""
 
-__author__ = 'Aaron Hosford'
-
 from setuptools import setup
 from codecs import open
 from os import path
 
-from xcs import __version__
+from xcs import __author__, __version__
+
 
 here = path.abspath(path.dirname(__file__))
 
