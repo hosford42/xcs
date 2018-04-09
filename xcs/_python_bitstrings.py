@@ -178,7 +178,7 @@ class BitString(BitStringBase):
         return cls(bits, length)
 
     @classmethod
-    def crossover_template(cls, length, points=2):
+    def crossover_template(cls, length, block_size, points):
         """Create a crossover template with the given number of points. The
         crossover template can be used as a mask to crossover two
         bitstrings of the same length.
@@ -202,7 +202,11 @@ class BitString(BitStringBase):
         assert isinstance(points, int) and points >= 0
 
         # Select the crossover points.
-        points = random.sample(range(length + 1), points)
+        if block_size <= 0:
+            points = random.sample(range(length + 1), points)
+        else:
+            points = random.sample(range(block_size, length + 1, block_size), points)
+
 
         # Prep the points for the loop.
         points.sort()

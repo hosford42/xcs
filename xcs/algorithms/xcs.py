@@ -370,6 +370,16 @@ class XCSAlgorithm(LCSAlgorithm):
     # parameter and should be set to 0 in that case.
     idealization_factor = 0
 
+    def __init__(self, block_size=-1):
+        """
+        Initializer.
+        :param block_size: how many bits of information constitue a chunck of data?
+                            Useful on cases where the bitstring is encoding integers, or floats.
+                            By default, each bit is independent from the others.
+        """
+        LCSAlgorithm.__init__(self)
+        self.block_size = block_size
+
     @property
     def action_selection_strategy(self):
         """The action selection strategy used to govern the trade-off
@@ -595,7 +605,9 @@ class XCSAlgorithm(LCSAlgorithm):
         # parents unchanged.
         if random.random() < self.crossover_probability:
             condition1, condition2 = parent1.condition.crossover_with(
-                parent2.condition
+                parent2.condition,
+                self.block_size,
+                2
             )
         else:
             condition1, condition2 = parent1.condition, parent2.condition

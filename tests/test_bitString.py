@@ -3,6 +3,7 @@ __author__ = 'Aaron Hosford'
 import logging
 import unittest
 
+import math
 import xcs
 import xcs.bitstrings as bitstrings
 import xcs.scenarios
@@ -30,6 +31,7 @@ class TestBitString(unittest.TestCase):
         self.bitstring = bitstrings.BitString('10010101')  # 149
 
     def test_using(self):
+        print("lalala")
         if self.use_numpy:
             self.assertTrue(bitstrings.using_numpy())
             self.assertTrue('numpy' in bitstrings.BitString.__module__)
@@ -54,6 +56,7 @@ class TestBitString(unittest.TestCase):
                 logging.disable(logging.NOTSET)
 
     def test_from_int(self):
+        self.fail("krakoukass")
         bitstring = bitstrings.BitString(149, 8)
         self.assertTrue(self.bitstring == bitstring)
 
@@ -80,12 +83,14 @@ class TestBitString(unittest.TestCase):
     def test_crossover_template(self):
         previous = bitstrings.BitString.crossover_template(
             len(self.bitstring),
+            -1,
             2
         )
         self.assertEqual(len(previous), len(self.bitstring))
         for i in range(10):
             current = bitstrings.BitString.crossover_template(
                 len(self.bitstring),
+                -1,
                 i + 1
             )
             self.assertEqual(len(current), len(self.bitstring))
@@ -94,6 +99,21 @@ class TestBitString(unittest.TestCase):
             previous = current
         else:
             self.fail("Failed to produce distinct crossover templates.")
+
+    def test_crossover_template_with_block_size(self):
+        """Do I preserve the blocks on crossover?"""
+        for block_size in range(1, int(math.floor((len(self.bitstring) - 1) / 2)) + 1, 1):
+            print("Checking for block size = %d" % (block_size))
+            template = bitstrings.BitString.crossover_template(
+                len(self.bitstring),
+                block_size,
+                2
+            )
+            for init_of_block in range(0, len(self.bitstring), block_size):
+                a_block = template[init_of_block:init_of_block + block_size]
+                self.assertTrue(
+                    (a_block == bitstrings.BitString(bits=[True] * len(a_block))) or
+                    (a_block == bitstrings.BitString(bits=[False] * len(a_block))))
 
     def test_any(self):
         self.assertTrue(self.bitstring.any())

@@ -159,7 +159,7 @@ class BitStringBase(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def crossover_template(cls, length, points=2):
+    def crossover_template(cls, length, block_size, points):
         """Create a crossover template with the given number of points. The
         crossover template can be used as a mask to crossover two
         bitstrings of the same length.
@@ -173,6 +173,7 @@ class BitStringBase(metaclass=ABCMeta):
 
         Arguments:
             length: An int, indicating the desired length of the result.
+            block_size: An int, indicating semantically grouped bits (that I don't want destroyed by crossover). -1 for "none".
             points: An int, the number of crossover points.
         Return:
             A BitString instance of the requested length which can be used
@@ -649,7 +650,7 @@ class BitCondition:
         mismatches = self // other
         return not mismatches.any()
 
-    def crossover_with(self, other, points=2):
+    def crossover_with(self, other, block_size, points):
         """Perform 2-point crossover on this bit condition and another of
         the same length, returning the two resulting children.
 
@@ -669,7 +670,7 @@ class BitCondition:
         assert isinstance(other, BitCondition)
         assert len(self) == len(other)
 
-        template = BitString.crossover_template(len(self), points)
+        template = BitString.crossover_template(len(self), block_size, points)
         inv_template = ~template
 
         bits1 = (self._bits & template) | (other._bits & inv_template)
@@ -680,3 +681,4 @@ class BitCondition:
 
         # Convert the modified sequences back into BitConditions
         return type(self)(bits1, mask1), type(self)(bits2, mask2)
+
