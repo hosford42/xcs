@@ -9,34 +9,6 @@ from xcs.input_encoding.real.center_spread.util import EncoderDecoder
 class BitConditionRealEncoding(BitConditionBase):
     """See Documentation of base class."""
 
-    # @classmethod
-    # def cover(cls, situation, wildcard_probability):
-    #     """Create a new bit condition that matches the provided bit string,
-    #     with the indicated per-index wildcard probability.
-    #
-    #     Usage:
-    #         condition = BitCondition.cover(bitstring, .33)
-    #         assert condition(bitstring)
-    #
-    #     Arguments:
-    #         bits: A BitString which the resulting condition must match.
-    #         wildcard_probability: A float in the range [0, 1] which
-    #         indicates the likelihood of any given bit position containing
-    #         a wildcard.
-    #     Return:
-    #         A randomly generated BitCondition which matches the given bits.
-    #     """
-    #
-    #     if not isinstance(bits, BitString):
-    #         bits = BitString(bits)
-    #
-    #     mask = BitString([
-    #         random.random() > wildcard_probability
-    #         for _ in range(len(bits))
-    #     ])
-    #
-    #     return cls(bits, mask)
-
     def _encode(self, center_spreads: List[Tuple[float, float]]) -> CoreBitString:
         result = CoreBitString('')
         for (center, spread) in center_spreads:
@@ -84,14 +56,7 @@ class BitConditionRealEncoding(BitConditionBase):
 
     def __iter__(self):
         """Overloads iter(bitstring), and also, for bit in bitstring"""
-        for (center, spread) in self.center_spreads:
-            yield (center, spread)
-        # for interval in range(1, int(len(self.bits) / (2 * self.real_translator.encoding_bits)) + 1):
-        #     center_start = (interval - 1) * (2 * self.real_translator.encoding_bits)
-        #     spread_start = center_start + self.real_translator.encoding_bits
-        #     center = self.real_translator.decode(self.bits[center_start: spread_start])
-        #     spread = self.real_translator.decode(self.bits[spread_start: spread_start + self.real_translator.encoding_bits])
-        #     yield (center, spread)
+        return iter(self.center_spreads)
 
     def mutate(self, situation):
         center_spreads = [(center, spread) for (center, spread) in self]  # TODO: actually mutate values in a way that is still matches 'situation'
@@ -139,24 +104,6 @@ class BitConditionRealEncoding(BitConditionBase):
                 genome_1, genome_2 = (self, other) if genome_1 == other else (other, self)
                 # active = self if active == other else other
             return (BitConditionRealEncoding(self.real_translator, result[0], self.mutation_strength), BitConditionRealEncoding(self.real_translator, result[1], self.mutation_strength))
-            raise NotImplementedError()
-
-
-
-
-        template = BitString.crossover_template(len(self), block_size, points)
-        inv_template = ~template
-
-        bits1 = (self._bits & template) | (other._bits & inv_template)
-        mask1 = (self._mask & template) | (other._mask & inv_template)
-
-        bits2 = (self._bits & inv_template) | (other._bits & template)
-        mask2 = (self._mask & inv_template) | (other._mask & template)
-
-        # Convert the modified sequences back into BitConditions
-        return type(self)(bits1, mask1), type(self)(bits2, mask2)
-
-
 
 
 class BitString(CoreBitString):
@@ -176,12 +123,7 @@ class BitString(CoreBitString):
 
     def __iter__(self):
         """Overloads iter(bitstring), and also, for bit in bitstring"""
-        for real in self.as_reals:
-            yield real
-        # for interval in range(1, int(len(self) / self.real_translator.encoding_bits) + 1):
-        #     value_start = (interval - 1) * self.real_translator.encoding_bits
-        #     value = self.real_translator.decode(self[value_start : value_start + self.real_translator.encoding_bits])
-        #     yield value
+        return iter(self.as_reals)
 
     def __str__(self):
         """Overloads str(bitstring)"""
@@ -211,18 +153,6 @@ class BitString(CoreBitString):
             spread = abs(center - value)  # min value that makes 'value' match
             center_spread_list.append((center, spread))
         result = BitConditionRealEncoding(encoder=self.real_translator, center_spreads=center_spread_list, mutation_strength=0.1)  # TODO: value of mutation strenght!!!!!
-        assert result(self)
+        # assert result(self) # TODO: put this as a unit-test.
         return result
-        # from xcs.bitstrings import BitCondition  # TODO: take this out of here!
-        #
-        # bits = self._bits
-        # if not isinstance(bits, BitString):
-        #     bits = BitString(bits, len(self))
-        #
-        # mask = BitString([
-        #     random.random() > self.cover_wildcard_probability
-        #     for _ in range(len(bits))
-        # ])
-        #
-        # return BitCondition(bits, mask)
 
