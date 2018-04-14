@@ -1,9 +1,10 @@
 import random
 
+from typing import Optional
 
 from .. import bitstrings
 from ..framework import ClassifierRule, LCSAlgorithm, EpsilonGreedySelectionStrategy, MatchSet, ClassifierSet
-
+from xcs.input_encoding.real.center_spread.util import EncoderDecoder
 
 class XCSClassifierRule(ClassifierRule):
     """This classifier rule subtype is used by the XCS algorithm. The
@@ -370,15 +371,14 @@ class XCSAlgorithm(LCSAlgorithm):
     # parameter and should be set to 0 in that case.
     idealization_factor = 0
 
-    def __init__(self, block_size=-1):
+    def __init__(self, encoder: Optional[EncoderDecoder] = None):
         """
         Initializer.
-        :param block_size: how many bits of information constitue a chunck of data?
+        :param encoder: How is information in the bitstring encoded (optionally).
                             Useful on cases where the bitstring is encoding integers, or floats.
-                            By default, each bit is independent from the others.
         """
         LCSAlgorithm.__init__(self)
-        self.block_size = block_size
+        self.encoder = encoder
 
     @property
     def action_selection_strategy(self):
@@ -472,10 +472,12 @@ class XCSAlgorithm(LCSAlgorithm):
         assert match_set.model.algorithm is self
 
         # Create a new condition that matches the situation.
-        condition = bitstrings.BitCondition.cover(
-            match_set.situation,
-            self.wildcard_probability
-        )
+        match_set.situation.set_wildcard_probability_for_cover(self.wildcard_probability)
+        condition = match_set.situation.cover()  # TODO: if all works well get rid of lines below.
+        # condition = bitstrings.BitCondition.cover(
+        #     match_set.situation,
+        #     self.wildcard_probability
+        # )
 
         # Pick a random action that (preferably) isn't already suggested by
         # some other rule for this situation.
@@ -606,7 +608,7 @@ class XCSAlgorithm(LCSAlgorithm):
         if random.random() < self.crossover_probability:
             condition1, condition2 = parent1.condition.crossover_with(
                 parent2.condition,
-                self.block_size,
+                self.encoder.encoding_bits if self.encoder is not None else -1,
                 2
             )
         else:
@@ -858,26 +860,53 @@ class XCSAlgorithm(LCSAlgorithm):
         # due to floating point error, we fall back on uniform selection.
         return random.choice(list(action_set))
 
-    def _mutate(self, condition, situation):
+    def _mutate(self, condition: bitstrings.BitConditionBase, situation: bitstrings.BitStringBase):
         """Create a new condition from the given one by probabilistically
         applying point-wise mutations. Bits that were originally wildcarded
         in the parent condition acquire their values from the provided
         situation, to ensure the child condition continues to match it."""
 
-        # Go through each position in the condition, randomly flipping
-        # whether the position is a value (0 or 1) or a wildcard (#). We do
-        # this in a new list because the original condition's mask is
-        # immutable.
-        mutation_points = bitstrings.BitString.random(
-            len(condition.mask),
-            self.mutation_probability
-        )
-        mask = condition.mask ^ mutation_points
-
-        # The bits that aren't wildcards always have the same value as the
-        # situation, which ensures that the mutated condition still matches
-        # the situation.
-        if isinstance(situation, bitstrings.BitCondition):
-            mask &= situation.mask
-            return bitstrings.BitCondition(situation.bits, mask)
-        return bitstrings.BitCondition(situation, mask)
+        r = condition.mutate(situation)
+        return r  # TODO: if this works, get rid of _mutate
+        #
+        # # Go through each position in the condition, randomly flipping
+        # # whether the position is a value (0 or 1) or a wildcard (#). We do
+        # # this in a new list because the original condition's mask is
+        # # immutable.
+        # mutation_points = bitstrings.BitString.random(
+        #     len(condition.mask),
+        #     self.mutation_probability
+        # )
+        # mask = condition.mask ^ mutation_points
+        #
+        # # The bits that aren't wildcards always have the same value as the
+        # # situation, which ensures that the mutated condition still matches
+        # # the situation.
+        # if isinstance(situation, bitstrings.BitCondition):
+        #     mask &= situation.mask
+        #     return bitstrings.BitCondition(situation.bits, mask)
+        # return bitstrings.BitCondition(situation, mask)
+        # # if self.encoder is None:
+        # #     # Go through each position in the condition, randomly flipping
+        # #     # whether the position is a value (0 or 1) or a wildcard (#). We do
+        # #     # this in a new list because the original condition's mask is
+        # #     # immutable.
+        # #     mutation_points = bitstrings.BitString.random(
+        # #         len(condition.mask),
+        # #         self.mutation_probability
+        # #     )
+        # #     mask = condition.mask ^ mutation_points
+        # #
+        # #     # The bits that aren't wildcards always have the same value as the
+        # #     # situation, which ensures that the mutated condition still matches
+        # #     # the situation.
+        # #     if isinstance(situation, bitstrings.BitCondition):
+        # #         mask &= situation.mask
+        # #         return bitstrings.BitCondition(situation.bits, mask)
+        # #     return bitstrings.BitCondition(situation, mask)
+        # # else:
+        # #     raise NotImplementedError("not implemented. But should be. Do it. Now.")
+        # #     r = bitstrings.BitString('')
+        # #     for idx in range(0, len(condition), self.encoder.encoding_bits):
+        # #         r += self.encoder.mutate(condition[idx:idx + self.encoder.encoding_bits], factor=0.5)  # TODO: factor OK?
+        # #     return r
