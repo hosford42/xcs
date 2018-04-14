@@ -31,7 +31,6 @@ class TestBitString(unittest.TestCase):
         self.bitstring = bitstrings.BitString('10010101')  # 149
 
     def test_using(self):
-        print("lalala")
         if self.use_numpy:
             self.assertTrue(bitstrings.using_numpy())
             self.assertTrue('numpy' in bitstrings.BitString.__module__)
@@ -56,7 +55,6 @@ class TestBitString(unittest.TestCase):
                 logging.disable(logging.NOTSET)
 
     def test_from_int(self):
-        self.fail("krakoukass")
         bitstring = bitstrings.BitString(149, 8)
         self.assertTrue(self.bitstring == bitstring)
 
