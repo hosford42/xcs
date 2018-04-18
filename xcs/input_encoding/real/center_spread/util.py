@@ -1,6 +1,8 @@
 import math
 
-from random import random
+from random import random, randint, choice as randomchoice
+from typing import List
+
 from xcs.bitstrings import BitString
 from xcs.input_encoding import real
 
@@ -13,9 +15,18 @@ class EncoderDecoder(real.EncoderDecoder):
         self.extremes = (min_value, max_value)
         self.encoding_bits = encoding_bits
 
+    def random(self) -> int:
+        return randint(self.extremes[0], self.extremes[1])
+
+    def choice(self, length: int) -> List[float]:
+        return [random() * (self.extremes[1] - self.extremes[0]) + self.extremes[0] for _ in range(length)]
+
+    def clip(self, d: float) -> float:
+        return max(self.extremes[0], min(self.extremes[1], d))
+
     def encode_as_int(self, d: float) -> int:
         """Does encoding of a float into one of 'm' ints, where m = 2^k (k=number of bits used for representation)"""
-        assert (d >= self.extremes[0]) and (d <= self.extremes[1])
+        assert (d >= self.extremes[0]) and (d <= self.extremes[1]), "%.2f is not in correct interval [%.2f,%.2f]" % (d, self.extremes[0], self.extremes[1])
         return int(
             math.floor(
                 (math.pow(2, self.encoding_bits) - 1) * (d - self.extremes[0]) /
