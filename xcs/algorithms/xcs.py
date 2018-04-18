@@ -604,7 +604,6 @@ class XCSAlgorithm(LCSAlgorithm):
         if random.random() < self.crossover_probability:
             condition1, condition2 = parent1.condition.crossover_with(
                 parent2.condition,
-                self.encoder.encoding_bits if self.encoder is not None else -1,
                 2
             )
         else:

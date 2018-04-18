@@ -659,8 +659,7 @@ class BitConditionBase(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def crossover_with(self, other, block_size, points):
-        # TODO: get rid of parameter 'block_size'
+    def crossover_with(self, other, points):
         """Perform 2-point crossover on this bit condition and another of
         the same length, returning the two resulting children.
 
@@ -771,8 +770,7 @@ class BitCondition(BitConditionBase):
             return xcs.bitstrings.BitCondition(situation.bits, mask)
         return xcs.bitstrings.BitCondition(situation, mask)
 
-    def crossover_with(self, other, block_size, points):
-        # TODO: get rid of parameter 'block_size'
+    def crossover_with(self, other, points):
         """Perform 2-point crossover on this bit condition and another of
         the same length, returning the two resulting children.
 

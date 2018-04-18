@@ -166,8 +166,7 @@ class BitConditionRealEncoding(BitConditionBase):
         result = BitConditionRealEncoding(encoder=self.real_translator, center_spreads=center_spread_list, mutation_strength=0.1)  # TODO: value of mutation strenght!!!!!
         return result
 
-    def crossover_with(self, other, block_size, points):
-        # TODO: get rid of parameter 'block_size'
+    def crossover_with(self, other, points):
         """Perform 2-point crossover on this bit condition and another of
         the same length, returning the two resulting children.
 
