@@ -66,7 +66,6 @@ __all__ = [
 
 import random
 
-
 from .bitstrings import BitStringBase
 
 
@@ -412,7 +411,7 @@ class BitString(BitStringBase):
         Return:
             A randomly generated BitCondition which matches the given bits.
         """
-        from xcs.bitstrings import BitCondition  # TODO: take this out of here!
+        from xcs.bitstrings import BitCondition
 
         bits = self._bits
         if not isinstance(bits, BitString):
