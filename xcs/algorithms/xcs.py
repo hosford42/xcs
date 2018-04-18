@@ -473,11 +473,7 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # Create a new condition that matches the situation.
         match_set.situation.set_wildcard_probability_for_cover(self.wildcard_probability)
-        condition = match_set.situation.cover()  # TODO: if all works well get rid of lines below.
-        # condition = bitstrings.BitCondition.cover(
-        #     match_set.situation,
-        #     self.wildcard_probability
-        # )
+        condition = match_set.situation.cover()
 
         # Pick a random action that (preferably) isn't already suggested by
         # some other rule for this situation.
@@ -616,8 +612,8 @@ class XCSAlgorithm(LCSAlgorithm):
 
         # Apply the mutation operator to each child, randomly flipping
         # their mask bits with a small probability.
-        condition1 = self._mutate(condition1, action_set.situation)
-        condition2 = self._mutate(condition2, action_set.situation)
+        condition1 = condition1.mutate(action_set.situation)
+        condition2 = condition2.mutate(action_set.situation)
 
         # If the newly generated children are already present in the
         # population (or if they should be subsumed due to GA subsumption)
@@ -859,54 +855,3 @@ class XCSAlgorithm(LCSAlgorithm):
         # If for some reason a case slips through the above loop, perhaps
         # due to floating point error, we fall back on uniform selection.
         return random.choice(list(action_set))
-
-    def _mutate(self, condition: bitstrings.BitConditionBase, situation: bitstrings.BitStringBase):
-        """Create a new condition from the given one by probabilistically
-        applying point-wise mutations. Bits that were originally wildcarded
-        in the parent condition acquire their values from the provided
-        situation, to ensure the child condition continues to match it."""
-
-        r = condition.mutate(situation)
-        return r  # TODO: if this works, get rid of _mutate
-        #
-        # # Go through each position in the condition, randomly flipping
-        # # whether the position is a value (0 or 1) or a wildcard (#). We do
-        # # this in a new list because the original condition's mask is
-        # # immutable.
-        # mutation_points = bitstrings.BitString.random(
-        #     len(condition.mask),
-        #     self.mutation_probability
-        # )
-        # mask = condition.mask ^ mutation_points
-        #
-        # # The bits that aren't wildcards always have the same value as the
-        # # situation, which ensures that the mutated condition still matches
-        # # the situation.
-        # if isinstance(situation, bitstrings.BitCondition):
-        #     mask &= situation.mask
-        #     return bitstrings.BitCondition(situation.bits, mask)
-        # return bitstrings.BitCondition(situation, mask)
-        # # if self.encoder is None:
-        # #     # Go through each position in the condition, randomly flipping
-        # #     # whether the position is a value (0 or 1) or a wildcard (#). We do
-        # #     # this in a new list because the original condition's mask is
-        # #     # immutable.
-        # #     mutation_points = bitstrings.BitString.random(
-        # #         len(condition.mask),
-        # #         self.mutation_probability
-        # #     )
-        # #     mask = condition.mask ^ mutation_points
-        # #
-        # #     # The bits that aren't wildcards always have the same value as the
-        # #     # situation, which ensures that the mutated condition still matches
-        # #     # the situation.
-        # #     if isinstance(situation, bitstrings.BitCondition):
-        # #         mask &= situation.mask
-        # #         return bitstrings.BitCondition(situation.bits, mask)
-        # #     return bitstrings.BitCondition(situation, mask)
-        # # else:
-        # #     raise NotImplementedError("not implemented. But should be. Do it. Now.")
-        # #     r = bitstrings.BitString('')
-        # #     for idx in range(0, len(condition), self.encoder.encoding_bits):
-        # #         r += self.encoder.mutate(condition[idx:idx + self.encoder.encoding_bits], factor=0.5)  # TODO: factor OK?
-        # #     return r
