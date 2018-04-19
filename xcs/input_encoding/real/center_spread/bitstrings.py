@@ -3,7 +3,7 @@ from typing import List, Tuple
 from random import sample, random, randint, choice
 
 from xcs.bitstrings import BitConditionBase, BitString as CoreBitString
-from xcs.input_encoding.real.center_spread.util import EncoderDecoder
+from xcs.input_encoding.real.center_spread.util import EncoderDecoder, random_in
 
 
 class BitConditionRealEncoding(BitConditionBase):
@@ -26,14 +26,17 @@ class BitConditionRealEncoding(BitConditionBase):
 
     @classmethod
     def random(cls, encoder: EncoderDecoder, mutation_strength: float, length: int):
-        return BitConditionRealEncoding.random_from_center_list(center_list=sample(range(255), length), encoder=encoder, mutation_strength=mutation_strength)
+        return BitConditionRealEncoding.random_from_center_list(
+            center_list=encoder.choice(length),
+            encoder=encoder,
+            mutation_strength=mutation_strength)
 
     @classmethod
-    def random_from_center_list(cls, center_list: List[int], encoder: EncoderDecoder, mutation_strength: float):
+    def random_from_center_list(cls, center_list: List[float], encoder: EncoderDecoder, mutation_strength: float):
         assert all([(center <= encoder.extremes[1]) and (center >= encoder.extremes[0]) for center in center_list])
         center_spread_list = []
         for center in center_list:
-            spread = encoder.encode_as_int(random() * min(center - encoder.extremes[0], encoder.extremes[1] - center))
+            spread = random() * min(center - encoder.extremes[0], encoder.extremes[1] - center)
             center_spread_list.append((center, spread))
         return cls(encoder=encoder, center_spreads=center_spread_list, mutation_strength=mutation_strength)
 
@@ -51,7 +54,7 @@ class BitConditionRealEncoding(BitConditionBase):
 
     def __str__(self):
         """Overloads str(condition)"""
-        return ','.join(["(%d, %d)" % (center, spread) for (center, spread) in self])
+        return ','.join(["(%.2f, %.2f)" % (center, spread) for (center, spread) in self])
 
     def __len__(self):
         """Overloads len(condition)"""
@@ -65,6 +68,11 @@ class BitConditionRealEncoding(BitConditionBase):
             # return BitCondition(self._bits[index], self._mask[index])
         # return self._bits[index] if self._mask[index] else None
         return self.center_spreads[index]
+
+    def __contains__(self, item):
+        """Overloads 'in' operator."""
+        # assert isinstance(item, Tuple[float, float])
+        return item in self.center_spreads
 
     def __call__(self, other):
         """Overloads condition(situation). Returns a Boolean value that
@@ -94,7 +102,7 @@ class BitConditionRealEncoding(BitConditionBase):
         """Overloads iter(bitstring), and also, for bit in bitstring"""
         return iter(self.center_spreads)
 
-    def _mutate_interval_by_translation(self, interval: Tuple[int, int], value: int) -> Tuple[int, int]:
+    def _mutate_interval_by_translation(self, interval: Tuple[float, float], value: float) -> Tuple[float, float]:
         center, spread = interval
         bottom, top = center - spread, center + spread  # interval is [bottom, top]
         # let's do a translate
@@ -106,9 +114,9 @@ class BitConditionRealEncoding(BitConditionBase):
                 max(self.real_translator.extremes[0] - bottom, value - top),
                 min(self.real_translator.extremes[1] - top, value - bottom))
             # let's choose a delta - preventing a 0 which won't translate anything:
-            delta = randint(delta_min_max[0], delta_min_max[1])
+            delta = random_in(delta_min_max[0], delta_min_max[1])
             while delta == 0:
-                delta = randint(delta_min_max[0], delta_min_max[1])
+                delta = random_in(delta_min_max[0], delta_min_max[1])
             new_center = center + delta
             new_spread = spread
         return new_center, new_spread
@@ -122,49 +130,52 @@ class BitConditionRealEncoding(BitConditionBase):
             # there is nothing else to do:
             new_center, new_spread = center, spread
         else:
-            if spread == 0:
-                possible_spreads = list(
-                    range(min(self.real_translator.extremes[1] - value, value - self.real_translator.extremes[0])))
-            else:
-                # Stretching can't make the interval too large. So:
-                max_factor = (self.real_translator.extremes[1] - self.real_translator.extremes[0]) / (
-                            top - bottom)  # max stretching
-                max_spread = spread * self.real_translator.encode_as_int(max_factor)
-                # min_factor = (center - value) / spread
-                min_spread = abs(center - value)
-                possible_spreads = list(range(min_spread, max_spread))
-                # possible_spreads = list(range(spread * self.real_translator.encode_as_int(min_factor),
-                #                               spread * self.real_translator.encode_as_int(max_factor)))
-            if (0 in possible_spreads) and (spread != 0):
-                possible_spreads.remove(0)  # spread of 0 doesn't seem reasonable
-            if spread in possible_spreads:
-                possible_spreads.remove(spread)
-            if len(possible_spreads) == 0:
-                # no stretching possible
-                new_spread = spread
-            else:
-                # let's choose a delta:
-                new_spread = choice(possible_spreads)
+            # Stretching can't make the interval too large. So:
+            max_spread = min(center - self.real_translator.extremes[0], self.real_translator.extremes[1] - center)
+            min_spread = abs(center - value)
+            new_spread = random_in(min_spread, max_spread)
+            while new_spread == spread:  # I actually want to mutate!
+                new_spread = random_in(min_spread, max_spread)
+
+            # if spread == 0:
+            #     possible_spreads = list(
+            #         range(min(self.real_translator.extremes[1] - value, value - self.real_translator.extremes[0])))
+            # else:
+            #     # Stretching can't make the interval too large. So:
+            #     max_factor = (self.real_translator.extremes[1] - self.real_translator.extremes[0]) / (
+            #                 top - bottom)  # max stretching
+            #     max_spread = spread * self.real_translator.encode_as_int(max_factor)
+            #     # min_factor = (center - value) / spread
+            #     min_spread = abs(center - value)
+            #     possible_spreads = list(range(min_spread, max_spread))
+            #     # possible_spreads = list(range(spread * self.real_translator.encode_as_int(min_factor),
+            #     #                               spread * self.real_translator.encode_as_int(max_factor)))
+            # if (0 in possible_spreads) and (spread != 0):
+            #     possible_spreads.remove(0)  # spread of 0 doesn't seem reasonable
+            # if spread in possible_spreads:
+            #     possible_spreads.remove(spread)
+            # if len(possible_spreads) == 0:
+            #     # no stretching possible
+            #     new_spread = spread
+            # else:
+            #     # let's choose a delta:
+            #     new_spread = choice(possible_spreads)
             new_center = center
             # print("[translate.stretch] (%d,%d) -> (%d,%d)" % (center, spread, new_center, new_spread))
         return new_center, new_spread
 
     def mutate(self, situation):
-        def interval_matches_value(an_interval: Tuple[int, int], a_value: int) -> bool:
-            r = (a_value <= an_interval[0] + an_interval[1]) and (a_value >= an_interval[0] - an_interval[1])
-            # print("%d is in %d +/- %d ? => %s" % (a_value, an_interval[0], an_interval[1], r))
-            return r
-
         center_spread_list = []
         for (center, spread), value in zip(self, situation):
             if random() < 0.5:
                 new_center, new_spread = self._mutate_interval_by_translation(interval=(center, spread), value=value)
             else:
-                # let's do a shrinking\stretching of the interval
                 new_center, new_spread = self._mutate_interval_by_stretching(interval=(center, spread), value=value)
             center_spread_list.append((new_center, new_spread))
-        result = BitConditionRealEncoding(encoder=self.real_translator, center_spreads=center_spread_list, mutation_strength=0.1)  # TODO: value of mutation strenght!!!!!
-        return result
+        return BitConditionRealEncoding(
+            encoder=self.real_translator,
+            center_spreads=center_spread_list,
+            mutation_strength=self.mutation_strength)
 
     def crossover_with(self, other, points):
         """Perform 2-point crossover on this bit condition and another of
@@ -209,7 +220,7 @@ class BitString(CoreBitString):
 
     def __init__(self, encoder: EncoderDecoder, reals: List[float]):
         assert len(reals) > 0
-        self.as_encoded_reals = list(map(encoder.encode_as_int, reals))
+        self.as_reals = reals
         as_bitstring = CoreBitString('')
         for a_real in reals:
             as_bitstring += encoder.encode(a_real)
@@ -223,15 +234,15 @@ class BitString(CoreBitString):
 
     def __len__(self):
         """Overloads len(instance)"""
-        return len(self.as_encoded_reals)
+        return len(self.as_reals)
 
     def __iter__(self):
         """Overloads iter(bitstring), and also, for bit in bitstring"""
-        return iter(self.as_encoded_reals)
+        return iter(self.as_reals)
 
     def __str__(self):
         """Overloads str(bitstring)"""
-        return ','.join([str(value) for value in self])
+        return ','.join(["%.2f" % (value) for value in self])
 
     def cover(self):
         """Create a new bit condition that matches the provided bit string,

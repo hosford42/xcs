@@ -1,7 +1,7 @@
 import unittest
 import math
 
-from random import random
+from random import random, sample, choice
 from xcs.input_encoding.real.center_spread.util import EncoderDecoder
 
 
@@ -10,15 +10,21 @@ class UnitTestUtil(unittest.TestCase):
         pass
 
     def test_encoding_decoding(self):
-        encoding_bits = 4
-        enc_dec = EncoderDecoder(min_value=-10, max_value=20, encoding_bits=encoding_bits)
-        for d in [-10, -9.25, -3.25, 0, math.pi, 20]:
-            r = enc_dec.encode_as_int(d=d)
-            # print("%.2f -> %d" % (d, r))
-            self.assertTrue((r >= 0) and (r <= (math.pow(2, encoding_bits) - 1)))
-            self.assertLessEqual(r.bit_length(), encoding_bits)
-            a_bitstring = enc_dec.encode(d)
-            self.assertEqual(enc_dec.decode(a_bitstring), r)
+        for encoding_bits in [2, 4, 5, 8, 10]:
+            print("******************* [encoding bits = %d]" % (encoding_bits))
+            m = -10
+            M = 20
+            enc_dec = EncoderDecoder(min_value=m, max_value=M, encoding_bits=encoding_bits)
+            # all_ds = [m + random() * (M - m) for _ in range(10)]
+            all_ds = list(set([m, M] + [m + random() * (M - m) for _ in range(10)]))  # sample(list(range(m, M)), min(10, M - m))))
+            all_ds.sort()
+            for d in all_ds:
+                r = enc_dec.encode_as_int(d=d)
+                print("%.2f -> %d" % (d, r))
+                self.assertTrue((r >= 0) and (r <= (math.pow(2, encoding_bits) - 1)))
+                self.assertLessEqual(r.bit_length(), encoding_bits)
+                a_bitstring = enc_dec.encode(d)
+                self.assertEqual(enc_dec.decode(a_bitstring), r)
 
     def test_encoding_decoding_mutation(self):
         encoding_bits = 4

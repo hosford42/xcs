@@ -1,6 +1,6 @@
 import math
 
-from random import random, randint, choice as randomchoice
+from random import random, randint
 from typing import List
 
 from xcs.bitstrings import BitString
@@ -51,3 +51,12 @@ class EncoderDecoder(real.EncoderDecoder):
     def mutate(self, b: BitString, factor: float) -> BitString:
         """Mutates a bitstring encoded with this specific encoder, by a certain factor (in [0,1])"""
         return self.encode(self.mutate_float(self.decode(b), factor))
+
+
+def random_in(bottom: float, top: float) -> float:
+    """Returns random value in interval"""
+    if bottom == top:
+        return bottom
+    bottom = min(bottom, top)
+    top = max(bottom, top)
+    return random() * (top - bottom) + bottom

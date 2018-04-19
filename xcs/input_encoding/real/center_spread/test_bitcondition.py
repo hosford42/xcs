@@ -1,7 +1,7 @@
 __author__ = 'Luis Da Costa'
 
 import unittest
-from random import randint
+from random import randint, sample
 
 from xcs.input_encoding.real.center_spread.bitstrings import BitConditionRealEncoding, BitString
 from xcs.input_encoding.real.center_spread.util import EncoderDecoder
@@ -21,6 +21,12 @@ class TestBitCondition(unittest.TestCase):
                 for center, spread in condition.center_spreads
             ]
             self.assertTrue(all(comp_array), comp_array)
+
+    def test_contains(self):
+        for _ in range(10):
+            condition = BitConditionRealEncoding.random(self.real_translator, mutation_strength=.1, length=randint(2, 20))
+            for center_spread in condition.center_spreads:
+                self.assertTrue(center_spread in condition)
 
     def test_iter(self):
         for (center, spread) in self.condition:
@@ -47,17 +53,16 @@ class TestBitCondition(unittest.TestCase):
 
     def test_crossover(self):
         a_translator = EncoderDecoder(min_value=-255, max_value=255, encoding_bits=8)
-        cond1 = BitConditionRealEncoding(
-            encoder=a_translator,
-            center_spreads=[(3, 2), (5, 1), (13, 12), (15, 11), (23, 22), (25, 21), (33, 32), (35, 31)], mutation_strength=.1)
-        cond2 = BitConditionRealEncoding(
-            encoder=a_translator,
-            center_spreads=[(-3, -2), (-5, -1), (-13, -12), (-15, -11), (-23, -22), (-25, -21), (-33, -32), (-35, -31)], mutation_strength=.1)
-        kid1, kid2 = cond1.crossover_with(cond2, -1, 2)
-        print(kid1)
-        print(kid2)
-        self.assertEqual(len(kid1), len(kid2))
-        self.assertEqual(len(kid1), len(cond1))
+        for a_length in sample(range(4, 20), 10):
+            cond1 = BitConditionRealEncoding.random(encoder=a_translator, mutation_strength=.1, length=a_length)
+            cond2 = BitConditionRealEncoding.random(encoder=a_translator, mutation_strength=.1, length=a_length)
+            kid1, kid2 = cond1.crossover_with(cond2, 2)
+            self.assertEqual(len(kid1), len(kid2))
+            self.assertEqual(len(kid1), len(cond1))
+            for center_spread in kid1:
+                self.assertTrue((center_spread in cond1) or (center_spread in cond2))
+            for center_spread in kid2:
+                self.assertTrue((center_spread in cond1) or (center_spread in cond2))
 
     def test_mutate_interval_by_translation(self):
         for _ in range(10):
@@ -67,7 +72,7 @@ class TestBitCondition(unittest.TestCase):
                 self.assertTrue(a_condition(situation)) # just to check.
                 idx = randint(0, len(situation) - 1)
                 an_interval = a_condition.center_spreads[idx]
-                a_value = situation.as_encoded_reals[idx]
+                a_value = situation.as_reals[idx]
                 another_interval=a_condition._mutate_interval_by_translation(interval=an_interval, value=a_value)
                 self.assertLessEqual(a_value, another_interval[0] + another_interval[1])
                 self.assertGreaterEqual(a_value, another_interval[0] - another_interval[1])
@@ -76,16 +81,14 @@ class TestBitCondition(unittest.TestCase):
                 bottom, top = center - spread, center + spread
                 self.assertTrue((an_interval != another_interval) or (spread == 0) or (top - bottom == self.real_translator.extremes[1] - self.real_translator.extremes[0]))
 
-
-
     def test_mutate_interval_by_stretching(self):
         for _ in range(10):
             situation = BitString.random_from(self.real_translator, randint(2, 20))
             for _ in range(10):
                 a_condition = situation.cover()
-                self.assertTrue(a_condition(situation)) # just to check.
+                self.assertTrue(a_condition(situation))  # just to be sure
                 idx = randint(0, len(situation) - 1)
-                a_value = situation.as_encoded_reals[idx]
+                a_value = situation.as_reals[idx]
                 another_interval=a_condition._mutate_interval_by_stretching(interval=a_condition.center_spreads[idx], value=a_value)
                 self.assertLessEqual(a_value, another_interval[0] + another_interval[1])
                 self.assertGreaterEqual(a_value, another_interval[0] - another_interval[1])
@@ -93,9 +96,12 @@ class TestBitCondition(unittest.TestCase):
     def test_mutate(self):
         for _ in range(10):
             situation = BitString.random_from(self.real_translator, randint(2, 20))
+            # print("***************")
+            # print(situation)
             for _ in range(10):
                 a_condition = situation.cover()
                 self.assertTrue(a_condition(situation)) # just to check.
                 mutated_condition = a_condition.mutate(situation)
+                # print(a_condition)
+                # print(mutated_condition)
                 self.assertTrue(mutated_condition(situation))
-
