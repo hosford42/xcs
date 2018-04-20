@@ -282,7 +282,7 @@ class BitStringBase(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def cover(self):
+    def cover(self, wildcard_probability: float):
         """Returns a condition covering this situation."""
         raise NotImplementedError()
 

@@ -269,7 +269,6 @@ class BitString(BitStringBase):
 
         super().__init__(bits, hash_value)
         self._length = length
-        self.cover_wildcard_probability = 0.33  # for covering, what is the probability of putting a wildcard?
 
     def any(self):
         """Returns True iff at least one bit is set.
@@ -392,10 +391,7 @@ class BitString(BitStringBase):
             self._length + other._length
         )
 
-    def set_wildcard_probability_for_cover(self, wildcard_probability):
-        self.cover_wildcard_probability = wildcard_probability
-
-    def cover(self):
+    def cover(self, wildcard_probability: float):
         """Create a new bit condition that matches the provided bit string,
         with the indicated per-index wildcard probability.
 
@@ -418,7 +414,7 @@ class BitString(BitStringBase):
             bits = BitString(bits, len(self))
 
         mask = BitString([
-            random.random() > self.cover_wildcard_probability
+            random.random() > wildcard_probability
             for _ in range(len(bits))
         ])
 

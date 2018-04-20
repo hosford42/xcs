@@ -371,14 +371,8 @@ class XCSAlgorithm(LCSAlgorithm):
     # parameter and should be set to 0 in that case.
     idealization_factor = 0
 
-    def __init__(self, encoder: Optional[EncoderDecoder] = None):
-        """
-        Initializer.
-        :param encoder: How is information in the bitstring encoded (optionally).
-                            Useful on cases where the bitstring is encoding integers, or floats.
-        """
+    def __init__(self):
         LCSAlgorithm.__init__(self)
-        self.encoder = encoder
 
     @property
     def action_selection_strategy(self):
@@ -472,8 +466,7 @@ class XCSAlgorithm(LCSAlgorithm):
         assert match_set.model.algorithm is self
 
         # Create a new condition that matches the situation.
-        match_set.situation.set_wildcard_probability_for_cover(self.wildcard_probability)
-        condition = match_set.situation.cover()
+        condition = match_set.situation.cover(self.wildcard_probability)
 
         # Pick a random action that (preferably) isn't already suggested by
         # some other rule for this situation.
@@ -602,6 +595,8 @@ class XCSAlgorithm(LCSAlgorithm):
         # crossover operator to the parents. Otherwise, just take the
         # parents unchanged.
         if random.random() < self.crossover_probability:
+            print("Choosing to crossover from set size = %d" % (len(list(action_set))))
+            # print(action_set.model)
             condition1, condition2 = parent1.condition.crossover_with(
                 parent2.condition,
                 2
