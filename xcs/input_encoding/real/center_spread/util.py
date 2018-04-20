@@ -15,11 +15,11 @@ class EncoderDecoder(real.EncoderDecoder):
         self.extremes = (min_value, max_value)
         self.encoding_bits = encoding_bits
 
-    def random(self) -> int:
-        return randint(self.extremes[0], self.extremes[1])
+    def random(self) -> float:
+        return random() * (self.extremes[1] - self.extremes[0]) + self.extremes[0]
 
     def choice(self, length: int) -> List[float]:
-        return [random() * (self.extremes[1] - self.extremes[0]) + self.extremes[0] for _ in range(length)]
+        return [self.random() for _ in range(length)]
 
     def clip(self, d: float) -> float:
         return max(self.extremes[0], min(self.extremes[1], d))
