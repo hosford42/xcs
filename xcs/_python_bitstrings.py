@@ -66,7 +66,6 @@ __all__ = [
 
 import random
 
-
 from .bitstrings import BitStringBase
 
 
@@ -178,7 +177,7 @@ class BitString(BitStringBase):
         return cls(bits, length)
 
     @classmethod
-    def crossover_template(cls, length, points=2):
+    def crossover_template(cls, length, block_size, points):
         """Create a crossover template with the given number of points. The
         crossover template can be used as a mask to crossover two
         bitstrings of the same length.
@@ -202,7 +201,11 @@ class BitString(BitStringBase):
         assert isinstance(points, int) and points >= 0
 
         # Select the crossover points.
-        points = random.sample(range(length + 1), points)
+        if block_size <= 0:
+            points = random.sample(range(length + 1), points)
+        else:
+            points = random.sample(range(block_size, length + 1, block_size), points)
+
 
         # Prep the points for the loop.
         points.sort()
@@ -387,3 +390,33 @@ class BitString(BitStringBase):
             (self._bits << other._length) + other._bits,
             self._length + other._length
         )
+
+    def cover(self, wildcard_probability: float):
+        """Create a new bit condition that matches the provided bit string,
+        with the indicated per-index wildcard probability.
+
+        Usage:
+            condition = BitCondition.cover(bitstring, .33)
+            assert condition(bitstring)
+
+        Arguments:
+            bits: A BitString which the resulting condition must match.
+            wildcard_probability: A float in the range [0, 1] which
+            indicates the likelihood of any given bit position containing
+            a wildcard.
+        Return:
+            A randomly generated BitCondition which matches the given bits.
+        """
+        from xcs.bitstrings import BitCondition
+
+        bits = self._bits
+        if not isinstance(bits, BitString):
+            bits = BitString(bits, len(self))
+
+        mask = BitString([
+            random.random() > wildcard_probability
+            for _ in range(len(bits))
+        ])
+
+        return BitCondition(bits, mask)
+

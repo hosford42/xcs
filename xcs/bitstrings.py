@@ -82,6 +82,7 @@ __all__ = [
     # Classes
     'BitCondition',
     'BitString',
+    'BitConditionBase',
 
     # Functions
     'numpy_is_available',
@@ -159,7 +160,7 @@ class BitStringBase(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def crossover_template(cls, length, points=2):
+    def crossover_template(cls, length, block_size, points):
         """Create a crossover template with the given number of points. The
         crossover template can be used as a mask to crossover two
         bitstrings of the same length.
@@ -173,6 +174,7 @@ class BitStringBase(metaclass=ABCMeta):
 
         Arguments:
             length: An int, indicating the desired length of the result.
+            block_size: An int, indicating semantically grouped bits (that I don't want destroyed by crossover). -1 for "none".
             points: An int, the number of crossover points.
         Return:
             A BitString instance of the requested length which can be used
@@ -279,6 +281,11 @@ class BitStringBase(metaclass=ABCMeta):
         """Overloads instance1 + instance2"""
         raise NotImplementedError()
 
+    @abstractmethod
+    def cover(self, wildcard_probability: float):
+        """Returns a condition covering this situation."""
+        raise NotImplementedError()
+
 
 # There are two different implementations of BitString, one in
 # _numpy_bitstrings and one in _python_bitstrings. The numpy version is
@@ -323,6 +330,7 @@ def use_numpy():
     global BitString, _using_numpy
     from ._numpy_bitstrings import BitString
     _using_numpy = True
+    raise RuntimeError("Implementation of new functionalities in numpy is not complete")  # TODO: Luis, fix this.
 
 
 def use_pure_python():
@@ -342,7 +350,7 @@ def use_pure_python():
     _using_numpy = False
 
 
-class BitCondition:
+class BitConditionBase(metaclass=ABCMeta):
     """A pair of bit strings, one indicating the bit values, and the other
     indicating the bit mask, which together act as a matching template for
     bit strings. Like bit strings, bit conditions are hashable and
@@ -451,35 +459,27 @@ class BitCondition:
             having the same length as the sequence provided for bits.
     """
 
-    @classmethod
-    def cover(cls, bits, wildcard_probability):
-        """Create a new bit condition that matches the provided bit string,
-        with the indicated per-index wildcard probability.
+    # @classmethod
+    # @abstractmethod
+    # def cover(cls, bits, wildcard_probability):
+    #     """Create a new bit condition that matches the provided bit string,
+    #     with the indicated per-index wildcard probability.
+    #
+    #     Usage:
+    #         condition = BitCondition.cover(bitstring, .33)
+    #         assert condition(bitstring)
+    #
+    #     Arguments:
+    #         bits: A BitString which the resulting condition must match.
+    #         wildcard_probability: A float in the range [0, 1] which
+    #         indicates the likelihood of any given bit position containing
+    #         a wildcard.
+    #     Return:
+    #         A randomly generated BitCondition which matches the given bits.
+    #     """
+    #     raise NotImplementedError()
 
-        Usage:
-            condition = BitCondition.cover(bitstring, .33)
-            assert condition(bitstring)
-
-        Arguments:
-            bits: A BitString which the resulting condition must match.
-            wildcard_probability: A float in the range [0, 1] which
-            indicates the likelihood of any given bit position containing
-            a wildcard.
-        Return:
-            A randomly generated BitCondition which matches the given bits.
-        """
-
-        if not isinstance(bits, BitString):
-            bits = BitString(bits)
-
-        mask = BitString([
-            random.random() > wildcard_probability
-            for _ in range(len(bits))
-        ])
-
-        return cls(bits, mask)
-
-    def __init__(self, bits, mask=None):
+    def __init__(self, bits, mask=None, mutation_prob=.5):
         if mask is None:
             if isinstance(bits, str):
                 bit_list = []
@@ -519,6 +519,7 @@ class BitCondition:
         self._bits = bits & mask
         self._mask = mask
         self._hash = hash_value
+        self.mutation_prob = mutation_prob
 
     @property
     def bits(self):
@@ -584,8 +585,9 @@ class BitCondition:
 
     def __eq__(self, other):
         """Overloads =="""
-        if not isinstance(other, BitCondition):
-            return False
+        # if not isinstance(other, BitCondition):
+        if not type(self) == type(other):
+                return False
         return (
             len(self._bits) == len(other._bits) and
             self._bits == other._bits and
@@ -627,6 +629,101 @@ class BitCondition:
             self._mask + other._mask
         )
 
+    # def __floordiv__(self, other):
+    #     """Overloads the // operator, which we use to find the indices in
+    #     the other value that do/can disagree with this condition."""
+    #     if isinstance(other, BitCondition):
+    #         return ((self._bits ^ other._bits) | ~other._mask) & self._mask
+    #
+    #     if isinstance(other, int):
+    #         other = BitString.from_int(other, len(self._bits))
+    #     elif not isinstance(other, BitString):
+    #         other = BitString(other)
+    #
+    #     return (self._bits ^ other) & self._mask
+
+    @abstractmethod
+    def __call__(self, other):
+        """Overloads condition(bitstring). Returns a Boolean value that
+        indicates whether the other value satisfies this condition."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def mutate(self, situation):
+        """
+        Mutates the instance and returns a mutated one.
+        :param prob: probability of mutation of every individual element of this bitcondition.
+        :param situation: the mutated condition must match this situation
+        :return: Another instance, mutated.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def crossover_with(self, other, points):
+        """Perform 2-point crossover on this bit condition and another of
+        the same length, returning the two resulting children.
+
+        Usage:
+            offspring1, offspring2 = condition1.crossover_with(condition2)
+
+        Arguments:
+            other: A second BitCondition of the same length as this one.
+            points: An int, the number of crossover points of the
+                crossover operation.
+        Return:
+            A tuple (condition1, condition2) of BitConditions, where the
+            value at each position of this BitCondition and the other is
+            preserved in one or the other of the two resulting conditions.
+        """
+        raise NotImplementedError()
+
+        assert isinstance(other, BitCondition)
+        assert len(self) == len(other)
+
+        template = BitString.crossover_template(len(self), block_size, points)
+        inv_template = ~template
+
+        bits1 = (self._bits & template) | (other._bits & inv_template)
+        mask1 = (self._mask & template) | (other._mask & inv_template)
+
+        bits2 = (self._bits & inv_template) | (other._bits & template)
+        mask2 = (self._mask & inv_template) | (other._mask & template)
+
+        # Convert the modified sequences back into BitConditions
+        return type(self)(bits1, mask1), type(self)(bits2, mask2)
+
+
+class BitCondition(BitConditionBase):
+    """See Documentation of base class."""
+
+    # @classmethod
+    # def cover(cls, bits, wildcard_probability):
+    #     """Create a new bit condition that matches the provided bit string,
+    #     with the indicated per-index wildcard probability.
+    #
+    #     Usage:
+    #         condition = BitCondition.cover(bitstring, .33)
+    #         assert condition(bitstring)
+    #
+    #     Arguments:
+    #         bits: A BitString which the resulting condition must match.
+    #         wildcard_probability: A float in the range [0, 1] which
+    #         indicates the likelihood of any given bit position containing
+    #         a wildcard.
+    #     Return:
+    #         A randomly generated BitCondition which matches the given bits.
+    #     """
+    #
+    #     if not isinstance(bits, BitString):
+    #         bits = BitString(bits)
+    #
+    #     mask = BitString([
+    #         random.random() > wildcard_probability
+    #         for _ in range(len(bits))
+    #     ])
+    #
+    #     return cls(bits, mask)
+
     def __floordiv__(self, other):
         """Overloads the // operator, which we use to find the indices in
         the other value that do/can disagree with this condition."""
@@ -649,7 +746,31 @@ class BitCondition:
         mismatches = self // other
         return not mismatches.any()
 
-    def crossover_with(self, other, points=2):
+    def mutate(self, situation: BitString):
+        """Create a new condition from the given one by probabilistically
+        applying point-wise mutations. Bits that were originally wildcarded
+        in the parent condition acquire their values from the provided
+        situation, to ensure the child condition continues to match it."""
+
+        # Go through each position in the condition, randomly flipping
+        # whether the position is a value (0 or 1) or a wildcard (#). We do
+        # this in a new list because the original condition's mask is
+        # immutable.
+        mutation_points = xcs.bitstrings.BitString.random(
+            len(self.mask),
+            self.mutation_prob
+        )
+        mask = self.mask ^ mutation_points
+
+        # The bits that aren't wildcards always have the same value as the
+        # situation, which ensures that the mutated condition still matches
+        # the situation.
+        if isinstance(situation, xcs.bitstrings.BitCondition):
+            mask &= situation.mask
+            return xcs.bitstrings.BitCondition(situation.bits, mask)
+        return xcs.bitstrings.BitCondition(situation, mask)
+
+    def crossover_with(self, other, points):
         """Perform 2-point crossover on this bit condition and another of
         the same length, returning the two resulting children.
 
@@ -665,11 +786,10 @@ class BitCondition:
             value at each position of this BitCondition and the other is
             preserved in one or the other of the two resulting conditions.
         """
-
         assert isinstance(other, BitCondition)
         assert len(self) == len(other)
 
-        template = BitString.crossover_template(len(self), points)
+        template = BitString.crossover_template(len(self), block_size, points)
         inv_template = ~template
 
         bits1 = (self._bits & template) | (other._bits & inv_template)
@@ -680,3 +800,5 @@ class BitCondition:
 
         # Convert the modified sequences back into BitConditions
         return type(self)(bits1, mask1), type(self)(bits2, mask2)
+
+

@@ -163,7 +163,7 @@ class Scenario(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def execute(self, action):
+    def execute(self, action, **kwargs):
         """Execute the indicated action within the environment and
         return the resulting immediate reward dictated by the reward
         program.
@@ -531,7 +531,7 @@ class ScenarioObserver(Scenario):
 
         return situation
 
-    def execute(self, action):
+    def execute(self, action, **kwargs):
         """Execute the indicated action within the environment and
         return the resulting immediate reward dictated by the reward
         program.
@@ -541,6 +541,7 @@ class ScenarioObserver(Scenario):
 
         Arguments:
             action: The action to be executed within the current situation.
+            is_exploit: True if it comes from an exploitation cycle. False otherwise.
         Return:
             A float, the reward received for the action that was executed,
             or None if no reward is offered.
@@ -577,7 +578,7 @@ class ScenarioObserver(Scenario):
         """
         more = self.wrapped.more()
 
-        if not self.steps % 100:
+        if self.steps % 100 == 0:
             self.logger.info('Steps completed: %d', self.steps)
             self.logger.info('Average reward per step: %.5f',
                              self.total_reward / (self.steps or 1))
