@@ -20,6 +20,6 @@ class TestBitString(unittest.TestCase):
             print("\n")
             print(situation)
             for _ in range(10):
-                condition = situation.cover()
+                condition = situation.cover(wildcard_probability=.33)
                 print(condition)
                 self.assertTrue(condition(situation))

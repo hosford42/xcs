@@ -1,7 +1,7 @@
 __author__ = 'Luis Da Costa'
 
 import unittest
-from random import randint, sample
+from random import random, randint, sample
 
 from xcs.input_encoding.real.center_spread.bitstrings import BitConditionRealEncoding, BitString
 from xcs.input_encoding.real.center_spread.util import EncoderDecoder, random_in
@@ -74,7 +74,7 @@ class TestBitCondition(unittest.TestCase):
         for _ in range(10):
             situation = BitString.random_from(self.real_translator, randint(2, 20))
             for _ in range(10):
-                a_condition = situation.cover()
+                a_condition = situation.cover(.33)
                 self.assertTrue(a_condition(situation)) # just to check.
                 idx = randint(0, len(situation) - 1)
                 an_interval = a_condition.center_spreads[idx]
@@ -94,7 +94,7 @@ class TestBitCondition(unittest.TestCase):
         for _ in range(10):
             situation = BitString.random_from(self.real_translator, randint(2, 20))
             for _ in range(10):
-                a_condition = situation.cover()
+                a_condition = situation.cover(.33)
                 self.assertTrue(a_condition(situation))  # just to be sure
                 idx = randint(0, len(situation) - 1)
                 a_value = situation.as_reals[idx]
@@ -110,9 +110,31 @@ class TestBitCondition(unittest.TestCase):
             # print("***************")
             # print(situation)
             for _ in range(10):
-                a_condition = situation.cover()
+                a_condition = situation.cover(.33)
                 self.assertTrue(a_condition(situation)) # just to check.
                 mutated_condition = a_condition.mutate(situation)
                 # print(a_condition)
                 # print(mutated_condition)
                 self.assertTrue(mutated_condition(situation))
+
+    @unittest.skip("On original paper they don't clip. Let's try.")
+    def test_clip(self):
+        encoder = EncoderDecoder(min_value=0, max_value=1, encoding_bits=4)
+        for _ in range(1000):
+            center = random()
+            spread = random()
+            nc, ns = BitConditionRealEncoding.clip_center_spread_class(encoder, (center, spread))
+            if center - spread >= encoder.extremes[0]:
+                if center + spread <= encoder.extremes[1]:
+                    self.assertEqual(center, nc)
+                    self.assertEqual(spread, ns)
+                else:
+                    self.assertEqual(ns, encoder.extremes[1] - nc)
+            else:
+                if center + spread <= encoder.extremes[1]:
+                    self.assertEqual(ns, nc - encoder.extremes[0])
+                else:
+                    self.assertEqual(ns, min(encoder.extremes[1] - nc, nc - encoder.extremes[0]))
+
+            self.assertEqual(center, nc)
+            self.assertTrue(nc - ns >= encoder.extremes[0]) and (nc + ns <= encoder.extremes[1])

@@ -33,7 +33,7 @@ class EncoderDecoder(real.EncoderDecoder):
                 (self.extremes[1] - self.extremes[0])))
 
     def encode(self, d: float) -> BitString:
-        assert (d >= self.extremes[0]) and (d <= self.extremes[1])
+        assert (d >= self.extremes[0]) and (d <= self.extremes[1]), "Can't encode %.2f because interval is [%.2f,%.2f]" % (d, self.extremes[0], self.extremes[1])
         as_bitstring = ('{0:0%db}' % self.encoding_bits).format(self.encode_as_int(d))
         return BitString(as_bitstring)
 

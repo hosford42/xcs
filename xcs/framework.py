@@ -70,14 +70,16 @@ class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
         # With probability epsilon, select an action uniformly from all the
         # actions in the match set.
         if random.random() < self.epsilon:
-            return random.choice(list(match_set))
+            exploitation = False
+            return exploitation, random.choice(list(match_set))
 
+        exploitation = True
         # Otherwise, return (one of) the best action(s)
         best_actions = match_set.best_actions
         if len(best_actions) == 1:
-            return best_actions[0]
+            return exploitation, best_actions[0]
         else:
-            return random.choice(best_actions)
+            return exploitation, random.choice(best_actions)
 
 
 class ClassifierRule(metaclass=ABCMeta):
@@ -650,8 +652,8 @@ class MatchSet:
         if self._selected_action is not None:
             raise ValueError("The action has already been selected.")
         strategy = self._algorithm.action_selection_strategy
-        self._selected_action = strategy(self)
-        return self._selected_action
+        is_exploitation, self._selected_action = strategy(self)
+        return is_exploitation, self._selected_action
 
     def _get_selected_action(self):
         """Getter method for the selected_action property."""
@@ -1100,11 +1102,11 @@ class ClassifierSet:
 
             # Select the best action for the current situation (or a random
             # one, if we are on an exploration step).
-            match_set.select_action()
+            is_exploit, selected_action = match_set.select_action()
 
             # Perform the selected action
             # and find out what the received reward was.
-            reward = scenario.execute(match_set.selected_action)
+            reward = scenario.execute(match_set.selected_action, is_exploit=is_exploit)
 
             # If the scenario is dynamic, don't immediately apply the
             # reward; instead, wait until the next iteration and factor in

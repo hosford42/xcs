@@ -22,10 +22,8 @@ class BitConditionRealEncoding(BitConditionBase):
         assert (mutation_prob >= 0) and (mutation_prob <= 1)
         self.real_translator = encoder
         self.mutation_strength = mutation_strength
-        print("bla")
-        clipped_center_spreads = list(map(self.clip_center_spread, center_spreads))
-        print("bli")
-        assert clipped_center_spreads == center_spreads, "Center-spreads do not respect conditions"
+        # clipped_center_spreads = list(map(self.clip_center_spread, center_spreads))
+        # assert clipped_center_spreads == center_spreads, "Center-spreads do not respect conditions"
         BitConditionBase.__init__(self, bits=self._encode(center_spreads), mask=None, mutation_prob=mutation_prob)
         self.center_spreads = center_spreads
 
@@ -41,7 +39,8 @@ class BitConditionRealEncoding(BitConditionBase):
         assert all([(center <= encoder.extremes[1]) and (center >= encoder.extremes[0]) for center in center_list])
         center_spread_list = []
         for center in center_list:
-            spread = random() * min(center - encoder.extremes[0], encoder.extremes[1] - center)
+            spread = random() * (encoder.extremes[1] - encoder.extremes[0])
+            # spread = random() * min(center - encoder.extremes[0], encoder.extremes[1] - center) # TODO: stop clipping because in original paper they didn't. That OK??
             center_spread_list.append((center, spread))
         return cls(encoder=encoder, center_spreads=center_spread_list, mutation_strength=mutation_strength, mutation_prob=mutation_prob)
 
@@ -50,7 +49,8 @@ class BitConditionRealEncoding(BitConditionBase):
         """Clips an interval in a way that it represents a valid range of values."""
         center, spread = center_spread
         center = encoder.clip(center)
-        spread = min(spread, min(center - encoder.extremes[0], encoder.extremes[1] - center))
+        spread = encoder.clip(spread)
+        # spread = min(spread, min(center - encoder.extremes[0], encoder.extremes[1] - center)) # TODO: stop clipping because in original paper they didn't. That OK??
         return center, spread
 
     def clip_center_spread(self, center_spread: Tuple[float, float]) -> Tuple[float, float]:
@@ -111,7 +111,7 @@ class BitConditionRealEncoding(BitConditionBase):
         center, spread = interval
         bottom, top = center - spread, center + spread  # interval is [bottom, top]
         # let's do a translate
-        if spread == 0:
+        if (spread == 0) or ((top - bottom) == (self.real_translator.extremes[1] - self.real_translator.extremes[0])):
             # there is nothing else to do:
             new_center, new_spread = center, spread
         else:
@@ -143,13 +143,16 @@ class BitConditionRealEncoding(BitConditionBase):
             new_center = center
         return new_center, new_spread
 
-    def mutate(self, situation):
+    def mutate_intervals(self, situation):
         center_spread_list = []
         for (center, spread), value in zip(self, situation):
             if random() <= self.mutation_prob:
-                if random() < 0.5:
+                do_translation = random() < 0.5
+                do_stretching = not do_translation
+                if do_translation:
                     new_center, new_spread = self._mutate_interval_by_translation(interval=(center, spread), value=value)
-                else:
+                    do_stretching = (new_center, new_spread) == (center, spread)
+                if do_stretching:
                     new_center, new_spread = self._mutate_interval_by_stretching(interval=(center, spread), value=value)
             else:
                 new_center, new_spread = center, spread
@@ -158,6 +161,30 @@ class BitConditionRealEncoding(BitConditionBase):
             encoder=self.real_translator,
             center_spreads=center_spread_list,
             mutation_strength=self.mutation_strength, mutation_prob=self.mutation_prob)
+
+    def mutate(self, situation):
+        def get_mutation_value(m: float) -> float:
+            return (-1 if random() < 0.5 else 1) * \
+                   random_in(0, m) * (self.real_translator.extremes[1] - self.real_translator.extremes[0])
+
+        m = 0.1
+        center_spread_list = []
+        for (center, spread), value in zip(self, situation):
+            if random() <= 1: # 0.009: # self.mutation_prob:
+                unclipped_center = self.real_translator.clip(center + get_mutation_value(m))
+            else:
+                unclipped_center = center
+            if random() <= 1: # 0.009: # self.mutation_prob:
+                unclipped_spread = self.real_translator.clip(spread + get_mutation_value(m))
+            else:
+                unclipped_spread = spread
+            new_center, new_spread = self.clip_center_spread((unclipped_center, unclipped_spread))
+            center_spread_list.append((new_center, new_spread))
+        return BitConditionRealEncoding(
+            encoder=self.real_translator,
+            center_spreads=center_spread_list,
+            mutation_strength=self.mutation_strength, mutation_prob=self.mutation_prob)
+
 
     def crossover_with(self, other, points):
         """Perform 2-point crossover on this bit condition and another of
@@ -183,21 +210,36 @@ class BitConditionRealEncoding(BitConditionBase):
         # print(other)
         if self == other:
             # nothing to do
-            print(" CROSSOVER =====> ARE THE SAME????????????????????????")  # TODO: take this out.
+            # print(" CROSSOVER =====> ARE THE SAME????????????????????????")  # TODO: take this out.
             return self, other
         else:
-            print(" CROSSOVER =====> not the same")
+            # print(" CROSSOVER =====> not the same")
             pts = [-1] + sample(range(len(self) - 2), points) + [len(self) - 1]
             pts.sort()
             pts = list(map(lambda x: x + 1, pts))
             genome_1, genome_2 = self, other
             result = ([], [])
+            result_alt = ([], [])
             for begin, end in zip(pts[:-1], pts[1:]):
                 result = (result[0] + genome_1.center_spreads[begin: end], result[1] + genome_2.center_spreads[begin: end])
+                strip_1 = genome_1.center_spreads[begin: end]
+                strip_2 = genome_2.center_spreads[begin: end]
+                if random() < 0.5:
+                    orig_strip_1 = strip_1
+                    orig_strip_2 = strip_2
+                    # swap last allele
+                    last_gene_1 = (strip_1[-1][0], strip_2[-1][1])
+                    last_gene_2 = (strip_2[-1][0], strip_1[-1][1])
+                    strip_1 = strip_1[:-1] + [last_gene_1]
+                    strip_2 = strip_2[:-1] + [last_gene_2]
+                result_alt = (result_alt[0] + strip_1, result_alt[1] + strip_2)
                 genome_1, genome_2 = (self, other) if genome_1 == other else (other, self)
+            # return \
+            #     BitConditionRealEncoding(self.real_translator, result[0], self.mutation_strength, mutation_prob=self.mutation_prob), \
+            #     BitConditionRealEncoding(self.real_translator, result[1], self.mutation_strength, mutation_prob=self.mutation_prob)
             return \
-                BitConditionRealEncoding(self.real_translator, result[0], self.mutation_strength, mutation_prob=self.mutation_prob), \
-                BitConditionRealEncoding(self.real_translator, result[1], self.mutation_strength, mutation_prob=self.mutation_prob)
+                BitConditionRealEncoding(self.real_translator, result_alt[0], self.mutation_strength, mutation_prob=self.mutation_prob), \
+                BitConditionRealEncoding(self.real_translator, result_alt[1], self.mutation_strength, mutation_prob=self.mutation_prob)
 
 
 class BitString(CoreBitString):
@@ -223,6 +265,12 @@ class BitString(CoreBitString):
     def __iter__(self):
         """Overloads iter(bitstring), and also, for bit in bitstring"""
         return iter(self.as_reals)
+
+    def __getitem__(self, index):
+        """Overloads bitstring[index]"""
+        if isinstance(index, slice):
+            return BitString(encoder=self.real_translator, reals=self.as_reals[index])
+        return self.as_reals[index]
 
     def __str__(self):
         """Overloads str(bitstring)"""
@@ -251,6 +299,7 @@ class BitString(CoreBitString):
             mutation_strength=0.1,
             mutation_prob=.2
         )  # TODO: value of mutation strenght!!!!! AND mutation prob!!!!!
+        # convert which inputs to 'match-all'?
         half_length = (self.real_translator.extremes[1] - self.real_translator.extremes[0]) / 2
         center_spreads = [
             (center, spread) if random() > wildcard_probability else (half_length, half_length)
