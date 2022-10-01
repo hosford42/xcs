@@ -75,7 +75,7 @@ setup(
     ],
 
     keywords='xcs accuracy classifier lcs reinforcement machine learning',
-    packages=['xcs'],
+    packages=['xcs', 'xcs.algorithms'],
     # install_requires=['numpy'],  # No longer required
 
     test_suite="tests",
