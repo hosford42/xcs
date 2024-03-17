@@ -1,6 +1,5 @@
 import random
 
-
 from .. import bitstrings
 from ..framework import ClassifierRule, LCSAlgorithm, EpsilonGreedySelectionStrategy, MatchSet, ClassifierSet
 
@@ -90,22 +89,23 @@ class XCSClassifierRule(ClassifierRule):
             )
         )
 
+    _attribute_order = (
+        'numerosity',
+        'fitness',
+        'experience',
+        'error',
+        'average_reward',
+        'action_set_size',
+        'time_stamp'
+    )
+
     def __lt__(self, other):
         """Defining this sets the behavior for instance1 < instance2. This
         is here strictly for sorting purposes in calls to
         ClassifierSet.__str__."""
         if not isinstance(other, XCSClassifierRule):
             return NotImplemented
-        attribute_order = (
-            'numerosity',
-            'fitness',
-            'experience',
-            'error',
-            'average_reward',
-            'action_set_size',
-            'time_stamp'
-        )
-        for attribute in attribute_order:
+        for attribute in self._attribute_order:
             my_key = getattr(self, attribute)
             other_key = getattr(other, attribute)
             if my_key < other_key:
@@ -869,3 +869,84 @@ class XCSAlgorithm(LCSAlgorithm):
             mask &= situation.mask
             return bitstrings.BitCondition(situation.bits, mask)
         return bitstrings.BitCondition(situation, mask)
+
+    def decompile_model(self, model):
+        assert isinstance(model, ClassifierSet)
+        assert model.algorithm is self
+        config = dict(possible_actions=list(model.possible_actions))
+        rules = []
+        bit_count = None
+        for rule in model:
+            if bit_count is None:
+                bit_count = len(rule.condition)
+            else:
+                assert bit_count == len(rule.condition)
+            meta_data = {}
+            for name in dir(rule):
+                if name.startswith('_') or name == 'action':
+                    continue
+                value = getattr(rule, name)
+                if value is None or isinstance(value, (bool, int, float, str)):
+                    assert name not in meta_data
+                    meta_data[name] = value
+            condition = []
+            for index, max_bit in enumerate(rule.condition.mask):
+                if max_bit:
+                    value_bit = rule.condition.bits[index]
+                    condition.append(dict(index=index, value=value_bit))
+            rules.append(dict(meta_data=meta_data, condition=condition, action=rule.action, time_stamp=rule.time_stamp))
+        config['bit_count'] = bit_count
+        for name in dir(model.algorithm):
+            if name.startswith('_'):
+                continue
+            value = getattr(model.algorithm, name)
+            if value is None or isinstance(value, (bool, int, float, str)):
+                assert name not in config
+                config[name] = value
+        return dict(config=config, rules=rules, time_stamp=model.time_stamp)
+
+    @classmethod
+    def compile_model(cls, data):
+        config = data['config']
+        algorithm = cls()
+        for name in dir(algorithm):
+            if not name.startswith('_') and name in config:
+                assert not callable(getattr(algorithm, name))
+                assert not callable(config[name])
+                setattr(algorithm, name, config[name])
+        bit_count = int(data['config']['bit_count'])
+        possible_actions = frozenset(data['config']['possible_actions'])
+        model = ClassifierSet(
+            algorithm,
+            possible_actions
+        )
+        model.time_stamp = data['time_stamp']
+        for rule_data in data['rules']:
+            bits = [0] * bit_count
+            mask = [0] * bit_count
+            for item in rule_data['condition']:
+                index = item['index']
+                assert 0 <= index < bit_count, (index, bit_count)
+                bit = item['value']
+                assert bit in (0, 1)
+                bits[index] = bit
+                mask[index] = 1
+            condition = bitstrings.BitCondition(bits, mask)
+            action = rule_data['action']
+            time_stamp = rule_data['time_stamp']
+            rule = XCSClassifierRule(
+                condition,
+                action,
+                algorithm,
+                time_stamp
+            )
+            for name, value in rule_data['meta_data'].items():
+                if not name.startswith('_') and hasattr(rule, name):
+                    assert not callable(value)
+                    assert not callable(getattr(rule, name))
+                    try:
+                        setattr(rule, name, value)
+                    except AttributeError:
+                        pass
+            model.add(rule)
+        return model

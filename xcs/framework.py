@@ -345,6 +345,15 @@ class LCSAlgorithm(metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def decompile_model(self, model):
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def compile_model(cls, data):
+        raise NotImplementedError()
+
 
 class ActionSet:
     """A set of rules (classifiers) drawn from the same classifier set, all
@@ -823,6 +832,13 @@ class ClassifierSet:
         was initialized."""
         return self._time_stamp
 
+    @time_stamp.setter
+    def time_stamp(self, value):
+        assert not self._time_stamp, "Attempted to set timestamp after model has already been initialized"
+        assert value >= 0
+        assert isinstance(value, int)
+        self._time_stamp = value
+
     def __iter__(self):
         """Defining this determines the behavior of instances of this class
         with respect to iteration constructs such as "iter(instance)" and
@@ -1138,3 +1154,6 @@ class ClassifierSet:
         # expected.
         if learn and previous_match_set is not None:
             previous_match_set.apply_payoff()
+
+    def decompile(self):
+        return self.algorithm.decompile_model(self)

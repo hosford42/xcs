@@ -47,7 +47,7 @@ also produces a minimal set of rules for describing that mapping. This
 is a big advantage over other learning algorithms such as `neural
 networks <http://en.wikipedia.org/wiki/Artificial_neural_network>`__
 whose models are largely opaque to human analysis, making XCS an
-important tool in any data scientist's tool belt.
+important tool in any data scientist’s tool belt.
 
 The XCS library provides not only an implementation of the standard XCS
 algorithm, but a set of interfaces which together constitute a framework
@@ -59,11 +59,11 @@ reinforcement learning algorithms in general.
 Related Projects
 ----------------
 
--  Pier Luca Lanzi's `XCS Library
+-  Pier Luca Lanzi’s `XCS Library
    (xcslib) <http://xcslib.sourceforge.net/>`__ (C++)
--  Ryan J. Urbanowicz's `LCS Implementations for SNP
+-  Ryan J. Urbanowicz’s `LCS Implementations for SNP
    Environment <http://gbml.org/2010/03/24/python-lcs-implementations-xcs-ucs-mcs-for-snp-environment/>`__
    and `ExSTraCS <http://www.sourceforge.net/projects/exstracs/>`__
    (Python)
--  Martin Butz's `JavaXCSF <http://www.cm.inf.uni-tuebingen.de/Code>`__
+-  Martin Butz’s `JavaXCSF <http://www.cm.inf.uni-tuebingen.de/Code>`__
    (Java)

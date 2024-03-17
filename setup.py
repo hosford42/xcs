@@ -41,7 +41,7 @@ License <https://github.com/hosford42/xcs/blob/master/LICENSE>`__.
 if path.isfile(path.join(here, 'README.rst')):
     with open(path.join(here, 'README.rst'),
               encoding='utf-8',
-              mode='rU') as description_file:
+              mode='r') as description_file:
         long_description = description_file.read()
 
 # See https://pythonhosted.org/setuptools/setuptools.html for a full list
