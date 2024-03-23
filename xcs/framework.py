@@ -1,11 +1,12 @@
 import random
 from abc import ABCMeta, abstractmethod
-
+from typing import Any
 
 from . import scenarios
+from .configurable import Configurable
 
 
-class ActionSelectionStrategy(metaclass=ABCMeta):
+class ActionSelectionStrategy(Configurable, metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for action
     selection strategies. The action selection strategy is responsible for
     governing the trade-off between exploration (acquiring new experience)
@@ -33,7 +34,7 @@ class ActionSelectionStrategy(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
+class EpsilonGreedySelectionStrategy(ActionSelectionStrategy, Configurable):
     """The epsilon-greedy action selection strategy. With probability
     epsilon, an action is chosen uniformly from all possible actions
     regardless of predicted payoff. The rest of the time, the action with
@@ -80,7 +81,7 @@ class EpsilonGreedySelectionStrategy(ActionSelectionStrategy):
             return random.choice(best_actions)
 
 
-class ClassifierRule(metaclass=ABCMeta):
+class ClassifierRule(Configurable, metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for classifier
     rules appearing in classifier sets. A classifier rule consists of a
     condition and an action taken as a pair, together with associated
@@ -148,7 +149,7 @@ class ClassifierRule(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class LCSAlgorithm(metaclass=ABCMeta):
+class LCSAlgorithm(Configurable, metaclass=ABCMeta):
     """Abstract base class defining the minimal interface for LCS
     algorithms. To create a new algorithm that can be used to initialize a
     ClassifierSet, inherit from this class and implement each of the
@@ -162,6 +163,30 @@ class LCSAlgorithm(metaclass=ABCMeta):
 
     Init Arguments: n/a (See appropriate subclass.)
     """
+
+    def build_model(self, config: dict[str, Any]) -> 'ClassifierSet':
+        possible_actions = frozenset(config['possible_actions'])
+        model = ClassifierSet(self, possible_actions)
+        model.configure(config)
+        return model
+
+    def get_model_config(self, model: 'ClassifierSet') -> dict[str, Any]:
+        return model.get_configuration()
+
+    # def get_model_config(self, model: 'ClassifierSet') -> dict[str, Any]:
+    #     return dict(
+    #         algorithm=self.get_configuration(),
+    #         possible_actions=list(model.possible_actions),
+    #         rules=[self.get_rule_config(rule) for rule in model]
+    #     )
+
+    @abstractmethod
+    def build_rule(self, config: dict[str, Any]) -> 'ClassifierRule':
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_rule_config(self, rule: 'ClassifierRule') -> dict[str, Any]:
+        raise NotImplementedError()
 
     def new_model(self, scenario):
         """Create and return a new classifier set initialized for handling
@@ -343,15 +368,6 @@ class LCSAlgorithm(metaclass=ABCMeta):
             removed entirely from the classifier set because their
             numerosities dropped to 0.
         """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def decompile_model(self, model):
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
-    def compile_model(cls, data):
         raise NotImplementedError()
 
 
@@ -776,7 +792,7 @@ class MatchSet:
         return self._closed
 
 
-class ClassifierSet:
+class ClassifierSet(Configurable):
     """A set of classifier rules which work together to collectively
     classify inputs provided to the classifier set. The classifier set
     represents the accumulated experience of the LCS algorithm with respect
@@ -800,6 +816,25 @@ class ClassifierSet:
             may be suggested by classifier rules later appearing in this
             classifier set.
     """
+
+    @classmethod
+    def build(cls, config: dict[str, Any]) -> 'ClassifierSet':
+        algorithm = LCSAlgorithm.build(config['algorithm'])
+        return algorithm.build_model(config)
+
+    def get_configuration(self) -> dict[str, Any]:
+        config = super().get_configuration()
+        config['possible_actions'] = list(self.possible_actions)
+        config['rules'] = [self.algorithm.get_rule_config(rule) for rule in self]
+        return config
+
+    def configure(self, config: dict[str, Any]) -> None:
+        assert len(self) == 0
+        assert self.possible_actions == frozenset(config['possible_actions'])
+        super().configure(config)
+        for rule_config in config['rules']:
+            rule = self.algorithm.build_rule(rule_config)
+            self.add(rule)
 
     def __init__(self, algorithm, possible_actions):
         assert isinstance(algorithm, LCSAlgorithm)
@@ -1154,6 +1189,3 @@ class ClassifierSet:
         # expected.
         if learn and previous_match_set is not None:
             previous_match_set.apply_payoff()
-
-    def decompile(self):
-        return self.algorithm.decompile_model(self)

@@ -4,10 +4,56 @@ import logging
 import unittest
 
 import xcs
+from xcs.configurable import Configurable
 from xcs.scenarios import MUXProblem, HaystackProblem
 
 
 class TestXCS(unittest.TestCase):
+
+    def test_algorithm_configuration(self):
+        algorithm = xcs.XCSAlgorithm()
+        algorithm.exploration_probability = .1
+        algorithm.discount_factor = 0
+        algorithm.do_ga_subsumption = True
+        algorithm.do_action_set_subsumption = True
+
+        algorithm_copy = Configurable.build(algorithm.get_configuration())
+        assert type(algorithm_copy) is type(algorithm)
+        for property_name in dir(algorithm):
+            if property_name.startswith('_'):
+                continue
+            value = getattr(algorithm, property_name)
+            if callable(value):
+                continue
+            copy_value = getattr(algorithm_copy, property_name)
+            assert value == copy_value, property_name
+
+    def test_model_configuration(self):
+        algorithm = xcs.XCSAlgorithm()
+        algorithm.exploration_probability = .1
+        algorithm.discount_factor = 0
+        algorithm.do_ga_subsumption = True
+        algorithm.do_action_set_subsumption = True
+
+        scenario = MUXProblem(training_cycles=100, address_size=3)
+        model = algorithm.new_model(scenario)
+        model.run(scenario)
+
+        model_copy = Configurable.build(model.get_configuration())
+        assert isinstance(model_copy, xcs.ClassifierSet)
+        assert type(model_copy) is type(model)
+        assert type(model_copy.algorithm) is type(model.algorithm)
+        for property_name in dir(model):
+            if property_name.startswith('_'):
+                continue
+            value = getattr(model, property_name)
+            if callable(value):
+                continue
+            copy_value = getattr(model_copy, property_name)
+            if isinstance(value, Configurable):
+                assert value.get_configuration() == copy_value.get_configuration(), property_name
+            else:
+                assert value == copy_value, property_name
 
     def test_against_MUX(self):
         scenario = MUXProblem(training_cycles=10000, address_size=3)

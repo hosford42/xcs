@@ -1,6 +1,8 @@
 import random
+from typing import Any
 
 from .. import bitstrings
+from ..configurable import is_simple_literal
 from ..framework import ClassifierRule, LCSAlgorithm, EpsilonGreedySelectionStrategy, MatchSet, ClassifierSet
 
 
@@ -369,6 +371,20 @@ class XCSAlgorithm(LCSAlgorithm):
     # for the next match set. For canonical XCS, this is not an available
     # parameter and should be set to 0 in that case.
     idealization_factor = 0
+
+    def build_rule(self, config: dict[str, Any]) -> 'XCSClassifierRule':
+        condition = bitstrings.BitCondition(config['condition'])
+        action = config['action']
+        time_stamp = config['time_stamp']
+        rule = XCSClassifierRule(condition, action, self, time_stamp)
+        rule.configure(config)
+        return rule
+
+    def get_rule_config(self, rule: 'XCSClassifierRule') -> dict[str, Any]:
+        # TODO: Make condition a configurable prototype instead of hard coding it to a BitCondition
+        config = dict(condition=str(rule.condition))
+        config.update(rule.get_configuration())
+        return config
 
     @property
     def action_selection_strategy(self):
@@ -870,83 +886,49 @@ class XCSAlgorithm(LCSAlgorithm):
             return bitstrings.BitCondition(situation.bits, mask)
         return bitstrings.BitCondition(situation, mask)
 
-    def decompile_model(self, model):
-        assert isinstance(model, ClassifierSet)
-        assert model.algorithm is self
-        config = dict(possible_actions=list(model.possible_actions))
-        rules = []
-        bit_count = None
-        for rule in model:
-            if bit_count is None:
-                bit_count = len(rule.condition)
-            else:
-                assert bit_count == len(rule.condition)
-            meta_data = {}
-            for name in dir(rule):
-                if name.startswith('_') or name == 'action':
-                    continue
-                value = getattr(rule, name)
-                if value is None or isinstance(value, (bool, int, float, str)):
-                    assert name not in meta_data
-                    meta_data[name] = value
-            condition = []
-            for index, max_bit in enumerate(rule.condition.mask):
-                if max_bit:
-                    value_bit = rule.condition.bits[index]
-                    condition.append(dict(index=index, value=value_bit))
-            rules.append(dict(meta_data=meta_data, condition=condition, action=rule.action, time_stamp=rule.time_stamp))
-        config['bit_count'] = bit_count
-        for name in dir(model.algorithm):
-            if name.startswith('_'):
-                continue
-            value = getattr(model.algorithm, name)
-            if value is None or isinstance(value, (bool, int, float, str)):
-                assert name not in config
-                config[name] = value
-        return dict(config=config, rules=rules, time_stamp=model.time_stamp)
+    # def get_model_config(self, model):
+    #     assert isinstance(model, ClassifierSet)
+    #     assert model.algorithm is self
+    #     config = dict(possible_actions=list(model.possible_actions))
+    #     rules = []
+    #     bit_count = None
+    #     for rule in model:
+    #         if bit_count is None:
+    #             bit_count = len(rule.condition)
+    #         else:
+    #             assert bit_count == len(rule.condition)
+    #         meta_data = {}
+    #         for name in dir(rule):
+    #             if name.startswith('_') or name == 'action':
+    #                 continue
+    #             value = getattr(rule, name)
+    #             if value is None or isinstance(value, (bool, int, float, str)):
+    #                 assert name not in meta_data
+    #                 meta_data[name] = value
+    #         condition = []
+    #         for index, max_bit in enumerate(rule.condition.mask):
+    #             if max_bit:
+    #                 value_bit = rule.condition.bits[index]
+    #                 condition.append(dict(index=index, value=value_bit))
+    #         rules.append(dict(meta_data=meta_data, condition=condition, action=rule.action, time_stamp=rule.time_stamp))
+    #     config['bit_count'] = bit_count
+    #     for name in dir(model.algorithm):
+    #         if name.startswith('_'):
+    #             continue
+    #         value = getattr(model.algorithm, name)
+    #         if value is None or isinstance(value, (bool, int, float, str)):
+    #             assert name not in config
+    #             config[name] = value
+    #     config.update(rules=rules, time_stamp=model.time_stamp)
+    #     return config
 
-    @classmethod
-    def compile_model(cls, data):
-        config = data['config']
-        algorithm = cls()
-        for name in dir(algorithm):
-            if not name.startswith('_') and name in config:
-                assert not callable(getattr(algorithm, name))
-                assert not callable(config[name])
-                setattr(algorithm, name, config[name])
-        bit_count = int(data['config']['bit_count'])
-        possible_actions = frozenset(data['config']['possible_actions'])
-        model = ClassifierSet(
-            algorithm,
-            possible_actions
-        )
-        model.time_stamp = data['time_stamp']
-        for rule_data in data['rules']:
-            bits = [0] * bit_count
-            mask = [0] * bit_count
-            for item in rule_data['condition']:
-                index = item['index']
-                assert 0 <= index < bit_count, (index, bit_count)
-                bit = item['value']
-                assert bit in (0, 1)
-                bits[index] = bit
-                mask[index] = 1
-            condition = bitstrings.BitCondition(bits, mask)
-            action = rule_data['action']
-            time_stamp = rule_data['time_stamp']
-            rule = XCSClassifierRule(
-                condition,
-                action,
-                algorithm,
-                time_stamp
-            )
-            for name, value in rule_data['meta_data'].items():
-                if not name.startswith('_') and hasattr(rule, name):
-                    assert not callable(value)
-                    assert not callable(getattr(rule, name))
-                    try:
-                        setattr(rule, name, value)
-                    except AttributeError:
-                        pass
-            model.add(rule)
-        return model
+    # def build_model(self, config):
+    #     super().build_model(config)
+    #     model = ClassifierSet.build(config)
+    #     assert isinstance(model, ClassifierSet)
+    #     assert isinstance(model.algorithm, cls)
+    #     model.time_stamp = config['time_stamp']
+    #     for rule_config in config['rules']:
+    #         rule = algorithm.build_rule(rule_config)
+    #         model.add(rule)
+    #     return model
