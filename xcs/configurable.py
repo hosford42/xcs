@@ -16,6 +16,8 @@ def get_type(module_name: str, class_name: str) -> type:
 
 class Configurable:
 
+    # TODO: Automatically handle subclasses that are also dataclasses.
+
     @classmethod
     def build(cls, config: dict[str, Any]) -> 'Configurable':
         subclass = get_type(config['__module__'], config['__class__'])
@@ -36,6 +38,9 @@ class Configurable:
                 config[property_name] = property_value
             elif isinstance(property_value, Configurable):
                 config[property_name] = property_value.get_configuration()
+            elif isinstance(property_value, type):
+                config[property_name] = dict(__module__=type.__module__, __class__=type.__name__,
+                                             module=property_value.__module__, name=property_value.__name__)
         return config
 
     def configure(self, config: dict[str, Any]) -> None:
@@ -49,6 +54,16 @@ class Configurable:
             if isinstance(property_default, Configurable):
                 property_default.configure(property_override)
             elif is_simple_literal(property_default) and is_simple_literal(property_override):
+                try:
+                    setattr(self, property_name, property_override)
+                except AttributeError:
+                    pass
+            elif (isinstance(property_default, type) and
+                  isinstance(property_override, dict) and
+                  property_override.keys() == {'__module__', '__class__', 'module', 'name'}):
+                module = property_override['module']
+                name = property_override['name']
+                property_override = get_type(module, name)
                 try:
                     setattr(self, property_name, property_override)
                 except AttributeError:
