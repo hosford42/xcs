@@ -16,6 +16,8 @@ def get_type(module_name: str, class_name: str) -> type:
 
 
 def python_type_from_config(config: dict[str, Any]) -> type:
+    if isinstance(config, type):
+        return config
     assert config['__module__'] == type.__module__
     assert config['__class__'] == type.__name__
     return get_type(config['module'], config['name'])
